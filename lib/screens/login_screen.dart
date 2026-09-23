@@ -13,17 +13,10 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final TextEditingController _serverController;
   final _tenantController = TextEditingController(text: 'SHARMA_SHOP');
   final _userController = TextEditingController(text: 'admin');
   final _passwordController = TextEditingController(text: 'admin123');
   String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    _serverController = TextEditingController(text: ApiConfig.baseUrl);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,49 +50,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                   ],
-                  TextField(
-                    controller: _serverController,
-                    decoration: const InputDecoration(
-                      labelText: "Server API URL",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.wifi_tethering),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        ActionChip(
-                          avatar: const Icon(Icons.cloud_done, size: 14, color: Colors.white),
-                          backgroundColor: const Color(0xFF2563EB),
-                          label: const Text('Cloud (Render)', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-                          onPressed: () => setState(() => _serverController.text = 'https://villageshop-api.onrender.com/api'),
-                        ),
-                        const SizedBox(width: 6),
-                        ActionChip(
-                          label: const Text('Wi-Fi (0.208)', style: TextStyle(fontSize: 11)),
-                          onPressed: () => setState(() => _serverController.text = 'http://192.168.0.208:5000/api'),
-                        ),
-                        const SizedBox(width: 6),
-                        ActionChip(
-                          label: const Text('Hotspot (137.1)', style: TextStyle(fontSize: 11)),
-                          onPressed: () => setState(() => _serverController.text = 'http://192.168.137.1:5000/api'),
-                        ),
-                        const SizedBox(width: 6),
-                        ActionChip(
-                          label: const Text('USB (ADB)', style: TextStyle(fontSize: 11)),
-                          onPressed: () => setState(() => _serverController.text = 'http://127.0.0.1:5000/api'),
-                        ),
-                        const SizedBox(width: 6),
-                        ActionChip(
-                          label: const Text('Emulator', style: TextStyle(fontSize: 11)),
-                          onPressed: () => setState(() => _serverController.text = 'http://10.0.2.2:5000/api'),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   TextField(
                     controller: _tenantController,
                     decoration: const InputDecoration(
@@ -136,9 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? null
                           : () async {
                               setState(() => _errorMessage = null);
-                              if (_serverController.text.trim().isNotEmpty) {
-                                ApiConfig.baseUrl = _serverController.text.trim();
-                              }
+                              ApiConfig.baseUrl = 'https://villageshop-api.onrender.com/api';
                               final res = await auth.login(
                                 _tenantController.text.trim(),
                                 _userController.text.trim(),
