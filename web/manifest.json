@@ -1,9 +1,10 @@
 {
     "name": "VillageShop POS",
     "short_name": "VillageShop",
-    "start_url": "/",
-    "scope": "/",
-    "display": "standalone",
+    "start_url": "./",
+    "scope": "./",
+    "display": "fullscreen",
+    "display_override": ["fullscreen", "standalone", "minimal-ui"],
     "background_color": "#1565C0",
     "theme_color": "#1565C0",
     "description": "VillageShop - Village & Rural Shopkeeper POS Solution",
