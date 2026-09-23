@@ -22,6 +22,13 @@
   <title>VillageShop POS</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #1565C0;">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('flutter_service_worker.js');
+      });
+    }
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
