@@ -21,11 +21,9 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     List<String> candidateUrls = [
+      'https://villageshop-api.onrender.com/api',
       ApiConfig.baseUrl,
       ...ApiConfig.candidateUrls,
-      'http://192.168.0.208:5000/api',
-      'http://192.168.137.1:5000/api',
-      'http://127.0.0.1:5000/api',
     ];
     candidateUrls = candidateUrls.toSet().toList();
 
@@ -40,7 +38,7 @@ class AuthProvider with ChangeNotifier {
             'username': username,
             'password': password,
           }),
-        ).timeout(const Duration(seconds: 4));
+        ).timeout(const Duration(seconds: 15));
 
         if (response.statusCode == 200) {
           final json = jsonDecode(response.body);
@@ -69,7 +67,7 @@ class AuthProvider with ChangeNotifier {
       viewAsString: '',
       status: false,
       statusCode: 500,
-      message: 'Connection Error: Make sure phone is on same Wi-Fi as PC (http://192.168.1.34:5000) or check server connection settings.',
+      message: 'Connection Error: Unable to reach Cloud backend. Please check internet connection or Server API URL.',
       redirectURL: '',
       id: 0,
       additionalMessage: '',

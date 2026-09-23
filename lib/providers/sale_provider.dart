@@ -51,7 +51,7 @@ class SaleProvider with ChangeNotifier {
           'Authorization': 'Bearer $token',
         },
         body: payloadJson,
-      ).timeout(const Duration(seconds: 4));
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final postResp = PostResponse.fromJson(jsonDecode(response.body));

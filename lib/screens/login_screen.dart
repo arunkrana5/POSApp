@@ -74,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           avatar: const Icon(Icons.cloud_done, size: 14, color: Colors.white),
                           backgroundColor: const Color(0xFF2563EB),
                           label: const Text('Cloud (Render)', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
-                          onPressed: () => setState(() => _serverController.text = 'https://villageshop-backend.onrender.com/api'),
+                          onPressed: () => setState(() => _serverController.text = 'https://villageshop-api.onrender.com/api'),
                         ),
                         const SizedBox(width: 6),
                         ActionChip(
