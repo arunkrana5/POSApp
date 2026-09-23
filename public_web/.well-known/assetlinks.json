@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.retailpos.mobile.app",
+      "sha256_cert_fingerprints": [
+        "14:6D:E7:57:4F:08:70:E2:03:68:57:DF:A5:68:D2:C3:7E:AA:C1:AA:A0:EB:87:B2:BD:1C:17:B9:3E:68:EA:51"
+      ]
+    }
+  }
+]
