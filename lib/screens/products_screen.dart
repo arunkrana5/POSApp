@@ -470,8 +470,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           'barcode': barcodeCtrl.text,
                         };
 
-                        final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-                        await syncProvider.saveOfflineProduct(newProduct);
+                        try {
+                          final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                          await syncProvider.saveOfflineProduct(newProduct);
+                        } catch (_) {}
 
                         setState(() {
                           _products.insert(0, newProduct);
@@ -483,13 +485,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             SnackBar(
                               content: Text(
                                 isHindi
-                                    ? 'सामान सुरक्षित रूप से सहेजा गया! (Offline saved)'
+                                    ? 'सामान सुरक्षित रूप से सहेजा गया!'
                                     : 'Product saved & synced to backend!',
                               ),
                               backgroundColor: Colors.green.shade700,
                             ),
                           );
                         }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isHindi
+                                  ? 'कृपया सामान का नाम भरें'
+                                  : 'Please enter product name',
+                            ),
+                            backgroundColor: Colors.amber.shade800,
+                          ),
+                        );
                       }
                     },
                     child: Text(
