@@ -18,8 +18,14 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SyncProvider>(context, listen: false).loadPendingCount();
-      Provider.of<TenantThemeProvider>(context, listen: false).fetchAndApplyConfig();
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (!auth.isAuthenticated) {
+        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        Provider.of<SyncProvider>(context, listen: false).loadPendingCount();
+        Provider.of<TenantThemeProvider>(context, listen: false)
+            .fetchAndApplyConfig(auth.accessToken ?? '', auth.tenantCode, auth.tenantId);
+      }
     });
   }
 

@@ -30,7 +30,7 @@ class VillageShopApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(create: (_) => SyncProvider()),
-        ChangeNotifierProvider(create: (_) => TenantThemeProvider()..fetchAndApplyConfig()),
+        ChangeNotifierProvider(create: (_) => TenantThemeProvider()),
       ],
       child: Consumer2<LocaleProvider, TenantThemeProvider>(
         builder: (context, localeProvider, themeProvider, child) {
@@ -48,7 +48,7 @@ class VillageShopApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             theme: themeProvider.themeData,
-            initialRoute: '/home',
+            initialRoute: '/login',
             routes: {
               '/login': (context) => const LoginScreen(),
               '/home': (context) => const HomeScreen(),
