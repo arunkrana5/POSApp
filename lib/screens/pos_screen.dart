@@ -41,6 +41,7 @@ class _PosScreenState extends State<PosScreen> {
   void initState() {
     super.initState();
     _loadCustomers();
+    _loadProducts();
   }
 
   Future<void> _loadCustomers() async {
@@ -54,6 +55,46 @@ class _PosScreenState extends State<PosScreen> {
               _customerList.add(n);
             }
           }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadProducts() async {
+    try {
+      final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+      final fetchedProducts = await syncProvider.fetchProducts();
+      
+      if (fetchedProducts.isNotEmpty) {
+        final List<Map<String, dynamic>> loadedList = fetchedProducts.map((p) => {
+          'id': p.id.toString(),
+          'productCode': p.productCode,
+          'name': p.name,
+          'category': p.category.isNotEmpty ? p.category : 'General',
+          'brand': p.brand,
+          'price': p.sellingPrice > 0 ? p.sellingPrice : (p.mrp > 0 ? p.mrp : p.purchasePrice),
+          'mrp': p.mrp,
+          'purchasePrice': p.purchasePrice,
+          'gstPercent': p.gstPercent,
+          'stock': p.currentStock.toInt(),
+          'minimumStock': p.minimumStock.toInt(),
+          'unit': p.unit.isNotEmpty ? p.unit : 'pcs',
+          'batchNumber': p.batchNumber,
+          'rackNumber': p.rackNumber,
+          'expiryDate': p.expiryDate,
+          'hsnCode': p.hsnCode,
+          'barcode': p.barcode,
+        }).toList();
+
+        final existingNames = loadedList.map((e) => e['name'].toString().toLowerCase()).toSet();
+        for (var d in _availableProducts) {
+          if (!existingNames.contains(d['name'].toString().toLowerCase())) {
+            loadedList.add(d);
+          }
+        }
+        setState(() {
+          _availableProducts.clear();
+          _availableProducts.addAll(loadedList);
         });
       }
     } catch (_) {}
@@ -129,7 +170,12 @@ class _PosScreenState extends State<PosScreen> {
     final isHindi = Provider.of<LocaleProvider>(context).isHindi;
     final themeProvider = Provider.of<TenantThemeProvider>(context);
     final filteredProducts = _availableProducts
-        .where((p) => p['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()))
+        .where((p) =>
+            p['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            (p['category'] != null && p['category'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) ||
+            (p['barcode'] != null && p['barcode'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) ||
+            (p['batchNumber'] != null && p['batchNumber'].toString().toLowerCase().contains(_searchQuery.toLowerCase())) ||
+            (p['rackNumber'] != null && p['rackNumber'].toString().toLowerCase().contains(_searchQuery.toLowerCase())))
         .toList();
 
     if (!_customerList.contains(_selectedCustomer)) {
