@@ -49,12 +49,17 @@ class AuthProvider with ChangeNotifier {
           final postResp = PostResponse.fromJson(json);
 
           if (postResp.status) {
-            final tokenData = jsonDecode(postResp.additionalMessage);
-            _accessToken = tokenData['accessToken'];
-            _tenantName = tokenData['tenantName'];
-            _tenantCode = tokenData['tenantCode'] ?? tenantCode;
-            _tenantId = tokenData['tenantId'];
-            _username = tokenData['username'];
+            final Map<String, dynamic> tokenData = jsonDecode(postResp.additionalMessage);
+            _accessToken = tokenData['accessToken'] ?? tokenData['AccessToken'];
+            _tenantName = tokenData['tenantName'] ?? tokenData['TenantName'] ?? tokenData['name'] ?? tokenData['Name'];
+            _tenantCode = tokenData['tenantCode'] ?? tokenData['TenantCode'] ?? tenantCode;
+
+            final rawId = tokenData['tenantId'] ?? tokenData['TenantId'] ?? tokenData['id'] ?? tokenData['Id'];
+            if (rawId != null) {
+              try { _tenantId = int.parse(rawId.toString()); } catch (_) {}
+            }
+
+            _username = tokenData['username'] ?? tokenData['Username'];
             ApiConfig.baseUrl = base;
           }
 
