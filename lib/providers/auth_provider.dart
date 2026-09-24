@@ -7,11 +7,15 @@ import '../models/post_response.dart';
 class AuthProvider with ChangeNotifier {
   String? _accessToken;
   String? _tenantName;
+  String? _tenantCode;
+  int? _tenantId;
   String? _username;
   bool _isLoading = false;
 
   String? get accessToken => _accessToken;
   String? get tenantName => _tenantName;
+  String? get tenantCode => _tenantCode;
+  int? get tenantId => _tenantId;
   String? get username => _username;
   bool get isAuthenticated => _accessToken != null;
   bool get isLoading => _isLoading;
@@ -48,6 +52,8 @@ class AuthProvider with ChangeNotifier {
             final tokenData = jsonDecode(postResp.additionalMessage);
             _accessToken = tokenData['accessToken'];
             _tenantName = tokenData['tenantName'];
+            _tenantCode = tokenData['tenantCode'] ?? tenantCode;
+            _tenantId = tokenData['tenantId'];
             _username = tokenData['username'];
             ApiConfig.baseUrl = base;
           }
@@ -77,6 +83,8 @@ class AuthProvider with ChangeNotifier {
   void logout() {
     _accessToken = null;
     _tenantName = null;
+    _tenantCode = null;
+    _tenantId = null;
     _username = null;
     notifyListeners();
   }

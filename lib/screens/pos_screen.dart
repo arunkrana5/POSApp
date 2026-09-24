@@ -27,7 +27,7 @@ class _PosScreenState extends State<PosScreen> {
     'Walk-in Customer',
     'Ramesh Kumar',
     'Suresh Patel',
-    'Anita Sharma',
+    'Anita Devi',
     'Vikas Verma',
   ];
 

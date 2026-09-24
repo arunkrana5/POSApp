@@ -42,7 +42,7 @@ class TenantThemeProvider with ChangeNotifier {
   String supportHours = "9:00 AM - 9:00 PM";
   String currencySymbol = "₹";
 
-  Future<void> fetchAndApplyConfig([String token = '']) async {
+  Future<void> fetchAndApplyConfig([String token = '', String? tenantCode, int? tenantId]) async {
     List<String> candidateUrls = [
       ...ApiConfig.candidateUrls,
       'http://192.168.0.208:5000/api',
@@ -54,11 +54,18 @@ class TenantThemeProvider with ChangeNotifier {
 
     for (String base in candidateUrls) {
       try {
+        final queryParams = <String>[];
+        if (tenantId != null && tenantId > 0) queryParams.add('tenantId=$tenantId');
+        if (tenantCode != null && tenantCode.isNotEmpty) queryParams.add('tenantCode=$tenantCode');
+        final queryString = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
+
         final response = await http.get(
-          Uri.parse('$base/settings/mobile-config'),
+          Uri.parse('$base/settings/mobile-config$queryString'),
           headers: {
             'Content-Type': 'application/json',
             if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+            if (tenantId != null && tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+            if (tenantCode != null && tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
           },
         ).timeout(const Duration(seconds: 4));
 

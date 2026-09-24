@@ -13,9 +13,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _tenantController = TextEditingController(text: 'SHARMA_SHOP');
-  final _userController = TextEditingController(text: 'admin');
-  final _passwordController = TextEditingController(text: 'admin123');
+  final _tenantController = TextEditingController();
+  final _userController = TextEditingController();
+  final _passwordController = TextEditingController();
   String? _errorMessage;
 
   @override
@@ -53,7 +53,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: _tenantController,
                     decoration: const InputDecoration(
-                      labelText: "Tenant Code / कोड",
+                      labelText: "Tenant Code (e.g. ARUN_DC, SUPERADMIN)",
+                      hintText: "Enter your store tenant code",
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.business),
                     ),
@@ -94,9 +95,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               );
                               if (res.status) {
                                 if (mounted) {
-                                  // Fetch & apply live tenant theme and white-label branding from SQL Server
+                                  // Fetch & apply live tenant theme and white-label branding for logged in tenant
                                   await Provider.of<TenantThemeProvider>(context, listen: false)
-                                      .fetchAndApplyConfig(auth.accessToken ?? '');
+                                      .fetchAndApplyConfig(auth.accessToken ?? '', auth.tenantCode, auth.tenantId);
 
                                   if (mounted) {
                                     Navigator.pushReplacement(

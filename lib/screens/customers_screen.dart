@@ -17,7 +17,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   List<Map<String, dynamic>> _customers = [
     {'id': '1', 'name': 'Ramesh Kumar', 'phone': '+91 98765 43210', 'udhaar': 2400.0, 'lastTx': '12 Sep 2026'},
     {'id': '2', 'name': 'Suresh Patel', 'phone': '+91 98123 45678', 'udhaar': 1200.0, 'lastTx': '11 Sep 2026'},
-    {'id': '3', 'name': 'Anita Sharma', 'phone': '+91 97654 32109', 'udhaar': 0.0, 'lastTx': '10 Sep 2026'},
+    {'id': '3', 'name': 'Anita Devi', 'phone': '+91 97654 32109', 'udhaar': 0.0, 'lastTx': '10 Sep 2026'},
     {'id': '4', 'name': 'Vikas Verma', 'phone': '+91 99887 76655', 'udhaar': 880.0, 'lastTx': '09 Sep 2026'},
   ];
 
