@@ -72,17 +72,18 @@ class TenantThemeProvider with ChangeNotifier {
         if (response.statusCode == 200) {
           final outerJson = jsonDecode(response.body);
           if (outerJson['status'] == true && outerJson['additionalMessage'] != null) {
-            final config = jsonDecode(outerJson['additionalMessage']);
-            final primaryHex = config['PrimaryColorHex'] ?? config['primaryColorHex'] ?? config['PrimaryColor'] ?? config['primaryColor'];
-            final secondaryHex = config['SecondaryColorHex'] ?? config['secondaryColorHex'] ?? config['SecondaryColor'] ?? config['secondaryColor'];
-            final accentHex = config['AccentColorHex'] ?? config['accentColorHex'] ?? config['AccentColor'] ?? config['accentColor'];
+            final Map<String, dynamic> config = jsonDecode(outerJson['additionalMessage']);
+            
+            final primaryHex = _getValidHex(config, ['PrimaryColorHex', 'primaryColorHex', 'PrimaryColor', 'primaryColor']);
+            final secondaryHex = _getValidHex(config, ['SecondaryColorHex', 'secondaryColorHex', 'SecondaryColor', 'secondaryColor']);
+            final accentHex = _getValidHex(config, ['AccentColorHex', 'accentColorHex', 'AccentColor', 'accentColor']);
 
-            final textHex = config['TextColorHex'] ?? config['textColorHex'] ?? config['TextColor'] ?? config['textColor'];
-            final pageBgHex = config['PageBgColorHex'] ?? config['pageBgColorHex'] ?? config['PageBgColor'] ?? config['pageBgColor'];
-            final cardBgHex = config['CardBgColorHex'] ?? config['cardBgColorHex'] ?? config['CardBgColor'] ?? config['cardBgColor'];
-            final amountHex = config['AmountColorHex'] ?? config['amountColorHex'] ?? config['AmountColor'] ?? config['amountColor'];
-            final buttonBgHex = config['ButtonBgColorHex'] ?? config['buttonBgColorHex'] ?? config['ButtonBgColor'] ?? config['buttonBgColor'];
-            final buttonTextHex = config['ButtonTextColorHex'] ?? config['buttonTextColorHex'] ?? config['ButtonTextColor'] ?? config['buttonTextColor'];
+            final textHex = _getValidHex(config, ['TextColorHex', 'textColorHex', 'TextColor', 'textColor']);
+            final pageBgHex = _getValidHex(config, ['PageBgColorHex', 'pageBgColorHex', 'PageBgColor', 'pageBgColor']);
+            final cardBgHex = _getValidHex(config, ['CardBgColorHex', 'cardBgColorHex', 'CardBgColor', 'cardBgColor']);
+            final amountHex = _getValidHex(config, ['AmountColorHex', 'amountColorHex', 'AmountColor', 'amountColor']);
+            final buttonBgHex = _getValidHex(config, ['ButtonBgColorHex', 'buttonBgColorHex', 'ButtonBgColor', 'buttonBgColor']);
+            final buttonTextHex = _getValidHex(config, ['ButtonTextColorHex', 'buttonTextColorHex', 'ButtonTextColor', 'buttonTextColor']);
 
             final fontFam = config['FontFamily'] ?? config['fontFamily'];
             final fontScale = config['FontSizeScale'] ?? config['fontSizeScale'];
@@ -110,16 +111,16 @@ class TenantThemeProvider with ChangeNotifier {
             final enHindi = config['EnableHindiLanguage'] ?? config['enableHindiLanguage'];
             final enReceipt = config['EnableReceiptPrinting'] ?? config['enableReceiptPrinting'];
 
-            if (primaryHex != null) primaryColor = _hexToColor(primaryHex.toString(), const Color(0xFF0F172A));
-            if (secondaryHex != null) secondaryColor = _hexToColor(secondaryHex.toString(), const Color(0xFFD97706));
-            if (accentHex != null) accentColor = _hexToColor(accentHex.toString(), const Color(0xFF10B981));
+            if (primaryHex != null) primaryColor = _hexToColor(primaryHex, const Color(0xFF0F172A));
+            if (secondaryHex != null) secondaryColor = _hexToColor(secondaryHex, const Color(0xFFD97706));
+            if (accentHex != null) accentColor = _hexToColor(accentHex, const Color(0xFF10B981));
 
-            if (textHex != null) textColor = _hexToColor(textHex.toString(), const Color(0xFF0F172A));
-            if (pageBgHex != null) pageBgColor = _hexToColor(pageBgHex.toString(), const Color(0xFFF8FAFC));
-            if (cardBgHex != null) cardBgColor = _hexToColor(cardBgHex.toString(), const Color(0xFFFFFFFF));
-            if (amountHex != null) amountColor = _hexToColor(amountHex.toString(), const Color(0xFF16A34A));
-            if (buttonBgHex != null) buttonBgColor = _hexToColor(buttonBgHex.toString(), const Color(0xFF2563EB));
-            if (buttonTextHex != null) buttonTextColor = _hexToColor(buttonTextHex.toString(), const Color(0xFFFFFFFF));
+            if (textHex != null) textColor = _hexToColor(textHex, const Color(0xFF0F172A));
+            if (pageBgHex != null) pageBgColor = _hexToColor(pageBgHex, const Color(0xFFF8FAFC));
+            if (cardBgHex != null) cardBgColor = _hexToColor(cardBgHex, const Color(0xFFFFFFFF));
+            if (amountHex != null) amountColor = _hexToColor(amountHex, const Color(0xFF16A34A));
+            if (buttonBgHex != null) buttonBgColor = _hexToColor(buttonBgHex, const Color(0xFF2563EB));
+            if (buttonTextHex != null) buttonTextColor = _hexToColor(buttonTextHex, const Color(0xFFFFFFFF));
 
             if (fontFam != null && fontFam.toString().isNotEmpty) fontFamily = fontFam.toString();
             if (fontScale != null) {
@@ -171,6 +172,16 @@ class TenantThemeProvider with ChangeNotifier {
     primaryColor = _hexToColor(primaryHex);
     secondaryColor = _hexToColor(secondaryHex);
     notifyListeners();
+  }
+
+  String? _getValidHex(Map<String, dynamic> config, List<String> keys) {
+    for (final key in keys) {
+      final val = config[key];
+      if (val != null && val.toString().trim().isNotEmpty) {
+        return val.toString().trim();
+      }
+    }
+    return null;
   }
 
   Color _hexToColor(String hex, [Color fallback = const Color(0xFF0F172A)]) {
