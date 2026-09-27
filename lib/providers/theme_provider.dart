@@ -195,7 +195,28 @@ class TenantThemeProvider with ChangeNotifier {
             if (enReceipt != null) enableReceiptPrinting = enReceipt == true || enReceipt.toString().toLowerCase() == 'true';
 
             if (rawMenuItems != null && rawMenuItems is List) {
-              dynamicMenuItems = List<Map<String, dynamic>>.from(rawMenuItems.map((e) => Map<String, dynamic>.from(e)));
+              final list = List<Map<String, dynamic>>.from(rawMenuItems.map((e) => Map<String, dynamic>.from(e)));
+              final hasSalesHistory = list.any((m) {
+                final r = (m['Route'] ?? m['route'] ?? '').toString();
+                return r == '/sales-history' || r == '/sales';
+              });
+              if (!hasSalesHistory) {
+                // Insert Sale History right after POS/Products
+                final posIdx = list.indexWhere((m) {
+                  final r = (m['Route'] ?? m['route'] ?? '').toString();
+                  return r == '/pos' || r == '/products';
+                });
+                final insertAt = posIdx >= 0 ? posIdx + 1 : 1;
+                list.insert(insertAt < list.length ? insertAt : list.length, {
+                  'titleEn': 'Sale History & Invoices',
+                  'titleHi': 'बिक्री इतिहास (Sale History)',
+                  'route': '/sales-history',
+                  'icon': 'receipt_long',
+                  'badgeText': 'PRINT',
+                  'isEnabled': true,
+                });
+              }
+              dynamicMenuItems = list;
             }
             notifyListeners();
             break; // Successfully loaded config

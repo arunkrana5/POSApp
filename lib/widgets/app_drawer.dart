@@ -449,6 +449,10 @@ class _AppDrawerState extends State<AppDrawer> {
         return Icons.people_alt_rounded;
       case 'analytics_rounded':
         return Icons.analytics_rounded;
+      case 'receipt':
+      case 'receipt_long':
+      case 'receipt_long_rounded':
+        return Icons.receipt_long_rounded;
       case 'settings_rounded':
         return Icons.settings_rounded;
       case 'local_offer':
