@@ -33,14 +33,16 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Future<void> _loadCustomers() async {
     setState(() => _isLoading = true);
     try {
-      final dbCustomers = await SQLiteHelper.instance.getCustomers();
-      if (dbCustomers.isNotEmpty) {
-        final List<Map<String, dynamic>> loaded = dbCustomers.map((c) => {
+      final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+      final fetchedCustomers = await syncProvider.fetchCustomers();
+
+      if (fetchedCustomers.isNotEmpty) {
+        final List<Map<String, dynamic>> loaded = fetchedCustomers.map((c) => {
           'id': c['id']?.toString() ?? '0',
           'name': c['name'] ?? '',
           'phone': c['phone'] ?? '',
           'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
-          'lastTx': c['lastTx'] ?? 'Today',
+          'lastTx': c['lastTx'] ?? 'Registered Today',
         }).toList();
 
         final existingNames = loaded.map((e) => e['name'].toString().toLowerCase()).toSet();
@@ -52,6 +54,27 @@ class _CustomersScreenState extends State<CustomersScreen> {
         setState(() {
           _customers = loaded;
         });
+      } else {
+        final dbCustomers = await SQLiteHelper.instance.getCustomers();
+        if (dbCustomers.isNotEmpty) {
+          final List<Map<String, dynamic>> loaded = dbCustomers.map((c) => {
+            'id': c['id']?.toString() ?? '0',
+            'name': c['name'] ?? '',
+            'phone': c['phone'] ?? '',
+            'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
+            'lastTx': c['lastTx'] ?? 'Today',
+          }).toList();
+
+          final existingNames = loaded.map((e) => e['name'].toString().toLowerCase()).toSet();
+          for (var d in _customers) {
+            if (!existingNames.contains(d['name'].toString().toLowerCase())) {
+              loaded.add(d);
+            }
+          }
+          setState(() {
+            _customers = loaded;
+          });
+        }
       }
     } catch (_) {}
     setState(() => _isLoading = false);

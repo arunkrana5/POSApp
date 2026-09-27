@@ -59,10 +59,22 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _loadCustomers() async {
     try {
-      final dbCustomers = await SQLiteHelper.instance.getCustomers();
-      if (dbCustomers.isNotEmpty) {
+      final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+      final fetchedCustomers = await syncProvider.fetchCustomers();
+
+      final List<Map<String, dynamic>> customersToProcess = [];
+      if (fetchedCustomers.isNotEmpty) {
+        customersToProcess.addAll(fetchedCustomers);
+      } else {
+        final dbCustomers = await SQLiteHelper.instance.getCustomers();
+        if (dbCustomers.isNotEmpty) {
+          customersToProcess.addAll(dbCustomers);
+        }
+      }
+
+      if (customersToProcess.isNotEmpty) {
         setState(() {
-          for (var c in dbCustomers) {
+          for (var c in customersToProcess) {
             final n = c['name']?.toString() ?? '';
             final p = c['phone']?.toString() ?? '';
             if (n.isNotEmpty) {

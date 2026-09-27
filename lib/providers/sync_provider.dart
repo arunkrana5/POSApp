@@ -19,6 +19,10 @@ class SyncProvider with ChangeNotifier {
     return await _syncEngine.fetchAndCacheProducts(token);
   }
 
+  Future<List<Map<String, dynamic>>> fetchCustomers([String token = '']) async {
+    return await _syncEngine.fetchAndCacheCustomers(token);
+  }
+
   Future<void> saveOfflineSale(Map<String, dynamic> saleData) async {
     await _syncEngine.saveSaleOffline(saleData);
     await loadPendingCount();

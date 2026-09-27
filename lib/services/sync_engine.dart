@@ -76,6 +76,52 @@ class SyncEngine {
     return [];
   }
 
+  // Fetch live customers from backend API for logged-in tenant
+  Future<List<Map<String, dynamic>>> fetchAndCacheCustomers([String token = '']) async {
+    try {
+      final headers = await _getTenantHeaders(token);
+      final prefs = await SharedPreferences.getInstance();
+      final tCode = prefs.getString('tenant_code');
+      final tId = prefs.getInt('tenant_id');
+
+      final queryParams = <String>[];
+      if (tId != null && tId > 0) queryParams.add('tenantId=$tId');
+      if (tCode != null && tCode.isNotEmpty) queryParams.add('tenantCode=$tCode');
+      final qStr = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
+
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/customers$qStr'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = jsonDecode(response.body);
+        final List<Map<String, dynamic>> customers = jsonList.map((j) => Map<String, dynamic>.from(j as Map)).toList();
+        if (customers.isNotEmpty && !kIsWeb) {
+          try {
+            for (var c in customers) {
+              await SQLiteHelper.instance.saveCustomer({
+                'id': c['id']?.toString() ?? '0',
+                'name': c['name'] ?? '',
+                'phone': c['phone'] ?? '',
+                'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
+                'lastTx': c['lastTx'] ?? 'Registered',
+              });
+            }
+          } catch (_) {}
+        }
+        return customers;
+      }
+    } catch (_) {}
+
+    if (!kIsWeb) {
+      try {
+        return await SQLiteHelper.instance.getCustomers();
+      } catch (_) {}
+    }
+    return [];
+  }
+
   Future<void> saveProductOffline(Map<String, dynamic> productData) async {
     final Map<String, dynamic> payload = Map<String, dynamic>.from(productData);
     try {
