@@ -204,6 +204,14 @@ class _AppDrawerState extends State<AppDrawer> {
                       title: isHindi ? 'सामान और स्टॉक' : 'Products & Stock',
                       route: '/products',
                     ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.receipt_long_rounded,
+                    title: isHindi ? 'बिक्री इतिहास (Sale History)' : 'Sale History & Invoices',
+                    route: '/sales-history',
+                    badgeText: 'PRINT',
+                    badgeColor: Colors.blue.shade700,
+                  ),
                   if (enabledMods.contains('Customers'))
                     _buildDrawerItem(
                       context,

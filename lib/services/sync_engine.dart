@@ -77,11 +77,25 @@ class SyncEngine {
   }
 
   Future<void> saveProductOffline(Map<String, dynamic> productData) async {
+    final Map<String, dynamic> payload = Map<String, dynamic>.from(productData);
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (productData['tenantId'] == null) productData['tenantId'] = prefs.getInt('tenant_id');
-      if (productData['tenantCode'] == null) productData['tenantCode'] = prefs.getString('tenant_code');
+      if (payload['tenantId'] == null) payload['tenantId'] = prefs.getInt('tenant_id');
+      if (payload['tenantCode'] == null) payload['tenantCode'] = prefs.getString('tenant_code');
     } catch (_) {}
+
+    if (payload['sellingPrice'] == null && payload['price'] != null) {
+      payload['sellingPrice'] = (payload['price'] as num).toDouble();
+    }
+    if (payload['currentStock'] == null && payload['stock'] != null) {
+      payload['currentStock'] = (payload['stock'] as num).toDouble();
+    }
+    if (payload['openingStock'] == null && payload['stock'] != null) {
+      payload['openingStock'] = (payload['stock'] as num).toDouble();
+    }
+    if (payload['expiryDate'] != null && payload['expiryDate'].toString().trim().isEmpty) {
+      payload['expiryDate'] = null;
+    }
 
     // 1. Direct API call to backend first
     try {
@@ -89,7 +103,7 @@ class SyncEngine {
       await http.post(
         Uri.parse('$apiBaseUrl/products'),
         headers: headers,
-        body: jsonEncode(productData),
+        body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 8));
     } catch (_) {}
 
@@ -97,8 +111,8 @@ class SyncEngine {
     if (!kIsWeb) {
       try {
         final clientTxId = 'PROD-${DateTime.now().millisecondsSinceEpoch}';
-        final payloadJson = jsonEncode(productData);
-        await SQLiteHelper.instance.saveProductRecord(productData);
+        final payloadJson = jsonEncode(payload);
+        await SQLiteHelper.instance.saveProductRecord(payload);
         await SQLiteHelper.instance.addToSyncQueue(clientTxId, 'PRODUCT', payloadJson);
       } catch (_) {}
     }

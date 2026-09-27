@@ -443,39 +443,58 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickActionsGrid(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: _buildActionButton(
-            context,
-            title: isHindi ? 'नया बिल (POS)' : 'New Bill (POS)',
-            icon: Icons.point_of_sale_rounded,
-            color: themeProvider.buttonBgColor,
-            route: '/pos',
-            themeProvider: themeProvider,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                context,
+                title: isHindi ? 'नया बिल (POS)' : 'New Bill (POS)',
+                icon: Icons.point_of_sale_rounded,
+                color: themeProvider.buttonBgColor,
+                route: '/pos',
+                themeProvider: themeProvider,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildActionButton(
+                context,
+                title: isHindi ? 'बिक्री इतिहास' : 'Sale History',
+                icon: Icons.receipt_long_rounded,
+                color: Colors.blue.shade700,
+                route: '/sales-history',
+                themeProvider: themeProvider,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildActionButton(
-            context,
-            title: isHindi ? 'नया सामान' : 'Add Product',
-            icon: Icons.add_box_rounded,
-            color: themeProvider.secondaryColor,
-            route: '/products',
-            themeProvider: themeProvider,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildActionButton(
-            context,
-            title: isHindi ? 'उधार खाता' : 'Udhaar Ledger',
-            icon: Icons.people_alt_rounded,
-            color: themeProvider.accentColor,
-            route: '/customers',
-            themeProvider: themeProvider,
-          ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
+                context,
+                title: isHindi ? 'नया सामान' : 'Add Product',
+                icon: Icons.add_box_rounded,
+                color: themeProvider.secondaryColor,
+                route: '/products',
+                themeProvider: themeProvider,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildActionButton(
+                context,
+                title: isHindi ? 'उधार खाता' : 'Udhaar Ledger',
+                icon: Icons.people_alt_rounded,
+                color: themeProvider.accentColor,
+                route: '/customers',
+                themeProvider: themeProvider,
+              ),
+            ),
+          ],
         ),
       ],
     );

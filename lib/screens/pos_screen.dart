@@ -187,17 +187,31 @@ class _PosScreenState extends State<PosScreen> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Column(
+        title: Stack(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.green, size: 52),
-            const SizedBox(height: 6),
-            Text(
-              isHindi ? 'बिल सहेजा गया & तैयार!' : 'Sale Completed Successfully!',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                icon: const Icon(Icons.close_rounded, color: Colors.red, size: 26),
+                tooltip: isHindi ? 'बंद करें' : 'Close Invoice',
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
             ),
-            Text(
-              invoiceNo,
-              style: const TextStyle(fontSize: 13, color: Colors.blue, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+            Center(
+              child: Column(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.green, size: 48),
+                  const SizedBox(height: 4),
+                  Text(
+                    isHindi ? 'बिल सहेजा गया & तैयार!' : 'Sale Completed Successfully!',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  Text(
+                    invoiceNo,
+                    style: const TextStyle(fontSize: 13, color: Colors.blue, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

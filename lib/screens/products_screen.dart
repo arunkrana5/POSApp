@@ -494,8 +494,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     Expanded(
                       child: TextField(
                         controller: expiryCtrl,
+                        readOnly: true,
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: ctx,
+                            initialDate: DateTime.now().add(const Duration(days: 180)),
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 3650)),
+                          );
+                          if (picked != null) {
+                            final yyyy = picked.year.toString();
+                            final mm = picked.month.toString().padLeft(2, '0');
+                            final dd = picked.day.toString().padLeft(2, '0');
+                            setModalState(() {
+                              expiryCtrl.text = '$yyyy-$mm-$dd';
+                            });
+                          }
+                        },
                         decoration: InputDecoration(
-                          labelText: isHindi ? 'एक्सपायरी डेट (YYYY-MM-DD)' : 'Expiry Date (YYYY-MM-DD)',
+                          labelText: isHindi ? 'एक्सपायरी डेट (Expiry Date)' : 'Expiry Date',
+                          hintText: 'Select date',
+                          prefixIcon: const Icon(Icons.calendar_today_rounded),
                           border: const OutlineInputBorder(),
                         ),
                       ),
@@ -524,23 +543,30 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     onPressed: () async {
                       if (nameCtrl.text.isNotEmpty) {
                         final sellingP = double.tryParse(priceCtrl.text) ?? 0.0;
+                        final costP = double.tryParse(costCtrl.text) ?? sellingP;
+                        final stockQty = int.tryParse(stockCtrl.text) ?? 10;
+                        final expStr = expiryCtrl.text.trim();
+
                         final newProduct = {
                           'id': '${_products.length + 1}',
-                          'name': nameCtrl.text,
+                          'name': nameCtrl.text.trim(),
                           'category': selectedCategory,
-                          'brand': brandCtrl.text,
+                          'brand': brandCtrl.text.trim(),
                           'price': sellingP,
-                          'purchasePrice': double.tryParse(costCtrl.text) ?? sellingP,
+                          'purchasePrice': costP,
                           'sellingPrice': sellingP,
                           'mrp': sellingP,
-                          'stock': int.tryParse(stockCtrl.text) ?? 10,
+                          'stock': stockQty,
+                          'currentStock': stockQty,
+                          'openingStock': stockQty,
+                          'minimumStock': 5,
                           'unit': selectedUnit,
-                          'batchNumber': batchCtrl.text,
-                          'rackNumber': rackCtrl.text,
-                          'expiryDate': expiryCtrl.text,
-                          'hsnCode': hsnCtrl.text,
-                          'barcode': barcodeCtrl.text,
-                          'imageUrl': imgUrlCtrl.text,
+                          'batchNumber': batchCtrl.text.trim(),
+                          'rackNumber': rackCtrl.text.trim(),
+                          'expiryDate': expStr.isNotEmpty ? expStr : null,
+                          'hsnCode': hsnCtrl.text.trim(),
+                          'barcode': barcodeCtrl.text.trim(),
+                          'imageUrl': imgUrlCtrl.text.trim(),
                         };
 
                         try {
