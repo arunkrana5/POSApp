@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 class TenantThemeProvider with ChangeNotifier {
-  Color primaryColor = const Color(0xFF0F172A); // Dark Slate Header
+  Color primaryColor = const Color(0xFF2563EB); // Royal Blue Header
   Color secondaryColor = const Color(0xFFD97706); // Gold Accent
   Color accentColor = const Color(0xFF10B981); // Emerald
 
@@ -42,13 +43,42 @@ class TenantThemeProvider with ChangeNotifier {
   String supportHours = "9:00 AM - 9:00 PM";
   String currencySymbol = "₹";
 
+  TenantThemeProvider() {
+    _loadFromLocal();
+  }
+
+  Future<void> _loadFromLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pColorHex = prefs.getString('theme_primary_hex');
+      final sColorHex = prefs.getString('theme_secondary_hex');
+      final savedTenantName = prefs.getString('tenant_name');
+
+      if (pColorHex != null && pColorHex.isNotEmpty) {
+        primaryColor = _hexToColor(pColorHex, const Color(0xFF2563EB));
+      }
+      if (sColorHex != null && sColorHex.isNotEmpty) {
+        secondaryColor = _hexToColor(sColorHex, const Color(0xFFD97706));
+      }
+      if (savedTenantName != null && savedTenantName.isNotEmpty) {
+        tenantName = savedTenantName;
+        appTitle = savedTenantName;
+      }
+      notifyListeners();
+    } catch (_) {}
+  }
+
   Future<void> fetchAndApplyConfig([String token = '', String? tenantCode, int? tenantId]) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      token = token.isNotEmpty ? token : (prefs.getString('auth_token') ?? '');
+      tenantCode = (tenantCode != null && tenantCode.isNotEmpty) ? tenantCode : prefs.getString('tenant_code');
+      tenantId ??= prefs.getInt('tenant_id');
+    } catch (_) {}
+
     List<String> candidateUrls = [
+      'https://villageshop-api.onrender.com/api',
       ...ApiConfig.candidateUrls,
-      'http://192.168.0.208:5000/api',
-      'http://192.168.137.1:5000/api',
-      'http://192.168.1.34:5000/api',
-      'http://127.0.0.1:5000/api',
     ];
     candidateUrls = candidateUrls.toSet().toList();
 
@@ -111,7 +141,7 @@ class TenantThemeProvider with ChangeNotifier {
             final enHindi = config['EnableHindiLanguage'] ?? config['enableHindiLanguage'];
             final enReceipt = config['EnableReceiptPrinting'] ?? config['enableReceiptPrinting'];
 
-            if (primaryHex != null) primaryColor = _hexToColor(primaryHex, const Color(0xFF0F172A));
+            if (primaryHex != null) primaryColor = _hexToColor(primaryHex, const Color(0xFF2563EB));
             if (secondaryHex != null) secondaryColor = _hexToColor(secondaryHex, const Color(0xFFD97706));
             if (accentHex != null) accentColor = _hexToColor(accentHex, const Color(0xFF10B981));
 
@@ -132,6 +162,13 @@ class TenantThemeProvider with ChangeNotifier {
             if (name != null) tenantName = name.toString();
             if (title != null) appTitle = title.toString();
             if (logo != null) logoUrl = logo.toString();
+
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              if (primaryHex != null) await prefs.setString('theme_primary_hex', primaryHex);
+              if (secondaryHex != null) await prefs.setString('theme_secondary_hex', secondaryHex);
+              if (name != null) await prefs.setString('tenant_name', name.toString());
+            } catch (_) {}
 
             if (enablePOSDisc != null) enablePOSDiscount = enablePOSDisc == true || enablePOSDisc.toString().toLowerCase() == 'true';
             if (enableTaxCalc != null) enableTaxCalculation = enableTaxCalc == true || enableTaxCalc.toString().toLowerCase() == 'true';
@@ -168,10 +205,15 @@ class TenantThemeProvider with ChangeNotifier {
     }
   }
 
-  void updateColors(String primaryHex, String secondaryHex) {
-    primaryColor = _hexToColor(primaryHex);
-    secondaryColor = _hexToColor(secondaryHex);
+  void updateColors(String primaryHex, String secondaryHex) async {
+    primaryColor = _hexToColor(primaryHex, const Color(0xFF2563EB));
+    secondaryColor = _hexToColor(secondaryHex, const Color(0xFFD97706));
     notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('theme_primary_hex', primaryHex);
+      await prefs.setString('theme_secondary_hex', secondaryHex);
+    } catch (_) {}
   }
 
   String? _getValidHex(Map<String, dynamic> config, List<String> keys) {

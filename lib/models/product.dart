@@ -16,6 +16,7 @@ class Product {
   final String rackNumber;
   final String expiryDate;
   final String hsnCode;
+  final String imageUrl;
 
   Product({
     required this.id,
@@ -35,6 +36,7 @@ class Product {
     this.rackNumber = '',
     this.expiryDate = '',
     this.hsnCode = '',
+    this.imageUrl = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -56,6 +58,7 @@ class Product {
       'rackNumber': rackNumber,
       'expiryDate': expiryDate,
       'hsnCode': hsnCode,
+      'imageUrl': imageUrl,
     };
   }
 
@@ -78,6 +81,7 @@ class Product {
       rackNumber: map['rackNumber'] ?? map['rackNo'] ?? '',
       expiryDate: map['expiryDate'] != null ? map['expiryDate'].toString().split('T')[0] : '',
       hsnCode: map['hsnCode'] ?? '',
+      imageUrl: map['imageUrl'] ?? map['logoUrl'] ?? map['image'] ?? '',
     );
   }
 

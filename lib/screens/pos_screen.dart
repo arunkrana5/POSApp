@@ -518,7 +518,7 @@ class _PosScreenState extends State<PosScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 1.45,
+                childAspectRatio: 1.25,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
               ),
@@ -527,11 +527,13 @@ class _PosScreenState extends State<PosScreen> {
                 final product = filteredProducts[index];
                 final cartIndex = _cartItems.indexWhere((item) => item['id'] == product['id']);
                 final qtyInCart = cartIndex >= 0 ? _cartItems[cartIndex]['qty'] : 0;
+                final imgUrl = product['imageUrl']?.toString() ?? '';
+                final barcode = product['barcode']?.toString() ?? '';
 
                 return InkWell(
                   onTap: () => _addToCart(product, themeProvider),
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: themeProvider.cardBgColor,
                       borderRadius: BorderRadius.circular(12),
@@ -548,19 +550,43 @@ class _PosScreenState extends State<PosScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: (imgUrl.isNotEmpty && Uri.tryParse(imgUrl)?.hasAbsolutePath == true)
+                                  ? Image.network(imgUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_rounded, size: 20, color: Colors.blue))
+                                  : const Icon(Icons.inventory_2_rounded, size: 20, color: Colors.blue),
+                            ),
+                            const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                product['name'],
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontFamily: themeProvider.fontFamily,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13 * themeProvider.fontSizeScale,
-                                  color: themeProvider.textColor,
-                                ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    product['name'],
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontFamily: themeProvider.fontFamily,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12 * themeProvider.fontSizeScale,
+                                      color: themeProvider.textColor,
+                                    ),
+                                  ),
+                                  if (barcode.isNotEmpty)
+                                    Text(
+                                      '║▌$barcode',
+                                      style: const TextStyle(fontSize: 9, fontFamily: 'monospace', color: Colors.purple, fontWeight: FontWeight.bold),
+                                    ),
+                                ],
                               ),
                             ),
                             if (qtyInCart > 0)

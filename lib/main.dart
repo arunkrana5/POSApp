@@ -20,20 +20,70 @@ void main() {
   runApp(const VillageShopApp());
 }
 
-class VillageShopApp extends StatelessWidget {
+class VillageShopApp extends StatefulWidget {
   const VillageShopApp({super.key});
+
+  @override
+  State<VillageShopApp> createState() => _VillageShopAppState();
+}
+
+class _VillageShopAppState extends State<VillageShopApp> {
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initApp();
+  }
+
+  Future<void> _initApp() async {
+    final authProvider = AuthProvider();
+    await authProvider.init();
+    
+    final themeProvider = TenantThemeProvider();
+    if (authProvider.isAuthenticated) {
+      await themeProvider.fetchAndApplyConfig(
+        authProvider.accessToken ?? '',
+        authProvider.tenantCode,
+        authProvider.tenantId,
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _initialized = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) {
+          final p = AuthProvider();
+          p.init();
+          return p;
+        }),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(create: (_) => SyncProvider()),
         ChangeNotifierProvider(create: (_) => TenantThemeProvider()),
       ],
-      child: Consumer2<LocaleProvider, TenantThemeProvider>(
-        builder: (context, localeProvider, themeProvider, child) {
+      child: Consumer3<AuthProvider, LocaleProvider, TenantThemeProvider>(
+        builder: (context, authProvider, localeProvider, themeProvider, child) {
+          if (!authProvider.isInitialized) {
+            return const MaterialApp(
+              debugShowCheckedModeBanner: false,
+              home: Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            );
+          }
+
+          final initialRoute = authProvider.isAuthenticated ? '/home' : '/login';
+
           return MaterialApp(
             title: 'VillageShop Mobile',
             debugShowCheckedModeBanner: false,
@@ -48,7 +98,7 @@ class VillageShopApp extends StatelessWidget {
               GlobalCupertinoLocalizations.delegate,
             ],
             theme: themeProvider.themeData,
-            initialRoute: '/login',
+            initialRoute: initialRoute,
             routes: {
               '/login': (context) => const LoginScreen(),
               '/home': (context) => const HomeScreen(),

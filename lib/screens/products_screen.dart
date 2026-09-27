@@ -1,9 +1,9 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
-import '../database/sqlite_helper.dart';
 import '../widgets/app_drawer.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -15,11 +15,11 @@ class ProductsScreen extends StatefulWidget {
 
 class _ProductsScreenState extends State<ProductsScreen> {
   List<Map<String, dynamic>> _products = [
-    {'id': '1', 'name': 'Aashirvaad Atta 5kg', 'category': 'Groceries', 'price': 220.0, 'stock': 15, 'unit': 'pkt'},
-    {'id': '2', 'name': 'Fortune Mustard Oil 1L', 'category': 'Oil', 'price': 145.0, 'stock': 3, 'unit': 'bottle'},
-    {'id': '3', 'name': 'Tata Salt 1kg', 'category': 'Groceries', 'price': 28.0, 'stock': 40, 'unit': 'pkt'},
-    {'id': '4', 'name': 'Surf Excel 1kg', 'category': 'Detergent', 'price': 130.0, 'stock': 0, 'unit': 'pkt'},
-    {'id': '5', 'name': 'Sugar (चीनी) 1kg', 'category': 'Groceries', 'price': 42.0, 'stock': 50, 'unit': 'kg'},
+    {'id': '1', 'name': 'Aashirvaad Atta 5kg', 'category': 'Groceries', 'price': 220.0, 'stock': 15, 'unit': 'pkt', 'barcode': '890102030101', 'imageUrl': 'https://images.unsplash.com/photo-1574316071802-0d684efa7bf5?w=150&auto=format&fit=crop&q=80'},
+    {'id': '2', 'name': 'Fortune Mustard Oil 1L', 'category': 'Oil', 'price': 145.0, 'stock': 3, 'unit': 'bottle', 'barcode': '890102030102', 'imageUrl': ''},
+    {'id': '3', 'name': 'Tata Salt 1kg', 'category': 'Groceries', 'price': 28.0, 'stock': 40, 'unit': 'pkt', 'barcode': '890102030103', 'imageUrl': ''},
+    {'id': '4', 'name': 'Surf Excel 1kg', 'category': 'Detergent', 'price': 130.0, 'stock': 0, 'unit': 'pkt', 'barcode': '890102030104', 'imageUrl': ''},
+    {'id': '5', 'name': 'Sugar (चीनी) 1kg', 'category': 'Groceries', 'price': 42.0, 'stock': 50, 'unit': 'kg', 'barcode': '890102030105', 'imageUrl': ''},
   ];
 
   String _searchQuery = '';
@@ -55,7 +55,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
           'rackNumber': p.rackNumber,
           'expiryDate': p.expiryDate,
           'hsnCode': p.hsnCode,
-          'barcode': p.barcode,
+          'barcode': p.barcode.isNotEmpty ? p.barcode : '890${(100000000 + Random().nextInt(899999999))}',
+          'imageUrl': p.imageUrl,
         }).toList();
 
         // Merge with defaults to avoid duplicates by name
@@ -157,6 +158,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       final rack = item['rackNumber']?.toString() ?? '';
                       final exp = item['expiryDate']?.toString() ?? '';
                       final brand = item['brand']?.toString() ?? '';
+                      final barcode = item['barcode']?.toString() ?? '';
+                      final imgUrl = item['imageUrl']?.toString() ?? '';
 
                       return Container(
                         decoration: BoxDecoration(
@@ -168,20 +171,35 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           padding: const EdgeInsets.all(12.0),
                           child: Row(
                             children: [
+                              // Product Image Thumbnail or Inventory Icon
                               Container(
-                                padding: const EdgeInsets.all(10),
+                                width: 50,
+                                height: 50,
                                 decoration: BoxDecoration(
                                   color: isOutOfStock
-                                      ? Colors.red.shade100
-                                      : (isLowStock ? Colors.orange.shade100 : Colors.blue.shade100),
+                                      ? Colors.red.shade50
+                                      : (isLowStock ? Colors.orange.shade50 : Colors.blue.shade50),
                                   borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.grey.shade300),
                                 ),
-                                child: Icon(
-                                  Icons.inventory_2_rounded,
-                                  color: isOutOfStock
-                                      ? Colors.red.shade800
-                                      : (isLowStock ? Colors.orange.shade800 : Colors.blue.shade800),
-                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: (imgUrl.isNotEmpty && Uri.tryParse(imgUrl)?.hasAbsolutePath == true)
+                                    ? Image.network(
+                                        imgUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) => Icon(
+                                          Icons.inventory_2_rounded,
+                                          color: isOutOfStock
+                                              ? Colors.red.shade800
+                                              : (isLowStock ? Colors.orange.shade800 : Colors.blue.shade800),
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.inventory_2_rounded,
+                                        color: isOutOfStock
+                                            ? Colors.red.shade800
+                                            : (isLowStock ? Colors.orange.shade800 : Colors.blue.shade800),
+                                      ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -197,34 +215,46 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       '${item["category"]}${brand.isNotEmpty ? " • $brand" : ""} • ₹ ${item["price"]}/${item["unit"] ?? "pcs"}',
                                       style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
                                     ),
-                                    if (batch.isNotEmpty || rack.isNotEmpty || exp.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4.0),
-                                        child: Wrap(
-                                          spacing: 6,
-                                          runSpacing: 4,
-                                          children: [
-                                            if (batch.isNotEmpty)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
-                                                child: Text('Batch: $batch', style: const TextStyle(fontSize: 11, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          if (barcode.isNotEmpty)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(4)),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.qr_code_2_rounded, size: 12, color: Colors.purple.shade900),
+                                                  const SizedBox(width: 3),
+                                                  Text(barcode, style: TextStyle(fontSize: 11, color: Colors.purple.shade900, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                                                ],
                                               ),
-                                            if (rack.isNotEmpty)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(4)),
-                                                child: Text('Rack: $rack', style: TextStyle(fontSize: 11, color: Colors.blue.shade900, fontWeight: FontWeight.bold)),
-                                              ),
-                                            if (exp.isNotEmpty)
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(4)),
-                                                child: Text('Exp: $exp', style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.bold)),
-                                              ),
-                                          ],
-                                        ),
+                                            ),
+                                          if (batch.isNotEmpty)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
+                                              child: Text('Batch: $batch', style: const TextStyle(fontSize: 11, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                                            ),
+                                          if (rack.isNotEmpty)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(4)),
+                                              child: Text('Rack: $rack', style: TextStyle(fontSize: 11, color: Colors.blue.shade900, fontWeight: FontWeight.bold)),
+                                            ),
+                                          if (exp.isNotEmpty)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(4)),
+                                              child: Text('Exp: $exp', style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.bold)),
+                                            ),
+                                        ],
                                       ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -273,8 +303,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final rackCtrl = TextEditingController();
     final expiryCtrl = TextEditingController();
     final hsnCtrl = TextEditingController();
-    final barcodeCtrl = TextEditingController();
+    final barcodeCtrl = TextEditingController(text: '890${100000000 + Random().nextInt(899999999)}');
     final brandCtrl = TextEditingController();
+    final imgUrlCtrl = TextEditingController();
     String selectedCategory = 'Groceries';
     String selectedUnit = 'pkt';
 
@@ -298,14 +329,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isHindi ? 'नया सामान जोड़ें (Enterprise)' : 'Add New Product',
+                  isHindi ? 'नया सामान जोड़ें (Full Features)' : 'Add New Product (Full Details)',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: nameCtrl,
                   decoration: InputDecoration(
-                    labelText: isHindi ? 'सामान नाम *' : 'Product Name *',
+                    labelText: isHindi ? 'सामान का नाम *' : 'Product Name *',
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -393,6 +424,47 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   ],
                 ),
                 const SizedBox(height: 10),
+                // Barcode input with auto-generate button
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: barcodeCtrl,
+                        decoration: InputDecoration(
+                          labelText: isHindi ? 'बारकोड (Barcode)' : 'Barcode Number',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.qr_code_scanner),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purple.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                      ),
+                      icon: const Icon(Icons.autorenew_rounded, size: 18),
+                      label: Text(isHindi ? 'जेनरेट' : 'Gen Barcode', style: const TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        setModalState(() {
+                          barcodeCtrl.text = '890${100000000 + Random().nextInt(899999999)}';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: imgUrlCtrl,
+                  decoration: InputDecoration(
+                    labelText: isHindi ? 'सामान का फोटो/लोगो URL (Image URL)' : 'Product Image / Logo URL',
+                    hintText: 'https://example.com/photo.jpg',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.image_rounded),
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
@@ -468,6 +540,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           'expiryDate': expiryCtrl.text,
                           'hsnCode': hsnCtrl.text,
                           'barcode': barcodeCtrl.text,
+                          'imageUrl': imgUrlCtrl.text,
                         };
 
                         try {
@@ -485,8 +558,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             SnackBar(
                               content: Text(
                                 isHindi
-                                    ? 'सामान सुरक्षित रूप से सहेजा गया!'
-                                    : 'Product saved & synced to backend!',
+                                    ? 'सामान और बारकोड सफलतापूर्वक सहेजा गया!'
+                                    : 'Product with Barcode & Image saved & synced!',
                               ),
                               backgroundColor: Colors.green.shade700,
                             ),
@@ -506,7 +579,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       }
                     },
                     child: Text(
-                      isHindi ? 'सामान सेव करें' : 'Save Product',
+                      isHindi ? 'सामान सहेजें' : 'Save Product',
                       style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
                   ),
