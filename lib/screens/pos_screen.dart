@@ -36,6 +36,14 @@ class _PosScreenState extends State<PosScreen> {
     'Vikas Verma',
   ];
 
+  final Map<String, String> _customerPhoneMap = {
+    'Ramesh Kumar': '9876543210',
+    'Suresh Patel': '9812345678',
+    'Anita Devi': '9765432109',
+    'Vikas Verma': '9988776655',
+  };
+
+  final TextEditingController _customerPhoneController = TextEditingController();
   final List<Map<String, dynamic>> _cartItems = [];
   String _selectedPaymentMode = 'Cash';
   String _selectedCustomer = 'Walk-in Customer';
@@ -53,11 +61,17 @@ class _PosScreenState extends State<PosScreen> {
     try {
       final dbCustomers = await SQLiteHelper.instance.getCustomers();
       if (dbCustomers.isNotEmpty) {
-        final names = dbCustomers.map((c) => c['name'].toString()).where((n) => n.isNotEmpty).toList();
         setState(() {
-          for (var n in names) {
-            if (!_customerList.contains(n)) {
-              _customerList.add(n);
+          for (var c in dbCustomers) {
+            final n = c['name']?.toString() ?? '';
+            final p = c['phone']?.toString() ?? '';
+            if (n.isNotEmpty) {
+              if (!_customerList.contains(n)) {
+                _customerList.add(n);
+              }
+              if (p.isNotEmpty) {
+                _customerPhoneMap[n] = p;
+              }
             }
           }
         });
@@ -459,7 +473,16 @@ class _PosScreenState extends State<PosScreen> {
                             .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 14))))
                             .toList(),
                         onChanged: (val) {
-                          if (val != null) setState(() => _selectedCustomer = val);
+                          if (val != null) {
+                            setState(() {
+                              _selectedCustomer = val;
+                              if (val == 'Walk-in Customer') {
+                                _customerPhoneController.text = '';
+                              } else {
+                                _customerPhoneController.text = _customerPhoneMap[val] ?? '';
+                              }
+                            });
+                          }
                         },
                       ),
                     ),
@@ -475,6 +498,18 @@ class _PosScreenState extends State<PosScreen> {
                       child: Icon(Icons.person_add_rounded, color: themeProvider.buttonTextColor),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _customerPhoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: isHindi ? 'ग्राहक मोबाइल नंबर' : 'Customer Phone Number',
+                    hintText: _selectedCustomer == 'Walk-in Customer' ? 'Type mobile number (optional)' : 'Auto-filled from master',
+                    prefixIcon: const Icon(Icons.phone_rounded, size: 18, color: Colors.green),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 // Payment Mode Chips

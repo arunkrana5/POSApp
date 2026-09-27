@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'dart:html' as html;
+import 'dart:js' as js;
 
 class InvoicePrinter {
   static void printA4Invoice({
@@ -52,13 +52,13 @@ class InvoicePrinter {
   <style>
     @page {
       size: A4 portrait;
-      margin: 12mm;
+      margin: 10mm;
     }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       color: #0F172A;
       margin: 0;
-      padding: 24px;
+      padding: 20px;
       background: #FFFFFF;
     }
     .invoice-container {
@@ -224,19 +224,40 @@ class InvoicePrinter {
       Powered by VillageShop POS System.
     </div>
   </div>
-
-  <script>
-    window.onload = function() {
-      setTimeout(function() {
-        window.print();
-      }, 400);
-    };
-  </script>
 </body>
 </html>
     ''';
 
-    final dataUrl = Uri.dataFromString(htmlContent, mimeType: 'text/html', encoding: utf8).toString();
-    html.window.open(dataUrl, '_blank', 'width=850,height=1000');
+    try {
+      final jsonHtml = jsonEncode(htmlContent);
+      js.context.callMethod('eval', [
+        '''
+        (function(htmlText) {
+          var old = document.getElementById("pos_print_iframe");
+          if (old) old.remove();
+
+          var iframe = document.createElement("iframe");
+          iframe.id = "pos_print_iframe";
+          iframe.style.position = "fixed";
+          iframe.style.right = "0";
+          iframe.style.bottom = "0";
+          iframe.style.width = "0";
+          iframe.style.height = "0";
+          iframe.style.border = "0";
+          document.body.appendChild(iframe);
+
+          var doc = iframe.contentWindow.document;
+          doc.open();
+          doc.write(htmlText);
+          doc.close();
+
+          setTimeout(function() {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+          }, 350);
+        })($jsonHtml);
+        '''
+      ]);
+    } catch (_) {}
   }
 }
