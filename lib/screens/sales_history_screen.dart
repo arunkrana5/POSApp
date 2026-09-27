@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
+import '../utils/invoice_printer.dart';
 import '../widgets/app_drawer.dart';
 
 // Universal Web Print import
@@ -297,13 +298,21 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       icon: const Icon(Icons.print_rounded, size: 20),
                       label: Text(isHindi ? 'A4 इनवॉइस प्रिंट' : 'Print A4 Invoice'),
                       onPressed: () {
-                        if (kIsWeb) {
-                          html.window.print();
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Printing A4 receipt...')),
-                          );
-                        }
+                        InvoicePrinter.printA4Invoice(
+                          tenantName: themeProvider.tenantName,
+                          appTitle: themeProvider.appTitle,
+                          logoUrl: themeProvider.logoUrl,
+                          supportPhone: themeProvider.supportPhone,
+                          invoiceNo: invoiceNo,
+                          customerName: customerName,
+                          customerPhone: phoneCtrl.text.trim(),
+                          paymentMode: paymentMode,
+                          createdAt: createdAt,
+                          subtotal: grandTotal,
+                          taxAmount: 0.0,
+                          grandTotal: grandTotal,
+                          items: itemsList,
+                        );
                       },
                     ),
                   ),

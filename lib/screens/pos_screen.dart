@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'dart:html' as html;
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
+import '../utils/invoice_printer.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../database/sqlite_helper.dart';
@@ -310,13 +311,21 @@ class _PosScreenState extends State<PosScreen> {
                   icon: const Icon(Icons.print_rounded, size: 18),
                   label: Text(isHindi ? 'प्रिंट रसीद' : 'Print Receipt'),
                   onPressed: () {
-                    if (kIsWeb) {
-                      html.window.print();
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Printing receipt...')),
-                      );
-                    }
+                    InvoicePrinter.printA4Invoice(
+                      tenantName: themeProvider.tenantName,
+                      appTitle: themeProvider.appTitle,
+                      logoUrl: themeProvider.logoUrl,
+                      supportPhone: themeProvider.supportPhone,
+                      invoiceNo: invoiceNo,
+                      customerName: customerName,
+                      customerPhone: phoneCtrl.text.trim(),
+                      paymentMode: paymentMode,
+                      createdAt: DateTime.now().toString().split('.')[0],
+                      subtotal: subtotal,
+                      taxAmount: taxAmount,
+                      grandTotal: grandTotal,
+                      items: items,
+                    );
                   },
                 ),
               ),
