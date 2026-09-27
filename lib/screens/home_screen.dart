@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
@@ -14,6 +17,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  double _todaySales = 0.0;
+  double _totalUdhaar = 0.0;
+  int _lowStockCount = 0;
+  double _todayProfit = 0.0;
+  List<Map<String, dynamic>> _recentTransactions = [];
+  bool _isLoadingMetrics = false;
+
   @override
   void initState() {
     super.initState();
@@ -25,8 +35,57 @@ class _HomeScreenState extends State<HomeScreen> {
         Provider.of<SyncProvider>(context, listen: false).loadPendingCount();
         Provider.of<TenantThemeProvider>(context, listen: false)
             .fetchAndApplyConfig(auth.accessToken ?? '', auth.tenantCode, auth.tenantId);
+        _loadDashboardMetrics();
       }
     });
+  }
+
+  Future<void> _loadDashboardMetrics() async {
+    setState(() => _isLoadingMetrics = true);
+    try {
+      final responses = await Future.wait([
+        http.get(Uri.parse('${ApiConfig.baseUrl}/sales')),
+        http.get(Uri.parse('${ApiConfig.baseUrl}/customers')),
+        http.get(Uri.parse('${ApiConfig.baseUrl}/products')),
+      ]).timeout(const Duration(seconds: 10));
+
+      double salesSum = 0.0;
+      List<Map<String, dynamic>> salesList = [];
+      if (responses[0].statusCode == 200) {
+        final List<dynamic> sData = jsonDecode(responses[0].body);
+        salesList = sData.map((s) => Map<String, dynamic>.from(s)).toList();
+        for (var s in salesList) {
+          salesSum += (s['totalAmount'] as num?)?.toDouble() ?? 0.0;
+        }
+      }
+
+      double udhaarSum = 0.0;
+      if (responses[1].statusCode == 200) {
+        final List<dynamic> cData = jsonDecode(responses[1].body);
+        for (var c in cData) {
+          udhaarSum += (c['udhaar'] as num?)?.toDouble() ?? 0.0;
+        }
+      }
+
+      int lowStock = 0;
+      if (responses[2].statusCode == 200) {
+        final List<dynamic> pData = jsonDecode(responses[2].body);
+        for (var p in pData) {
+          final stock = (p['currentStock'] as num?)?.toInt() ?? 0;
+          final minStock = (p['minimumStock'] as num?)?.toInt() ?? 5;
+          if (stock <= minStock) lowStock++;
+        }
+      }
+
+      setState(() {
+        _todaySales = salesSum;
+        _totalUdhaar = udhaarSum;
+        _lowStockCount = lowStock;
+        _todayProfit = salesSum * 0.15; // 15% estimated profit margin
+        _recentTransactions = salesList.take(6).toList();
+      });
+    } catch (_) {}
+    setState(() => _isLoadingMetrics = false);
   }
 
   @override
@@ -87,27 +146,9 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: Stack(
-              children: [
-                const Icon(Icons.notifications_none_rounded, size: 26, color: Colors.white),
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Text(
-                      '2',
-                      style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            onPressed: () {},
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            tooltip: 'Refresh Dashboard',
+            onPressed: _loadDashboardMetrics,
           ),
         ],
       ),
@@ -115,6 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: () async {
           await themeProvider.fetchAndApplyConfig();
           await syncProvider.syncNow();
+          await _loadDashboardMetrics();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -128,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Metric Summary Cards (4 Grids)
               Text(
-                isHindi ? 'आज का व्यापार सारांश' : 'Today\'s Business Summary',
+                isHindi ? 'आज का व्यापार सारांश (Live DB)' : 'Today\'s Business Summary (Live DB)',
                 style: TextStyle(
                   fontFamily: themeProvider.fontFamily,
                   fontSize: 18 * themeProvider.fontSizeScale,
@@ -159,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isHindi ? 'हाल के लेन-देन' : 'Recent Transactions',
+                    isHindi ? 'हाल के लेन-देन (Recent DB Sales)' : 'Recent Transactions (Live DB)',
                     style: TextStyle(
                       fontFamily: themeProvider.fontFamily,
                       fontSize: 18 * themeProvider.fontSizeScale,
@@ -296,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildStatCard(
           context,
           isHindi ? 'आज की बिक्री' : 'Today\'s Sales',
-          '₹ 4,850',
+          '₹ ${_todaySales.toStringAsFixed(2)}',
           Icons.payments_rounded,
           themeProvider.amountColor,
           themeProvider.amountColor.withOpacity(0.1),
@@ -305,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _buildStatCard(
           context,
           isHindi ? 'कुल उधार बकाया' : 'Total Udhaar',
-          '₹ 12,400',
+          '₹ ${_totalUdhaar.toStringAsFixed(2)}',
           Icons.account_balance_wallet_rounded,
           Colors.red.shade700,
           Colors.red.shade50,
@@ -313,8 +355,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         _buildStatCard(
           context,
-          isHindi ? 'कम स्टॉक सामान' : 'Low Stock Items',
-          '3 Items',
+          isHindi ? 'कम स्टॉक सामान' : 'Low Stock Alert',
+          '$_lowStockCount ${isHindi ? "सामान" : "Items"}',
           Icons.warning_amber_rounded,
           themeProvider.secondaryColor,
           themeProvider.secondaryColor.withOpacity(0.1),
@@ -322,8 +364,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         _buildStatCard(
           context,
-          isHindi ? 'आज का लाभ' : 'Today\'s Profit',
-          '₹ 1,120',
+          isHindi ? 'अनुमानित लाभ' : 'Estimated Profit',
+          '₹ ${_todayProfit.toStringAsFixed(2)}',
           Icons.trending_up_rounded,
           themeProvider.buttonBgColor,
           themeProvider.buttonBgColor.withOpacity(0.1),
@@ -376,7 +418,7 @@ class _HomeScreenState extends State<HomeScreen> {
             value,
             style: TextStyle(
               fontFamily: themeProvider.fontFamily,
-              fontSize: 20 * themeProvider.fontSizeScale,
+              fontSize: 18 * themeProvider.fontSizeScale,
               fontWeight: FontWeight.bold,
               color: value.contains('₹') ? themeProvider.amountColor : themeProvider.textColor,
             ),
@@ -460,20 +502,39 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildRecentTransactionsList(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
-    final mockTransactions = [
-      {'id': '#INV-1004', 'customer': 'Ramesh Kumar', 'amount': '₹ 450', 'mode': 'Cash', 'time': '10:45 AM'},
-      {'id': '#INV-1003', 'customer': 'Suresh Patel', 'amount': '₹ 1,200', 'mode': 'Udhaar', 'time': '09:30 AM'},
-      {'id': '#INV-1002', 'customer': 'Walk-in Customer', 'amount': '₹ 180', 'mode': 'UPI', 'time': 'Yesterday'},
-    ];
+    if (_isLoadingMetrics) {
+      return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
+    }
+
+    if (_recentTransactions.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: themeProvider.cardBgColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            isHindi ? 'अभी कोई बिक्री दर्ज नहीं हुई है।' : 'No recent transactions recorded.',
+            style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+          ),
+        ),
+      );
+    }
 
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: mockTransactions.length,
+      itemCount: _recentTransactions.length,
       separatorBuilder: (ctx, i) => const SizedBox(height: 8),
       itemBuilder: (ctx, index) {
-        final tx = mockTransactions[index];
-        final isUdhaar = tx['mode'] == 'Udhaar';
+        final tx = _recentTransactions[index];
+        final inv = tx['id']?.toString() ?? 'INV';
+        final cust = tx['customerName']?.toString() ?? 'Walk-in Customer';
+        final amt = (tx['totalAmount'] as num?)?.toDouble() ?? 0.0;
+        final mode = tx['paymentMode']?.toString() ?? 'Cash';
+        final time = tx['createdAt']?.toString() ?? '';
+        final isUdhaar = mode == 'Udhaar';
 
         return Container(
           decoration: BoxDecoration(
@@ -493,7 +554,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             title: Text(
-              tx['customer']!,
+              cust,
               style: TextStyle(
                 fontFamily: themeProvider.fontFamily,
                 fontWeight: FontWeight.bold,
@@ -502,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             subtitle: Text(
-              '${tx["id"]} • ${tx["time"]}',
+              '$inv • $time',
               style: TextStyle(
                 fontFamily: themeProvider.fontFamily,
                 fontSize: 12 * themeProvider.fontSizeScale,
@@ -514,10 +575,10 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  tx['amount']!,
+                  '₹ ${amt.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontFamily: themeProvider.fontFamily,
-                    fontSize: 16 * themeProvider.fontSizeScale,
+                    fontSize: 15 * themeProvider.fontSizeScale,
                     fontWeight: FontWeight.bold,
                     color: isUdhaar ? Colors.red.shade700 : themeProvider.amountColor,
                   ),
@@ -529,7 +590,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    tx['mode']!,
+                    mode,
                     style: TextStyle(
                       fontFamily: themeProvider.fontFamily,
                       fontSize: 10 * themeProvider.fontSizeScale,
