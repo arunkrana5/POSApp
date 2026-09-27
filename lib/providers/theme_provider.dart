@@ -64,8 +64,10 @@ class TenantThemeProvider with ChangeNotifier {
         tenantName = savedTenantName;
         appTitle = savedTenantName;
       }
+    } catch (_) {
+    } finally {
       notifyListeners();
-    } catch (_) {}
+    }
   }
 
   Future<void> fetchAndApplyConfig([String token = '', String? tenantCode, int? tenantId]) async {

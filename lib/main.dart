@@ -20,41 +20,8 @@ void main() {
   runApp(const VillageShopApp());
 }
 
-class VillageShopApp extends StatefulWidget {
+class VillageShopApp extends StatelessWidget {
   const VillageShopApp({super.key});
-
-  @override
-  State<VillageShopApp> createState() => _VillageShopAppState();
-}
-
-class _VillageShopAppState extends State<VillageShopApp> {
-  bool _initialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initApp();
-  }
-
-  Future<void> _initApp() async {
-    final authProvider = AuthProvider();
-    await authProvider.init();
-    
-    final themeProvider = TenantThemeProvider();
-    if (authProvider.isAuthenticated) {
-      await themeProvider.fetchAndApplyConfig(
-        authProvider.accessToken ?? '',
-        authProvider.tenantCode,
-        authProvider.tenantId,
-      );
-    }
-
-    if (mounted) {
-      setState(() {
-        _initialized = true;
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,21 +36,8 @@ class _VillageShopAppState extends State<VillageShopApp> {
         ChangeNotifierProvider(create: (_) => SyncProvider()),
         ChangeNotifierProvider(create: (_) => TenantThemeProvider()),
       ],
-      child: Consumer3<AuthProvider, LocaleProvider, TenantThemeProvider>(
-        builder: (context, authProvider, localeProvider, themeProvider, child) {
-          if (!authProvider.isInitialized) {
-            return const MaterialApp(
-              debugShowCheckedModeBanner: false,
-              home: Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              ),
-            );
-          }
-
-          final initialRoute = authProvider.isAuthenticated ? '/home' : '/login';
-
+      child: Consumer2<LocaleProvider, TenantThemeProvider>(
+        builder: (context, localeProvider, themeProvider, child) {
           return MaterialApp(
             title: 'VillageShop Mobile',
             debugShowCheckedModeBanner: false,
@@ -98,7 +52,7 @@ class _VillageShopAppState extends State<VillageShopApp> {
               GlobalCupertinoLocalizations.delegate,
             ],
             theme: themeProvider.themeData,
-            initialRoute: initialRoute,
+            home: const AuthWrapper(),
             routes: {
               '/login': (context) => const LoginScreen(),
               '/home': (context) => const HomeScreen(),
@@ -112,5 +66,44 @@ class _VillageShopAppState extends State<VillageShopApp> {
         },
       ),
     );
+  }
+}
+
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _themeFetched = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
+
+    if (!authProvider.isInitialized) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (authProvider.isAuthenticated) {
+      if (!_themeFetched) {
+        _themeFetched = true;
+        themeProvider.fetchAndApplyConfig(
+          authProvider.accessToken ?? '',
+          authProvider.tenantCode,
+          authProvider.tenantId,
+        );
+      }
+      return const HomeScreen();
+    }
+
+    return const LoginScreen();
   }
 }

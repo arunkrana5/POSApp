@@ -31,9 +31,11 @@ class AuthProvider with ChangeNotifier {
       _tenantCode = prefs.getString('tenant_code');
       _tenantId = prefs.getInt('tenant_id');
       _username = prefs.getString('username');
-    } catch (_) {}
-    _isInitialized = true;
-    notifyListeners();
+    } catch (_) {
+    } finally {
+      _isInitialized = true;
+      notifyListeners();
+    }
   }
 
   Future<PostResponse> login(String tenantCode, String username, String password) async {
