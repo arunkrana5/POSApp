@@ -1,5 +1,8 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:html' as html;
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
@@ -64,7 +67,7 @@ class _PosScreenState extends State<PosScreen> {
     try {
       final syncProvider = Provider.of<SyncProvider>(context, listen: false);
       final fetchedProducts = await syncProvider.fetchProducts();
-      
+
       if (fetchedProducts.isNotEmpty) {
         final List<Map<String, dynamic>> loadedList = fetchedProducts.map((p) => {
           'id': p.id.toString(),
@@ -163,6 +166,205 @@ class _PosScreenState extends State<PosScreen> {
         _cartItems.removeAt(index);
       }
     });
+  }
+
+  void _showInvoiceReceiptModal({
+    required BuildContext context,
+    required bool isHindi,
+    required TenantThemeProvider themeProvider,
+    required String invoiceNo,
+    required String customerName,
+    required List<Map<String, dynamic>> items,
+    required double subtotal,
+    required double taxAmount,
+    required double grandTotal,
+    required String paymentMode,
+  }) {
+    final phoneCtrl = TextEditingController(text: '9876543210');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Column(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.green, size: 52),
+            const SizedBox(height: 6),
+            Text(
+              isHindi ? 'बिल सहेजा गया & तैयार!' : 'Sale Completed Successfully!',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            Text(
+              invoiceNo,
+              style: const TextStyle(fontSize: 13, color: Colors.blue, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(isHindi ? 'ग्राहक:' : 'Customer:', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(customerName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(isHindi ? 'भुगतान मोड़:' : 'Payment Mode:', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(
+                      paymentMode,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: paymentMode == 'Udhaar' ? Colors.red.shade700 : Colors.green.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(isHindi ? 'सामान विवरण:' : 'Purchased Items:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: Column(
+                    children: items.map((it) {
+                      final name = it['name'] ?? 'Item';
+                      final qty = it['qty'] ?? 1;
+                      final price = (it['price'] as num?)?.toDouble() ?? 0.0;
+                      final tot = qty * price;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(child: Text('$qty x $name', style: const TextStyle(fontSize: 13))),
+                            Text('₹ ${tot.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(isHindi ? 'कुल राशि:' : 'Grand Total:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(
+                      '₹ ${grandTotal.toStringAsFixed(2)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                Text(
+                  isHindi ? 'व्हाट्सएप रसीद भेजें (WhatsApp Share):' : 'Send WhatsApp Invoice Receipt:',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: isHindi ? 'मोबाइल नंबर' : 'Customer Mobile Number',
+                    prefixIcon: const Icon(Icons.phone, color: Colors.green),
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.print_rounded, size: 18),
+                  label: Text(isHindi ? 'प्रिंट रसीद' : 'Print Receipt'),
+                  onPressed: () {
+                    if (kIsWeb) {
+                      html.window.print();
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Printing receipt...')),
+                      );
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white),
+                  icon: const Icon(Icons.send_rounded, size: 18),
+                  label: const Text('WhatsApp'),
+                  onPressed: () {
+                    final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+                    final phoneToUse = cleanPhone.isEmpty ? '9876543210' : cleanPhone;
+                    final targetPhone = phoneToUse.startsWith('91') ? phoneToUse : '91$phoneToUse';
+
+                    final StringBuffer sb = StringBuffer();
+                    sb.writeln('🛒 *VILLAGE SHOP - INVOICE RECEIPT*');
+                    sb.writeln('===========================');
+                    sb.writeln('📄 Invoice No: $invoiceNo');
+                    sb.writeln('👤 Customer: $customerName');
+                    sb.writeln('💳 Mode: $paymentMode');
+                    sb.writeln('---------------------------');
+                    for (var it in items) {
+                      final name = it['name'];
+                      final qty = it['qty'];
+                      final price = it['price'];
+                      sb.writeln('• ${qty}x $name @ ₹$price = ₹${(qty * price).toStringAsFixed(2)}');
+                    }
+                    sb.writeln('---------------------------');
+                    sb.writeln('*GRAND TOTAL: ₹${grandTotal.toStringAsFixed(2)}*');
+                    sb.writeln('===========================');
+                    sb.writeln('Thank you for shopping with us! 🙏');
+
+                    final encodedText = Uri.encodeComponent(sb.toString());
+                    final waUrl = 'https://api.whatsapp.com/send?phone=$targetPhone&text=$encodedText';
+
+                    if (kIsWeb) {
+                      html.window.open(waUrl, '_blank');
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Opening WhatsApp for $targetPhone...'), backgroundColor: const Color(0xFF25D366)),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: themeProvider.buttonBgColor, foregroundColor: themeProvider.buttonTextColor),
+              onPressed: () {
+                Navigator.pop(ctx);
+              },
+              child: Text(
+                isHindi ? '+ नया बिल बनाएँ (Next Bill)' : '+ Create Next Bill',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -394,20 +596,13 @@ class _PosScreenState extends State<PosScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: themeProvider.textColor.withOpacity(0.05),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                '${product["stock"]} ${product["unit"]}',
-                                style: TextStyle(
-                                  fontFamily: themeProvider.fontFamily,
-                                  fontSize: 11 * themeProvider.fontSizeScale,
-                                  color: themeProvider.textColor.withOpacity(0.7),
-                                ),
+                            Text(
+                              '${product["stock"]} ${product["unit"]}',
+                              style: TextStyle(
+                                fontFamily: themeProvider.fontFamily,
+                                fontSize: 11 * themeProvider.fontSizeScale,
+                                color: (product['stock'] as num) <= 5 ? Colors.red.shade700 : themeProvider.textColor.withOpacity(0.6),
+                                fontWeight: (product['stock'] as num) <= 5 ? FontWeight.bold : FontWeight.normal,
                               ),
                             ),
                           ],
@@ -420,29 +615,26 @@ class _PosScreenState extends State<PosScreen> {
             ),
           ),
 
-          // Cart & Total Footer
+          // Cart Footer & Checkout Panel
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: themeProvider.cardBgColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
+                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, -4)),
               ],
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Cart Items Horizontal Preview
                 if (_cartItems.isNotEmpty)
                   SizedBox(
-                    height: 48,
+                    height: 38,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _cartItems.length,
-                      separatorBuilder: (ctx, i) => const SizedBox(width: 8),
+                      separatorBuilder: (ctx, i) => const SizedBox(width: 6),
                       itemBuilder: (ctx, index) {
                         final item = _cartItems[index];
                         return Container(
@@ -529,30 +721,32 @@ class _PosScreenState extends State<PosScreen> {
                         onPressed: _cartItems.isEmpty
                             ? null
                             : () async {
+                                final invoiceNo = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+                                final cartSnapshot = List<Map<String, dynamic>>.from(_cartItems);
+                                final subtotalSnapshot = _subtotal;
+                                final taxSnapshot = taxAmount;
+                                final grandTotalSnapshot = grandTotal;
+                                final modeSnapshot = _selectedPaymentMode;
+                                final customerSnapshot = _selectedCustomer;
+
                                 final syncProvider = Provider.of<SyncProvider>(context, listen: false);
                                 await syncProvider.saveOfflineSale({
-                                  'customer': _selectedCustomer,
-                                  'subtotal': _subtotal,
-                                  'taxAmount': taxAmount,
-                                  'amount': grandTotal,
-                                  'paymentMode': _selectedPaymentMode,
-                                  'items': _cartItems,
+                                  'clientTransactionId': invoiceNo,
+                                  'customer': customerSnapshot,
+                                  'customerName': customerSnapshot,
+                                  'subtotal': subtotalSnapshot,
+                                  'taxAmount': taxSnapshot,
+                                  'amount': grandTotalSnapshot,
+                                  'totalAmount': grandTotalSnapshot,
+                                  'paidAmount': modeSnapshot == 'Udhaar' ? 0 : grandTotalSnapshot,
+                                  'paymentMode': modeSnapshot,
+                                  'items': cartSnapshot,
                                   'createdAt': DateTime.now().toIso8601String(),
                                 });
 
                                 if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        isHindi
-                                            ? 'बिल सफलतापूर्‍वक सहेजा गया! (Offline saved)'
-                                            : 'Invoice generated & saved successfully!',
-                                      ),
-                                      backgroundColor: Colors.green.shade700,
-                                    ),
-                                  );
                                   setState(() {
-                                    for (var cartItem in _cartItems) {
+                                    for (var cartItem in cartSnapshot) {
                                       final idx = _availableProducts.indexWhere((p) => p['id'] == cartItem['id'] || p['name'] == cartItem['name']);
                                       if (idx >= 0) {
                                         final current = (_availableProducts[idx]['stock'] as num).toInt();
@@ -562,6 +756,20 @@ class _PosScreenState extends State<PosScreen> {
                                     }
                                     _cartItems.clear();
                                   });
+
+                                  // Pop up the completed invoice receipt with WhatsApp & Print options!
+                                  _showInvoiceReceiptModal(
+                                    context: context,
+                                    isHindi: isHindi,
+                                    themeProvider: themeProvider,
+                                    invoiceNo: invoiceNo,
+                                    customerName: customerSnapshot,
+                                    items: cartSnapshot,
+                                    subtotal: subtotalSnapshot,
+                                    taxAmount: taxSnapshot,
+                                    grandTotal: grandTotalSnapshot,
+                                    paymentMode: modeSnapshot,
+                                  );
                                 }
                               },
                       ),
