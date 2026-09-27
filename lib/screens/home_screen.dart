@@ -43,10 +43,24 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadDashboardMetrics() async {
     setState(() => _isLoadingMetrics = true);
     try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final tCode = auth.tenantCode ?? '';
+      final tId = auth.tenantId ?? 0;
+      final token = auth.accessToken ?? '';
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (tId > 0) 'X-Tenant-Id': tId.toString(),
+        if (tCode.isNotEmpty) 'X-Tenant-Code': tCode,
+      };
+
+      final qStr = '?tenantId=$tId&tenantCode=$tCode';
+
       final responses = await Future.wait([
-        http.get(Uri.parse('${ApiConfig.baseUrl}/sales')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}/customers')),
-        http.get(Uri.parse('${ApiConfig.baseUrl}/products')),
+        http.get(Uri.parse('${ApiConfig.baseUrl}/sales$qStr'), headers: headers),
+        http.get(Uri.parse('${ApiConfig.baseUrl}/customers$qStr'), headers: headers),
+        http.get(Uri.parse('${ApiConfig.baseUrl}/products$qStr'), headers: headers),
       ]).timeout(const Duration(seconds: 10));
 
       double salesSum = 0.0;

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../database/sqlite_helper.dart';
 import '../models/product.dart';
@@ -10,6 +11,22 @@ class SyncEngine {
   final String apiBaseUrl;
 
   SyncEngine({String? baseUrl}) : apiBaseUrl = baseUrl ?? ApiConfig.baseUrl;
+
+  Future<Map<String, String>> _getTenantHeaders([String token = '']) async {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tId = prefs.getInt('tenant_id');
+      final tCode = prefs.getString('tenant_code');
+      final savedToken = prefs.getString('auth_token');
+
+      final tokenToUse = token.isNotEmpty ? token : (savedToken ?? '');
+      if (tokenToUse.isNotEmpty) headers['Authorization'] = 'Bearer $tokenToUse';
+      if (tId != null && tId > 0) headers['X-Tenant-Id'] = tId.toString();
+      if (tCode != null && tCode.isNotEmpty) headers['X-Tenant-Code'] = tCode;
+    } catch (_) {}
+    return headers;
+  }
 
   Future<int> getPendingCount() async {
     if (kIsWeb) return 0;
@@ -21,15 +38,22 @@ class SyncEngine {
     }
   }
 
-  // Fetch live products from backend API and save into local SQLite database if non-web
+  // Fetch live products from backend API for logged-in tenant
   Future<List<Product>> fetchAndCacheProducts([String token = '']) async {
     try {
+      final headers = await _getTenantHeaders(token);
+      final prefs = await SharedPreferences.getInstance();
+      final tCode = prefs.getString('tenant_code');
+      final tId = prefs.getInt('tenant_id');
+      
+      final queryParams = <String>[];
+      if (tId != null && tId > 0) queryParams.add('tenantId=$tId');
+      if (tCode != null && tCode.isNotEmpty) queryParams.add('tenantCode=$tCode');
+      final qStr = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
+
       final response = await http.get(
-        Uri.parse('$apiBaseUrl/products'),
-        headers: {
-          'Content-Type': 'application/json',
-          if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-        },
+        Uri.parse('$apiBaseUrl/products$qStr'),
+        headers: headers,
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -42,9 +66,7 @@ class SyncEngine {
         }
         return products;
       }
-    } catch (_) {
-      // Offline fallback: load from local SQLite
-    }
+    } catch (_) {}
 
     if (!kIsWeb) {
       try {
@@ -55,11 +77,18 @@ class SyncEngine {
   }
 
   Future<void> saveProductOffline(Map<String, dynamic> productData) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (productData['tenantId'] == null) productData['tenantId'] = prefs.getInt('tenant_id');
+      if (productData['tenantCode'] == null) productData['tenantCode'] = prefs.getString('tenant_code');
+    } catch (_) {}
+
     // 1. Direct API call to backend first
     try {
+      final headers = await _getTenantHeaders();
       await http.post(
         Uri.parse('$apiBaseUrl/products'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(productData),
       ).timeout(const Duration(seconds: 8));
     } catch (_) {}
@@ -76,13 +105,20 @@ class SyncEngine {
   }
 
   Future<void> saveSaleOffline(Map<String, dynamic> saleData) async {
-    final clientTxId = 'TX-${DateTime.now().millisecondsSinceEpoch}';
+    final clientTxId = saleData['clientTransactionId'] ?? 'TX-${DateTime.now().millisecondsSinceEpoch}';
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (saleData['tenantId'] == null) saleData['tenantId'] = prefs.getInt('tenant_id');
+      if (saleData['tenantCode'] == null) saleData['tenantCode'] = prefs.getString('tenant_code');
+    } catch (_) {}
 
     // Direct API call
     try {
+      final headers = await _getTenantHeaders();
       await http.post(
         Uri.parse('$apiBaseUrl/sales'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(saleData),
       ).timeout(const Duration(seconds: 8));
     } catch (_) {}
@@ -100,15 +136,7 @@ class SyncEngine {
           }
         }
 
-        final payloadJson = jsonEncode({
-          'clientTransactionId': clientTxId,
-          'customerName': saleData['customer'],
-          'totalAmount': saleData['amount'],
-          'paymentMode': saleData['paymentMode'],
-          'items': saleData['items'],
-          'createdAt': saleData['createdAt'] ?? DateTime.now().toIso8601String(),
-        });
-
+        final payloadJson = jsonEncode(saleData);
         await SQLiteHelper.instance.addToSyncQueue(clientTxId, 'SALE', payloadJson);
       } catch (_) {}
     }
@@ -116,12 +144,19 @@ class SyncEngine {
 
   Future<void> saveCustomerOffline(String name, String phone) async {
     final clientTxId = 'CUST-${DateTime.now().millisecondsSinceEpoch}';
-    final payloadMap = {'name': name, 'phone': phone};
+    final payloadMap = <String, dynamic>{'name': name, 'phone': phone};
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      payloadMap['tenantId'] = prefs.getInt('tenant_id');
+      payloadMap['tenantCode'] = prefs.getString('tenant_code');
+    } catch (_) {}
+
+    try {
+      final headers = await _getTenantHeaders();
       await http.post(
         Uri.parse('$apiBaseUrl/customers'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(payloadMap),
       ).timeout(const Duration(seconds: 8));
     } catch (_) {}
@@ -141,7 +176,7 @@ class SyncEngine {
 
   Future<void> saveCustomerPaymentOffline(String customerName, double amountPaid, double remainingUdhaar) async {
     final clientTxId = 'PAY-${DateTime.now().millisecondsSinceEpoch}';
-    final payloadMap = {
+    final payloadMap = <String, dynamic>{
       'customerName': customerName,
       'amountPaid': amountPaid,
       'remainingUdhaar': remainingUdhaar,
@@ -149,9 +184,16 @@ class SyncEngine {
     };
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      payloadMap['tenantId'] = prefs.getInt('tenant_id');
+      payloadMap['tenantCode'] = prefs.getString('tenant_code');
+    } catch (_) {}
+
+    try {
+      final headers = await _getTenantHeaders();
       await http.post(
         Uri.parse('$apiBaseUrl/customers/payment'),
-        headers: {'Content-Type': 'application/json'},
+        headers: headers,
         body: jsonEncode(payloadMap),
       ).timeout(const Duration(seconds: 8));
     } catch (_) {}
@@ -175,6 +217,8 @@ class SyncEngine {
       final pendingItems = await SQLiteHelper.instance.getPendingSyncItems();
       int syncedCount = 0;
 
+      final headers = await _getTenantHeaders(token);
+
       for (var item in pendingItems) {
         final clientTxId = item['clientTransactionId'] as String;
         final entityName = item['entityName'] as String;
@@ -188,10 +232,7 @@ class SyncEngine {
         try {
           final response = await http.post(
             Uri.parse('$apiBaseUrl$endpoint'),
-            headers: {
-              'Content-Type': 'application/json',
-              if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-            },
+            headers: headers,
             body: payloadJson,
           ).timeout(const Duration(seconds: 5));
 
