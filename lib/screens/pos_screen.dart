@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:html' as html;
+import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
@@ -769,9 +770,12 @@ class _PosScreenState extends State<PosScreen> {
                                 final modeSnapshot = _selectedPaymentMode;
                                 final customerSnapshot = _selectedCustomer;
 
+                                final authProvider = Provider.of<AuthProvider>(context, listen: false);
                                 final syncProvider = Provider.of<SyncProvider>(context, listen: false);
                                 await syncProvider.saveOfflineSale({
                                   'clientTransactionId': invoiceNo,
+                                  'tenantId': authProvider.tenantId,
+                                  'tenantCode': authProvider.tenantCode,
                                   'customer': customerSnapshot,
                                   'customerName': customerSnapshot,
                                   'subtotal': subtotalSnapshot,
