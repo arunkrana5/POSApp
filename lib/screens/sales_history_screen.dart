@@ -98,7 +98,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     final createdAt = sale['createdAt']?.toString() ?? DateTime.now().toString().split('.')[0];
     final itemsList = (sale['items'] as List<dynamic>?) ?? [];
 
-    final phoneCtrl = TextEditingController(text: sale['customerPhone']?.toString() ?? '9876543210');
+    final phoneCtrl = TextEditingController(text: (sale['customerPhone'] != null && sale['customerPhone'].toString() != '9876543210') ? sale['customerPhone'].toString() : '');
 
     showDialog(
       context: context,
@@ -328,8 +328,13 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       label: const Text('WhatsApp Share'),
                       onPressed: () {
                         final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
-                        final phoneToUse = cleanPhone.isEmpty ? '9876543210' : cleanPhone;
-                        final targetPhone = phoneToUse.startsWith('91') ? phoneToUse : '91$phoneToUse';
+                        if (cleanPhone.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please enter a valid customer mobile number to share WhatsApp invoice')),
+                          );
+                          return;
+                        }
+                        final targetPhone = cleanPhone.startsWith('91') ? cleanPhone : '91$cleanPhone';
 
                         final StringBuffer sb = StringBuffer();
                         sb.writeln('🛒 *${themeProvider.tenantName.toUpperCase()} - TAX INVOICE*');

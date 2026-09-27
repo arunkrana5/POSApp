@@ -190,13 +190,14 @@ class _PosScreenState extends State<PosScreen> {
     required TenantThemeProvider themeProvider,
     required String invoiceNo,
     required String customerName,
+    required String customerPhone,
     required List<Map<String, dynamic>> items,
     required double subtotal,
     required double taxAmount,
     required double grandTotal,
     required String paymentMode,
   }) {
-    final phoneCtrl = TextEditingController(text: '9876543210');
+    final phoneCtrl = TextEditingController(text: customerPhone);
 
     showDialog(
       context: context,
@@ -351,8 +352,13 @@ class _PosScreenState extends State<PosScreen> {
                   label: const Text('WhatsApp'),
                   onPressed: () {
                     final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
-                    final phoneToUse = cleanPhone.isEmpty ? '9876543210' : cleanPhone;
-                    final targetPhone = phoneToUse.startsWith('91') ? phoneToUse : '91$phoneToUse';
+                    if (cleanPhone.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a valid customer mobile number to send WhatsApp invoice')),
+                      );
+                      return;
+                    }
+                    final targetPhone = cleanPhone.startsWith('91') ? cleanPhone : '91$cleanPhone';
 
                     final StringBuffer sb = StringBuffer();
                     sb.writeln('🛒 *VILLAGE SHOP - INVOICE RECEIPT*');
@@ -813,6 +819,7 @@ class _PosScreenState extends State<PosScreen> {
                                 final grandTotalSnapshot = grandTotal;
                                 final modeSnapshot = _selectedPaymentMode;
                                 final customerSnapshot = _selectedCustomer;
+                                final phoneSnapshot = _customerPhoneController.text;
 
                                 final authProvider = Provider.of<AuthProvider>(context, listen: false);
                                 final syncProvider = Provider.of<SyncProvider>(context, listen: false);
@@ -822,6 +829,7 @@ class _PosScreenState extends State<PosScreen> {
                                   'tenantCode': authProvider.tenantCode,
                                   'customer': customerSnapshot,
                                   'customerName': customerSnapshot,
+                                  'customerPhone': phoneSnapshot,
                                   'subtotal': subtotalSnapshot,
                                   'taxAmount': taxSnapshot,
                                   'amount': grandTotalSnapshot,
@@ -852,6 +860,7 @@ class _PosScreenState extends State<PosScreen> {
                                     themeProvider: themeProvider,
                                     invoiceNo: invoiceNo,
                                     customerName: customerSnapshot,
+                                    customerPhone: phoneSnapshot,
                                     items: cartSnapshot,
                                     subtotal: subtotalSnapshot,
                                     taxAmount: taxSnapshot,
