@@ -135,7 +135,151 @@ class _PosScreenState extends State<PosScreen> {
     return _cartItems.fold(0.0, (sum, item) => sum + (item['price'] * item['qty']));
   }
 
+  void _showLooseItemQuantityDialog(Map<String, dynamic> product, TenantThemeProvider themeProvider, [int? cartIndex]) {
+    final unit = (product['unit']?.toString() ?? 'kg').toLowerCase();
+    final price = (product['price'] as num).toDouble();
+    double currentWeight = 1.0;
+    if (cartIndex != null && cartIndex >= 0 && cartIndex < _cartItems.length) {
+      currentWeight = (_cartItems[cartIndex]['qty'] as num).toDouble();
+    }
+
+    final weightController = TextEditingController(text: currentWeight.toStringAsFixed(currentWeight == currentWeight.roundToDouble() ? 0 : 3));
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final calcWeight = double.tryParse(weightController.text) ?? 0.0;
+          final calcTotal = calcWeight * price;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.scale_rounded, color: Colors.orange, size: 28),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(product['name'] ?? 'Loose Item', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text('Rate: ₹$price / ${product['unit']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Select / Enter Loose Quantity (Weight/Volume):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    0.100, 0.250, 0.500, 1.000, 2.000, 5.000
+                  ].map((w) => ActionChip(
+                    label: Text(w < 1 ? '${(w * 1000).toInt()} gm' : '$w $unit', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    backgroundColor: (calcWeight == w) ? Colors.orange.shade100 : Colors.grey.shade100,
+                    onPressed: () {
+                      setDialogState(() {
+                        weightController.text = w.toStringAsFixed(w == w.roundToDouble() ? 0 : 3);
+                      });
+                    },
+                  )).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: weightController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Exact Quantity (${product['unit']})',
+                    hintText: 'e.g. 0.750 or 1.5',
+                    prefixIcon: const Icon(Icons.edit_rounded, size: 18),
+                    suffixText: product['unit'],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onChanged: (_) => setDialogState(() {}),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Total Item Amount:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text('₹ ${calcTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.green.shade800)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              if (cartIndex != null && cartIndex >= 0)
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _cartItems.removeAt(cartIndex);
+                    });
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Remove Item', style: TextStyle(color: Colors.red)),
+                ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: themeProvider.buttonBgColor, foregroundColor: themeProvider.buttonTextColor),
+                onPressed: () {
+                  final w = double.tryParse(weightController.text) ?? 0.0;
+                  if (w <= 0) return;
+                  setState(() {
+                    if (cartIndex != null && cartIndex >= 0) {
+                      _cartItems[cartIndex]['qty'] = w;
+                    } else {
+                      final existingIdx = _cartItems.indexWhere((item) => item['id'] == product['id']);
+                      if (existingIdx >= 0) {
+                        _cartItems[existingIdx]['qty'] = w;
+                      } else {
+                        _cartItems.add({
+                          'id': product['id'],
+                          'name': product['name'],
+                          'price': product['price'],
+                          'unit': product['unit'],
+                          'qty': w,
+                          'isLoose': true,
+                        });
+                      }
+                    }
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: Text(cartIndex != null ? 'Update Weight' : 'Add Loose Item', style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _addToCart(Map<String, dynamic> product, TenantThemeProvider themeProvider) {
+    final unit = (product['unit']?.toString() ?? '').toLowerCase();
+    final isLoose = product['isLoose'] == true || ['kg', 'g', 'gm', 'ltr', 'ml'].contains(unit);
+    if (isLoose) {
+      final existingIndex = _cartItems.indexWhere((item) => item['id'] == product['id']);
+      _showLooseItemQuantityDialog(product, themeProvider, existingIndex >= 0 ? existingIndex : null);
+      return;
+    }
+
     final availableStock = (product['stock'] as num).toInt();
     final existingIndex = _cartItems.indexWhere((item) => item['id'] == product['id']);
     final currentQtyInCart = existingIndex >= 0 ? (_cartItems[existingIndex]['qty'] as num).toInt() : 0;
@@ -168,8 +312,19 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
-  void _updateQuantity(int index, int delta, TenantThemeProvider themeProvider) {
-    if (delta > 0 && !themeProvider.allowNegativeStock) {
+  void _updateQuantity(int index, dynamic delta, TenantThemeProvider themeProvider) {
+    final item = _cartItems[index];
+    final unit = (item['unit']?.toString() ?? '').toLowerCase();
+    final isLoose = item['isLoose'] == true || ['kg', 'g', 'gm', 'ltr', 'ml'].contains(unit);
+
+    if (isLoose && delta != null && delta is! num) {
+      final prodIndex = _availableProducts.indexWhere((p) => p['id'] == item['id']);
+      final prod = prodIndex >= 0 ? _availableProducts[prodIndex] : item;
+      _showLooseItemQuantityDialog(prod, themeProvider, index);
+      return;
+    }
+
+    if (delta is num && delta > 0 && !themeProvider.allowNegativeStock) {
       final cartItem = _cartItems[index];
       final prodIndex = _availableProducts.indexWhere((p) => p['id'] == cartItem['id']);
       if (prodIndex >= 0) {
@@ -189,9 +344,11 @@ class _PosScreenState extends State<PosScreen> {
     }
 
     setState(() {
-      _cartItems[index]['qty'] += delta;
-      if (_cartItems[index]['qty'] <= 0) {
-        _cartItems.removeAt(index);
+      if (delta is num) {
+        _cartItems[index]['qty'] += delta;
+        if (_cartItems[index]['qty'] <= 0) {
+          _cartItems.removeAt(index);
+        }
       }
     });
   }
@@ -863,6 +1020,9 @@ class _PosScreenState extends State<PosScreen> {
                                       }
                                     }
                                     _cartItems.clear();
+                                    _selectedCustomer = 'Walk-in Customer';
+                                    _customerPhoneController.clear();
+                                    _selectedPaymentMode = 'Cash';
                                   });
 
                                   // Pop up the completed invoice receipt with WhatsApp & Print options!

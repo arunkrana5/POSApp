@@ -296,6 +296,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   void _showAddProductModal(BuildContext context, bool isHindi) {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
     final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController(text: 'PRD-${1000 + Random().nextInt(8999)}');
     final priceCtrl = TextEditingController();
     final costCtrl = TextEditingController();
     final stockCtrl = TextEditingController();
@@ -305,9 +306,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final hsnCtrl = TextEditingController();
     final barcodeCtrl = TextEditingController(text: '890${100000000 + Random().nextInt(899999999)}');
     final brandCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
     final imgUrlCtrl = TextEditingController();
     String selectedCategory = 'Groceries';
     String selectedUnit = 'pkt';
+    String selectedItemFormat = 'Packed'; // Packed vs Loose
+    String? selectedMasterItem;
 
     showModalBottomSheet(
       context: context,
@@ -328,19 +332,153 @@ class _ProductsScreenState extends State<ProductsScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  isHindi ? 'नया सामान जोड़ें (Full Features)' : 'Add New Product (Full Details)',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isHindi ? 'सामान मास्टर और स्टॉक इन (Item Master)' : 'Item Master & Stock In Entry',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.red),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nameCtrl,
-                  decoration: InputDecoration(
-                    labelText: isHindi ? 'सामान का नाम *' : 'Product Name *',
-                    border: const OutlineInputBorder(),
+                const SizedBox(height: 8),
+
+                // Item Master Linkage Dropdown
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.inventory_rounded, color: Colors.blue, size: 20),
+                          const SizedBox(width: 6),
+                          Text(
+                            isHindi ? 'मास्टर आइटम से चुनें (Stock In Quick Link):' : 'Select from Item Master (Stock In Quick Link):',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      DropdownButtonFormField<String>(
+                        value: selectedMasterItem,
+                        hint: Text(isHindi ? '-- मास्टर लिस्ट से ऑटो-फिल करें --' : '-- Auto-fill details from Item Master --'),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        items: _products
+                            .map((p) => p['name']?.toString() ?? '')
+                            .where((name) => name.isNotEmpty)
+                            .toSet()
+                            .map((name) => DropdownMenuItem(value: name, child: Text(name, style: const TextStyle(fontSize: 13))))
+                            .toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            final match = _products.firstWhere((p) => p['name'] == val, orElse: () => {});
+                            if (match.isNotEmpty) {
+                              setModalState(() {
+                                selectedMasterItem = val;
+                                nameCtrl.text = match['name']?.toString() ?? '';
+                                if (match['productCode'] != null) codeCtrl.text = match['productCode'].toString();
+                                if (match['category'] != null) selectedCategory = match['category'].toString();
+                                if (match['unit'] != null) {
+                                  selectedUnit = match['unit'].toString();
+                                  if (['kg', 'g', 'gm', 'ltr', 'ml'].contains(selectedUnit.toLowerCase())) {
+                                    selectedItemFormat = 'Loose';
+                                  }
+                                }
+                                if (match['price'] != null) priceCtrl.text = match['price'].toString();
+                                if (match['purchasePrice'] != null) costCtrl.text = match['purchasePrice'].toString();
+                                if (match['brand'] != null) brandCtrl.text = match['brand'].toString();
+                                if (match['hsnCode'] != null) hsnCtrl.text = match['hsnCode'].toString();
+                                if (match['barcode'] != null) barcodeCtrl.text = match['barcode'].toString();
+                              });
+                            }
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(height: 12),
+
+                // Item Type Format Switch (Packed vs Loose Bulk)
+                Row(
+                  children: [
+                    const Text('Item Format / Type: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Row(children: [Icon(Icons.inventory_2_rounded, size: 16), SizedBox(width: 4), Text('Packed Item')]),
+                      selected: selectedItemFormat == 'Packed',
+                      selectedColor: Colors.blue.shade700,
+                      labelStyle: TextStyle(color: selectedItemFormat == 'Packed' ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
+                      onSelected: (sel) {
+                        if (sel) {
+                          setModalState(() {
+                            selectedItemFormat = 'Packed';
+                            if (['kg', 'ltr', 'gm', 'ml'].contains(selectedUnit)) selectedUnit = 'pkt';
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Row(children: [Icon(Icons.scale_rounded, size: 16), SizedBox(width: 4), Text('Loose Bulk (Weight)')]),
+                      selected: selectedItemFormat == 'Loose',
+                      selectedColor: Colors.orange.shade800,
+                      labelStyle: TextStyle(color: selectedItemFormat == 'Loose' ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
+                      onSelected: (sel) {
+                        if (sel) {
+                          setModalState(() {
+                            selectedItemFormat = 'Loose';
+                            selectedUnit = 'kg';
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: codeCtrl,
+                        decoration: InputDecoration(
+                          labelText: isHindi ? 'आइटम कोड' : 'Item Code',
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: nameCtrl,
+                        decoration: InputDecoration(
+                          labelText: isHindi ? 'सामान का नाम *' : 'Item / Product Name *',
+                          border: const OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 10),
+
                 Row(
                   children: [
                     Expanded(
@@ -350,7 +488,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           labelText: isHindi ? 'कैटेगरी' : 'Category',
                           border: const OutlineInputBorder(),
                         ),
-                        items: ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'General']
+                        items: ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'Dairy', 'Grains', 'General']
                             .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                             .toList(),
                         onChanged: (v) => setModalState(() => selectedCategory = v ?? 'Groceries'),
@@ -361,10 +499,12 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       child: DropdownButtonFormField<String>(
                         value: selectedUnit,
                         decoration: InputDecoration(
-                          labelText: isHindi ? 'यूनिट' : 'Unit',
+                          labelText: isHindi ? 'UOM (यूनिट)' : 'UOM (Unit)',
                           border: const OutlineInputBorder(),
                         ),
-                        items: ['pkt', 'bottle', 'kg', 'g', 'ltr', 'pcs', 'box']
+                        items: (selectedItemFormat == 'Loose'
+                                ? ['kg', 'gm', 'ltr', 'ml']
+                                : ['pkt', 'pcs', 'bottle', 'box', 'bag', 'kg', 'ltr'])
                             .map((u) => DropdownMenuItem(value: u, child: Text(u)))
                             .toList(),
                         onChanged: (v) => setModalState(() => selectedUnit = v ?? 'pkt'),
