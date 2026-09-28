@@ -32,14 +32,14 @@ Widget buildProductThumbnail(String imgUrl, {double size = 40}) {
   return Icon(Icons.inventory_2_rounded, size: size * 0.6, color: Colors.blue);
 }
 
-class ProductsScreen extends StatefulWidget {
-  const ProductsScreen({super.key});
+class StockInScreen extends StatefulWidget {
+  const StockInScreen({super.key});
 
   @override
-  State<ProductsScreen> createState() => _ProductsScreenState();
+  State<StockInScreen> createState() => _StockInScreenState();
 }
 
-class _ProductsScreenState extends State<ProductsScreen> {
+class _StockInScreenState extends State<StockInScreen> {
   List<Map<String, dynamic>> _products = [
     {'id': '1', 'itemId': '1', 'name': 'Aashirvaad Atta 5kg', 'category': 'Groceries', 'price': 220.0, 'stock': 15, 'unit': 'pkt', 'barcode': '890102030101', 'imageUrl': ''},
     {'id': '2', 'itemId': '2', 'name': 'Fortune Mustard Oil 1L', 'category': 'Edible Oil', 'price': 145.0, 'stock': 3, 'unit': 'bottle', 'barcode': '890102030102', 'imageUrl': ''},

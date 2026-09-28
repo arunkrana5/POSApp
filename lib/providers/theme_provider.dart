@@ -204,7 +204,7 @@ class TenantThemeProvider with ChangeNotifier {
                 // Insert Sale History right after POS/Products
                 final posIdx = list.indexWhere((m) {
                   final r = (m['Route'] ?? m['route'] ?? '').toString();
-                  return r == '/pos' || r == '/products';
+                  return r == '/pos' || r == '/products' || r == '/stock-in';
                 });
                 final insertAt = posIdx >= 0 ? posIdx + 1 : 1;
                 list.insert(insertAt < list.length ? insertAt : list.length, {

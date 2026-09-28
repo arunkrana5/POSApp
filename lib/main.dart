@@ -10,7 +10,7 @@ import 'providers/theme_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/pos_screen.dart';
-import 'screens/products_screen.dart';
+import 'screens/stock_in_screen.dart';
 import 'screens/customers_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
@@ -60,7 +60,8 @@ class VillageShopApp extends StatelessWidget {
               '/home': (context) => const HomeScreen(),
               '/pos': (context) => const PosScreen(),
               '/items': (context) => const ItemsScreen(),
-              '/products': (context) => const ProductsScreen(),
+              '/stock-in': (context) => const StockInScreen(),
+              '/products': (context) => const StockInScreen(),
               '/customers': (context) => const CustomersScreen(),
               '/reports': (context) => const ReportsScreen(),
               '/settings': (context) => const SettingsScreen(),

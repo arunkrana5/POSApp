@@ -208,7 +208,7 @@ class _AppDrawerState extends State<AppDrawer> {
                       context,
                       icon: Icons.inventory_2_rounded,
                       title: isHindi ? 'स्टॉक इन (Stock In)' : 'Stock In & Inventory',
-                      route: '/products',
+                      route: '/stock-in',
                     ),
                   _buildDrawerItem(
                     context,
