@@ -15,7 +15,7 @@ import 'screens/customers_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/sales_history_screen.dart';
-import 'screens/item_master_screen.dart';
+import 'screens/items_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,7 +59,7 @@ class VillageShopApp extends StatelessWidget {
               '/login': (context) => const LoginScreen(),
               '/home': (context) => const HomeScreen(),
               '/pos': (context) => const PosScreen(),
-              '/item-master': (context) => const ItemMasterScreen(),
+              '/items': (context) => const ItemsScreen(),
               '/products': (context) => const ProductsScreen(),
               '/customers': (context) => const CustomersScreen(),
               '/reports': (context) => const ReportsScreen(),

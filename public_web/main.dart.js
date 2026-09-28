@@ -101945,7 +101945,7 @@ s=A.ez(j,j,r,j,j,j,j,j,j,s,j,j,B.rz,j,new A.bR(A.b2(10),B.r),j,j,A.aA(j,j,s,j,j,
 r=c.w
 h=c.x
 p=A.w8(n,j,new A.px(j,m,j,j,1,B.rw,new A.bR(l,B.r)),g,new A.u4(s),new A.ua(A.aXO(r,h,B.rz,new A.bR(A.b2(10),B.r),A.aA(j,j,h,j,j,j,j,j,c.y,j,j,16*c.z,j,j,B.p,j,j,!0,j,j,j,j,j,j,j,j))),f,o,q,p,k,!0)
-return new A.qx(B.Ku,A.al(["/login",new A.aqL(),"/home",new A.aqM(),"/pos",new A.aqN(),"/item-master",new A.aqO(),"/products",new A.aqP(),"/customers",new A.aqQ(),"/reports",new A.aqR(),"/settings",new A.aqS(),"/sales-history",new A.aqT()],t.N,t.Ab),"VillageShop Mobile",p,i,B.VK,B.Ue,!1,j)},
+return new A.qx(B.Ku,A.al(["/login",new A.aqL(),"/home",new A.aqM(),"/pos",new A.aqN(),"/items",new A.aqO(),"/products",new A.aqP(),"/customers",new A.aqQ(),"/reports",new A.aqR(),"/settings",new A.aqS(),"/sales-history",new A.aqT()],t.N,t.Ab),"VillageShop Mobile",p,i,B.VK,B.Ue,!1,j)},
 $C:"$4",
 $R:4,
 $S:561}
@@ -103012,7 +103012,7 @@ qG(){var s=0,r=A.S(t.H),q=1,p,o=this,n,m,l,k,j,i
 var $async$qG=A.T(function(a,b){if(a===1){p=b
 s=q}while(true)switch(s){case 0:o.S(new A.awO(o))
 q=3
-n=A.du($.hJ+"/ItemMasters",0,null)
+n=A.du($.hJ+"/Items",0,null)
 s=6
 return A.J(A.pd(n,null).iF(0,B.hw),$async$qG)
 case 6:m=b
@@ -103228,7 +103228,7 @@ s=d!=null?3:5
 break
 case 3:p=7
 h=J.ae(d)
-g=A.du($.hJ+"/ItemMasters/"+A.i(h.h(d,"id")),0,null)
+g=A.du($.hJ+"/Items/"+A.i(h.h(d,"id")),0,null)
 f=A.al(["Content-Type","application/json"],i,i)
 l=A.lO(m,i,t.K)
 h=A.qV(h.h(d,"id"),null)
@@ -103250,7 +103250,7 @@ l.S(new A.awS(j,l,d,m))
 s=4
 break
 case 5:p=12
-l=A.du($.hJ+"/ItemMasters",0,null)
+l=A.du($.hJ+"/Items",0,null)
 i=A.al(["Content-Type","application/json"],i,i)
 s=15
 return A.J(A.Ju(l,B.ay.mg(m,null),i),$async$$0)
@@ -105262,7 +105262,7 @@ m=A.Z(o)
 l=m.i("eC<1,e>")
 B.b.a4(n,A.a3(new A.eC(new A.aM(o,new A.arK(),m.i("aM<1>")),new A.arL(g,s,a0),l),!0,l.i("p.E")))}else{o=A.a([g.qx(a0,B.tb,"/home",s?"\u0921\u0948\u0936\u092c\u094b\u0930\u094d\u0921":"Dashboard")],j)
 if(B.b.n(r,"POS"))o.push(g.yY(a0,B.mL,"FAST",B.np,"/pos",s?"\u0928\u092f\u093e \u092c\u093f\u0932 / POS":"New Sale / POS"))
-o.push(g.qx(a0,B.QE,"/item-master",s?"\u0938\u093e\u092e\u093e\u0928 (Items)":"Items"))
+o.push(g.qx(a0,B.QE,"/items",s?"\u0938\u093e\u092e\u093e\u0928 (Items)":"Items"))
 if(B.b.n(r,"Products"))o.push(g.qx(a0,B.e9,"/products",s?"\u0938\u094d\u091f\u0949\u0915 \u0907\u0928 (Stock In)":"Stock In & Inventory"))
 o.push(g.yY(a0,B.hf,"PRINT",B.fa,"/sales-history",s?"\u092c\u093f\u0915\u094d\u0930\u0940 \u0907\u0924\u093f\u0939\u093e\u0938 (Sale History)":"Sale History & Invoices"))
 if(B.b.n(r,"Customers"))o.push(g.qx(a0,B.no,"/customers",s?"\u0917\u094d\u0930\u093e\u0939\u0915 \u0909\u0927\u093e\u0930 \u0916\u093e\u0924\u093e":"Customer Udhaar"))

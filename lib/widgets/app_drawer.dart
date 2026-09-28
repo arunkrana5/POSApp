@@ -201,7 +201,7 @@ class _AppDrawerState extends State<AppDrawer> {
                     context,
                     icon: Icons.assignment_rounded,
                     title: isHindi ? 'सामान (Items)' : 'Items',
-                    route: '/item-master',
+                    route: '/items',
                   ),
                   if (enabledMods.contains('Products'))
                     _buildDrawerItem(

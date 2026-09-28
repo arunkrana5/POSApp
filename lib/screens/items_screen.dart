@@ -8,14 +8,14 @@ import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
 
-class ItemMasterScreen extends StatefulWidget {
-  const ItemMasterScreen({super.key});
+class ItemsScreen extends StatefulWidget {
+  const ItemsScreen({super.key});
 
   @override
-  State<ItemMasterScreen> createState() => _ItemMasterScreenState();
+  State<ItemsScreen> createState() => _ItemsScreenState();
 }
 
-class _ItemMasterScreenState extends State<ItemMasterScreen> {
+class _ItemsScreenState extends State<ItemsScreen> {
   final List<Map<String, dynamic>> _masterItems = [
     {
       'id': '1',
@@ -79,13 +79,13 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchItemMasters();
+    _fetchItems();
   }
 
-  Future<void> _fetchItemMasters() async {
+  Future<void> _fetchItems() async {
     setState(() => _isLoading = true);
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/ItemMasters');
+      final url = Uri.parse('${ApiConfig.baseUrl}/Items');
       final res = await http.get(url).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
@@ -133,7 +133,7 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: _fetchItemMasters,
+            onPressed: _fetchItems,
           ),
         ],
       ),
@@ -475,7 +475,7 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
                           if (existing != null) {
                             try {
                               await http.put(
-                                Uri.parse('${ApiConfig.baseUrl}/ItemMasters/${existing['id']}'),
+                                Uri.parse('${ApiConfig.baseUrl}/Items/${existing['id']}'),
                                 headers: {'Content-Type': 'application/json'},
                                 body: jsonEncode({...payload, 'id': int.tryParse(existing['id']) ?? 0}),
                               );
@@ -494,12 +494,12 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
                           } else {
                             try {
                               final res = await http.post(
-                                Uri.parse('${ApiConfig.baseUrl}/ItemMasters'),
+                                Uri.parse('${ApiConfig.baseUrl}/Items'),
                                 headers: {'Content-Type': 'application/json'},
                                 body: jsonEncode(payload),
                               );
                               if (res.statusCode == 200) {
-                                _fetchItemMasters();
+                                _fetchItems();
                               }
                             } catch (_) {}
 
