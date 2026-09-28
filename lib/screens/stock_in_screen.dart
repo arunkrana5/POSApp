@@ -48,7 +48,16 @@ class _StockInScreenState extends State<StockInScreen> {
     {'id': '5', 'itemId': '5', 'name': 'Sugar (चीनी) 1kg', 'category': 'Groceries', 'price': 42.0, 'stock': 50, 'unit': 'kg', 'barcode': '890102030105', 'imageUrl': ''},
   ];
 
-  List<Map<String, dynamic>> _availableItems = [];
+  static final List<Map<String, dynamic>> _defaultCatalogItems = [
+    {'id': '1', 'itemCode': 'ITM-1001', 'name': 'Aashirvaad Atta 5kg', 'category': 'Groceries', 'uom': 'pkt', 'format': 'Packed', 'description': '5kg Wheat Atta'},
+    {'id': '2', 'itemCode': 'ITM-1002', 'name': 'Fortune Mustard Oil 1L', 'category': 'Edible Oil', 'uom': 'bottle', 'format': 'Packed', 'description': '1L Mustard Oil'},
+    {'id': '3', 'itemCode': 'ITM-1003', 'name': 'Tata Salt 1kg', 'category': 'Groceries', 'uom': 'pkt', 'format': 'Packed', 'description': '1kg Vacuum Evaporated Salt'},
+    {'id': '4', 'itemCode': 'ITM-1004', 'name': 'Surf Excel 1kg', 'category': 'Detergent', 'uom': 'pkt', 'format': 'Packed', 'description': '1kg Washing Powder'},
+    {'id': '5', 'itemCode': 'ITM-1005', 'name': 'Loose Sugar (चीनी)', 'category': 'Groceries', 'uom': 'kg', 'format': 'Loose', 'description': 'Loose White Sugar'},
+    {'id': '6', 'itemCode': 'ITM-1006', 'name': 'Toor Dal (अरहर दाल)', 'category': 'Groceries', 'uom': 'kg', 'format': 'Loose', 'description': 'Unpolished Toor Dal'},
+  ];
+
+  List<Map<String, dynamic>> _availableItems = List.from(_defaultCatalogItems);
   String _searchQuery = '';
   bool _isLoading = false;
 
@@ -65,9 +74,10 @@ class _StockInScreenState extends State<StockInScreen> {
       final res = await http.get(url).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
+        final List<Map<String, dynamic>> fetched = [];
         if (data.isNotEmpty) {
-          setState(() {
-            _availableItems = data.map((item) => {
+          for (var item in data) {
+            fetched.add({
               'id': (item['id'] ?? item['ID'] ?? '').toString(),
               'itemCode': item['itemCode'] ?? item['ItemCode'] ?? '',
               'name': item['name'] ?? item['Name'] ?? '',
@@ -75,9 +85,18 @@ class _StockInScreenState extends State<StockInScreen> {
               'uom': item['unit'] ?? item['Unit'] ?? 'pcs',
               'format': (item['format'] ?? item['Format'] ?? 'Packed') == 'Loose' ? 'Loose' : 'Packed',
               'description': item['description'] ?? item['Description'] ?? '',
-            }).toList();
-          });
+            });
+          }
         }
+        final existingNames = fetched.map((e) => e['name'].toString().toLowerCase()).toSet();
+        for (var d in _defaultCatalogItems) {
+          if (!existingNames.contains(d['name'].toString().toLowerCase())) {
+            fetched.add(d);
+          }
+        }
+        setState(() {
+          _availableItems = fetched;
+        });
       }
     } catch (_) {}
   }
@@ -390,7 +409,10 @@ class _StockInScreenState extends State<StockInScreen> {
                           ),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
-                            value: selectedItemObj?['id'],
+                            isExpanded: true,
+                            value: (selectedItemObj != null && _availableItems.any((i) => i['id'].toString() == selectedItemObj!['id'].toString()))
+                                ? selectedItemObj!['id'].toString()
+                                : null,
                             hint: Text(isHindi ? '-- सामान चुनें --' : '-- Choose Item from Catalog --'),
                             decoration: InputDecoration(
                               filled: true,
@@ -404,6 +426,7 @@ class _StockInScreenState extends State<StockInScreen> {
                                 child: Text(
                                   '${item['name']} (${item['category']} • ${item['uom']})',
                                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               );
                             }).toList(),
