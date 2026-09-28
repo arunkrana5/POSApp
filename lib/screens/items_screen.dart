@@ -16,62 +16,7 @@ class ItemsScreen extends StatefulWidget {
 }
 
 class _ItemsScreenState extends State<ItemsScreen> {
-  final List<Map<String, dynamic>> _masterItems = [
-    {
-      'id': '1',
-      'itemCode': 'ITM-1001',
-      'name': 'Aashirvaad Atta 5kg',
-      'category': 'Groceries',
-      'uom': 'pkt',
-      'format': 'Packed',
-      'description': 'Premium Whole Wheat Atta 5kg bag',
-    },
-    {
-      'id': '2',
-      'itemCode': 'ITM-1002',
-      'name': 'Fortune Mustard Oil 1L',
-      'category': 'Edible Oil',
-      'uom': 'bottle',
-      'format': 'Packed',
-      'description': 'Kachi Ghani Mustard Oil 1L Bottle',
-    },
-    {
-      'id': '3',
-      'itemCode': 'ITM-1003',
-      'name': 'Tata Salt 1kg',
-      'category': 'Groceries',
-      'uom': 'pkt',
-      'format': 'Packed',
-      'description': 'Vacuum Evaporated Iodized Salt 1kg',
-    },
-    {
-      'id': '4',
-      'itemCode': 'ITM-1004',
-      'name': 'Surf Excel 1kg',
-      'category': 'Detergent',
-      'uom': 'pkt',
-      'format': 'Packed',
-      'description': 'Easy Wash Detergent Powder 1kg',
-    },
-    {
-      'id': '5',
-      'itemCode': 'ITM-1005',
-      'name': 'Loose Sugar (चीनी)',
-      'category': 'Groceries',
-      'uom': 'kg',
-      'format': 'Loose',
-      'description': 'Refined Loose White Sugar per kg',
-    },
-    {
-      'id': '6',
-      'itemCode': 'ITM-1006',
-      'name': 'Toor Dal (अरहर दाल)',
-      'category': 'Groceries',
-      'uom': 'kg',
-      'format': 'Loose',
-      'description': 'Unpolished Pure Toor Dal per kg',
-    },
-  ];
+  final List<Map<String, dynamic>> _masterItems = [];
 
   String _searchQuery = '';
   bool _isLoading = false;
@@ -89,9 +34,9 @@ class _ItemsScreenState extends State<ItemsScreen> {
       final res = await http.get(url).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
+        _masterItems.clear();
         if (data.isNotEmpty) {
           setState(() {
-            _masterItems.clear();
             for (var item in data) {
               _masterItems.add({
                 'id': (item['id'] ?? item['ID'] ?? '').toString(),

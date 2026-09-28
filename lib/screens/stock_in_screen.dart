@@ -40,24 +40,8 @@ class StockInScreen extends StatefulWidget {
 }
 
 class _StockInScreenState extends State<StockInScreen> {
-  List<Map<String, dynamic>> _products = [
-    {'id': '1', 'itemId': '1', 'name': 'Aashirvaad Atta 5kg', 'category': 'Groceries', 'price': 220.0, 'stock': 15, 'unit': 'pkt', 'barcode': '890102030101', 'imageUrl': ''},
-    {'id': '2', 'itemId': '2', 'name': 'Fortune Mustard Oil 1L', 'category': 'Edible Oil', 'price': 145.0, 'stock': 3, 'unit': 'bottle', 'barcode': '890102030102', 'imageUrl': ''},
-    {'id': '3', 'itemId': '3', 'name': 'Tata Salt 1kg', 'category': 'Groceries', 'price': 28.0, 'stock': 40, 'unit': 'pkt', 'barcode': '890102030103', 'imageUrl': ''},
-    {'id': '4', 'itemId': '4', 'name': 'Surf Excel 1kg', 'category': 'Detergent', 'price': 130.0, 'stock': 0, 'unit': 'pkt', 'barcode': '890102030104', 'imageUrl': ''},
-    {'id': '5', 'itemId': '5', 'name': 'Sugar (चीनी) 1kg', 'category': 'Groceries', 'price': 42.0, 'stock': 50, 'unit': 'kg', 'barcode': '890102030105', 'imageUrl': ''},
-  ];
-
-  static final List<Map<String, dynamic>> _defaultCatalogItems = [
-    {'id': '1', 'itemCode': 'ITM-1001', 'name': 'Aashirvaad Atta 5kg', 'category': 'Groceries', 'uom': 'pkt', 'format': 'Packed', 'description': '5kg Wheat Atta'},
-    {'id': '2', 'itemCode': 'ITM-1002', 'name': 'Fortune Mustard Oil 1L', 'category': 'Edible Oil', 'uom': 'bottle', 'format': 'Packed', 'description': '1L Mustard Oil'},
-    {'id': '3', 'itemCode': 'ITM-1003', 'name': 'Tata Salt 1kg', 'category': 'Groceries', 'uom': 'pkt', 'format': 'Packed', 'description': '1kg Vacuum Evaporated Salt'},
-    {'id': '4', 'itemCode': 'ITM-1004', 'name': 'Surf Excel 1kg', 'category': 'Detergent', 'uom': 'pkt', 'format': 'Packed', 'description': '1kg Washing Powder'},
-    {'id': '5', 'itemCode': 'ITM-1005', 'name': 'Loose Sugar (चीनी)', 'category': 'Groceries', 'uom': 'kg', 'format': 'Loose', 'description': 'Loose White Sugar'},
-    {'id': '6', 'itemCode': 'ITM-1006', 'name': 'Toor Dal (अरहर दाल)', 'category': 'Groceries', 'uom': 'kg', 'format': 'Loose', 'description': 'Unpolished Toor Dal'},
-  ];
-
-  List<Map<String, dynamic>> _availableItems = List.from(_defaultCatalogItems);
+  List<Map<String, dynamic>> _products = [];
+  List<Map<String, dynamic>> _availableItems = [];
   String _searchQuery = '';
   bool _isLoading = false;
 
@@ -88,12 +72,6 @@ class _StockInScreenState extends State<StockInScreen> {
             });
           }
         }
-        final existingNames = fetched.map((e) => e['name'].toString().toLowerCase()).toSet();
-        for (var d in _defaultCatalogItems) {
-          if (!existingNames.contains(d['name'].toString().toLowerCase())) {
-            fetched.add(d);
-          }
-        }
         setState(() {
           _availableItems = fetched;
         });
@@ -107,39 +85,31 @@ class _StockInScreenState extends State<StockInScreen> {
       final syncProvider = Provider.of<SyncProvider>(context, listen: false);
       final fetchedProducts = await syncProvider.fetchProducts();
 
-      if (fetchedProducts.isNotEmpty) {
-        final List<Map<String, dynamic>> loadedList = fetchedProducts.map((p) => {
-          'id': p.id.toString(),
-          'itemId': p.itemId?.toString() ?? '',
-          'productCode': p.productCode,
-          'name': p.name,
-          'category': p.category.isNotEmpty ? p.category : 'General',
-          'brand': p.brand,
-          'price': p.sellingPrice > 0 ? p.sellingPrice : p.mrp,
-          'mrp': p.mrp,
-          'purchasePrice': p.purchasePrice,
-          'gstPercent': p.gstPercent,
-          'stock': p.currentStock.toInt(),
-          'minimumStock': p.minimumStock.toInt(),
-          'unit': p.unit.isNotEmpty ? p.unit : 'pcs',
-          'batchNumber': p.batchNumber,
-          'rackNumber': p.rackNumber,
-          'expiryDate': p.expiryDate,
-          'hsnCode': p.hsnCode,
-          'barcode': p.barcode.isNotEmpty ? p.barcode : '890${(100000000 + Random().nextInt(899999999))}',
-          'imageUrl': p.imageUrl ?? '',
-        }).toList();
+      final List<Map<String, dynamic>> loadedList = fetchedProducts.map((p) => {
+        'id': p.id.toString(),
+        'itemId': p.itemId?.toString() ?? '',
+        'productCode': p.productCode,
+        'name': p.name,
+        'category': p.category.isNotEmpty ? p.category : 'General',
+        'brand': p.brand,
+        'price': p.sellingPrice > 0 ? p.sellingPrice : p.mrp,
+        'mrp': p.mrp,
+        'purchasePrice': p.purchasePrice,
+        'gstPercent': p.gstPercent,
+        'stock': p.currentStock.toInt(),
+        'minimumStock': p.minimumStock.toInt(),
+        'unit': p.unit.isNotEmpty ? p.unit : 'pcs',
+        'batchNumber': p.batchNumber,
+        'rackNumber': p.rackNumber,
+        'expiryDate': p.expiryDate,
+        'hsnCode': p.hsnCode,
+        'barcode': p.barcode.isNotEmpty ? p.barcode : '890${(100000000 + Random().nextInt(899999999))}',
+        'imageUrl': p.imageUrl ?? '',
+      }).toList();
 
-        final existingNames = loadedList.map((e) => e['name'].toString().toLowerCase()).toSet();
-        for (var d in _products) {
-          if (!existingNames.contains(d['name'].toString().toLowerCase())) {
-            loadedList.add(d);
-          }
-        }
-        setState(() {
-          _products = loadedList;
-        });
-      }
+      setState(() {
+        _products = loadedList;
+      });
     } catch (_) {}
     setState(() => _isLoading = false);
   }
