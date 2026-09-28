@@ -103033,10 +103033,10 @@ case 1:return A.P(p,r)}})
 return A.R($async$qG,r)},
 J(a){var s,r,q,p,o,n,m,l=this,k=null,j=A.bE(a,!0,t.o3).a.gd0(0)==="hi",i=A.bE(a,!0,t.B),h=l.d,g=A.Z(h).i("aM<1>"),f=A.a3(new A.aM(h,new A.ax9(l),g),!0,g.i("p.E"))
 g=i.e
-h=A.F(j?"\u0938\u093e\u092e\u093e\u0928 \u092e\u093e\u0938\u094d\u091f\u0930 (Item Master)":"Item Master Catalog",k,k,k,B.ba,k,k)
+h=A.F(j?"\u0938\u093e\u092e\u093e\u0928 (Items)":"Items Catalog",k,k,k,B.ba,k,k)
 s=t.p
 h=A.po(A.a([A.f4(k,B.ns,k,l.gabp(),k,k)],s),k,k,h)
-r=j?"\u0928\u094b\u091f: \u0906\u0907\u091f\u092e \u092e\u093e\u0938\u094d\u091f\u0930 \u092e\u0947\u0902 \u0915\u0947\u0935\u0932 \u092e\u0942\u0932 \u0935\u093f\u0935\u0930\u0923 (\u0928\u093e\u092e, \u0915\u094b\u0921, UOM, \u0915\u0948\u091f\u0947\u0917\u0930\u0940) \u0938\u0941\u0930\u0915\u094d\u0937\u093f\u0924 \u0939\u094b\u0924\u0947 \u0939\u0948\u0902\u0964 \u0930\u0947\u091f, \u091f\u0948\u0915\u094d\u0938 \u0914\u0930 \u0938\u094d\u091f\u0949\u0915 \u091c\u093e\u0928\u0915\u093e\u0930\u0940 Stock In \u092e\u0947\u0928\u0942 \u092e\u0947\u0902 \u0926\u0930\u094d\u091c \u0939\u094b\u0924\u0940 \u0939\u0948\u0964":"Note: Item Master holds core definitions (Code, Name, UOM, Category). Pricing, Tax, Barcode & Stock entry are managed under Stock In."
+r=j?"\u0928\u094b\u091f: \u0938\u093e\u092e\u093e\u0928 (Items) \u092e\u0947\u0902 \u0915\u0947\u0935\u0932 \u092e\u0942\u0932 \u0935\u093f\u0935\u0930\u0923 (\u0928\u093e\u092e, \u0915\u094b\u0921, UOM, \u0915\u0948\u091f\u0947\u0917\u0930\u0940) \u0938\u0941\u0930\u0915\u094d\u0937\u093f\u0924 \u0939\u094b\u0924\u0947 \u0939\u0948\u0902\u0964 \u0930\u0947\u091f, \u091f\u0948\u0915\u094d\u0938 \u0914\u0930 \u0938\u094d\u091f\u0949\u0915 \u091c\u093e\u0928\u0915\u093e\u0930\u0940 Stock In \u092e\u0947\u0928\u0942 \u092e\u0947\u0902 \u0926\u0930\u094d\u091c \u0939\u094b\u0924\u0940 \u0939\u0948\u0964":"Note: Items hold core definitions (Code, Name, UOM, Category). Pricing, Tax, Barcode & Stock entry are managed under Stock In."
 r=A.be(k,A.aY(A.a([B.Rn,B.bV,A.br(A.F(r,k,k,k,A.aA(k,k,B.iV,k,k,k,k,k,k,k,k,11.5,k,k,B.cH,k,k,!0,k,k,k,k,k,k,k,k),k,k),1)],s),B.o,B.n,B.k),B.m,B.d_,k,k,k,k,k,B.PQ,k,k,k)
 q=j?"\u0915\u094b\u0921, \u0928\u093e\u092e, \u0915\u0948\u091f\u0947\u0917\u0930\u0940 \u0916\u094b\u091c\u0947\u0902...":"Search Item Code, Name, Category..."
 q=A.br(A.cS(!0,B.a1,!1,k,!0,B.u,k,A.cV(),k,k,k,k,k,k,2,A.cq(k,new A.ei(4,A.b2(10),new A.aZ(B.dY,1,B.E,-1)),k,B.hy,k,k,k,k,!0,k,k,k,k,k,k,B.j,!0,k,k,k,k,k,k,k,k,k,k,k,k,k,q,k,k,k,k,k,k,k,k,k,k,B.hB,k,k,k,k,k,k,k,k,k,k,k),B.C,!0,k,!0,k,!1,k,B.a2,k,k,k,k,k,k,k,1,k,k,!1,"\u2022",k,new A.axa(l),k,k,k,!1,k,!1,k,!0,k,B.a5,k,k,B.a0,B.X,k,k,k,k,k,k,k,B.P,k,B.ac,k,k,k,k),1)
@@ -103142,11 +103142,11 @@ $S:115}
 A.ax5.prototype={
 $2(a2,a3){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c=this,b=null,a=A.bN(a2,b,t.l).w,a0=c.c,a1=a0!=null
 if(a1){s=c.d
-r=s?"\u0938\u093e\u092e\u093e\u0928 \u092e\u093e\u0938\u094d\u091f\u0930 \u0905\u092a\u0921\u0947\u091f \u0915\u0930\u0947\u0902":"Edit Master Item"
+r=s?"\u0938\u093e\u092e\u093e\u0928 \u0905\u092a\u0921\u0947\u091f \u0915\u0930\u0947\u0902":"Edit Item"
 q=r
 r=s
 s=q}else{s=c.d
-r=s?"\u0928\u092f\u093e \u092e\u093e\u0938\u094d\u091f\u0930 \u0938\u093e\u092e\u093e\u0928 \u091c\u094b\u0921\u093c\u0947\u0902":"Define New Master Item"
+r=s?"\u0928\u092f\u093e \u0938\u093e\u092e\u093e\u0928 \u091c\u094b\u0921\u093c\u0947\u0902":"Define New Item"
 q=r
 r=s
 s=q}p=t.p
@@ -103175,8 +103175,8 @@ f=c.w
 e=f.w
 f=f.x
 e=A.ez(b,b,e,b,b,b,b,b,b,f,b,b,b,b,b,b,b,b,b)
-if(a1)a1=r?"\u0905\u092a\u0921\u0947\u091f \u0938\u0947\u0935 \u0915\u0930\u0947\u0902":"Update Master Definition"
-else a1=r?"\u092e\u093e\u0938\u094d\u091f\u0930 \u092e\u0947\u0902 \u0938\u0947\u0935 \u0915\u0930\u0947\u0902":"Save to Item Master"
+if(a1)a1=r?"\u0905\u092a\u0921\u0947\u091f \u0938\u0947\u0935 \u0915\u0930\u0947\u0902":"Update Item"
+else a1=r?"\u0938\u0947\u0935 \u0915\u0930\u0947\u0902":"Save Item"
 return new A.aO(new A.ao(20,20,20,a.f.d+20),A.rp(A.bc(A.a([s,B.ds,B.br,o,B.eB,n,B.b0,k,B.b0,i,B.b0,g,B.db,A.cb(A.it(!1,A.F(a1,b,b,b,A.aA(b,b,f,b,b,b,b,b,b,b,b,16,b,b,B.p,b,b,!0,b,b,b,b,b,b,b,b),b,b),b,b,B.bg,b,b,b,b,new A.ax4(m,c.b,j,l,h,a0,a2),b,e),48,1/0)],p),B.Y,B.n,B.aG),b,b),b)},
 $S:170}
 A.awY.prototype={
@@ -104095,7 +104095,7 @@ $1(a){var s=this
 return new A.mm(new A.aAa(s.a,s.b,s.c,s.d,s.e,s.f,s.r,s.w,s.x,s.y,s.z,s.Q,s.as,s.at,s.ax,s.ay,s.ch),null)},
 $S:115}
 A.aAa.prototype={
-$2(b2,b3){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d=this,c=null,b="\u2022",a=A.bN(b2,c,t.l).w,a0=d.c,a1=t.p,a2=A.aY(A.a([A.F(a0?"\u0938\u093e\u092e\u093e\u0928 \u092e\u093e\u0938\u094d\u091f\u0930 \u0914\u0930 \u0938\u094d\u091f\u0949\u0915 \u0907\u0928 (Item Master)":"Item Master & Stock In Entry",c,c,c,B.fO,c,c),A.f4(c,B.Rk,c,new A.azX(b2),c,c)],a1),B.o,B.ae,B.k),a3=A.b2(10),a4=A.dB(B.j_,1),a5=A.aY(A.a([B.Re,B.p1,A.F(a0?"\u092e\u093e\u0938\u094d\u091f\u0930 \u0906\u0907\u091f\u092e \u0938\u0947 \u091a\u0941\u0928\u0947\u0902 (Stock In Quick Link):":"Select from Item Master (Stock In Quick Link):",c,c,c,B.aef,c,c)],a1),B.o,B.n,B.k),a6=d.a,a7=a6.d,a8=A.F(a0?"-- \u092e\u093e\u0938\u094d\u091f\u0930 \u0932\u093f\u0938\u094d\u091f \u0938\u0947 \u0911\u091f\u094b-\u092b\u093f\u0932 \u0915\u0930\u0947\u0902 --":"-- Auto-fill details from Item Master --",c,c,c,c,c,c),a9=A.cq(c,new A.ei(4,A.b2(8),B.dU),c,B.hx,c,c,c,c,!0,c,c,c,c,c,c,B.j,!0,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c),b0=d.b,b1=b0.d
+$2(b2,b3){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d=this,c=null,b="\u2022",a=A.bN(b2,c,t.l).w,a0=d.c,a1=t.p,a2=A.aY(A.a([A.F(a0?"\u0938\u093e\u092e\u093e\u0928 \u092e\u093e\u0938\u094d\u091f\u0930 \u0914\u0930 \u0938\u094d\u091f\u0949\u0915 \u0907\u0928 (Item Master)":"Item Master & Stock In Entry",c,c,c,B.fO,c,c),A.f4(c,B.Rk,c,new A.azX(b2),c,c)],a1),B.o,B.ae,B.k),a3=A.b2(10),a4=A.dB(B.j_,1),a5=A.aY(A.a([B.Re,B.p1,A.F(a0?"\u0938\u093e\u092e\u093e\u0928 \u0938\u0947 \u091a\u0941\u0928\u0947\u0902 (Stock In Quick Link):":"Select Item (Stock In Quick Link):",c,c,c,B.aef,c,c)],a1),B.o,B.n,B.k),a6=d.a,a7=a6.d,a8=A.F(a0?"-- \u0938\u093e\u092e\u093e\u0928 \u0932\u093f\u0938\u094d\u091f \u0938\u0947 \u0911\u091f\u094b-\u092b\u093f\u0932 \u0915\u0930\u0947\u0902 --":"-- Auto-fill details from Items --",c,c,c,c,c,c),a9=A.cq(c,new A.ei(4,A.b2(8),B.dU),c,B.hx,c,c,c,c,!0,c,c,c,c,c,c,B.j,!0,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c,c),b0=d.b,b1=b0.d
 b1=new A.ad(b1,new A.azY(),A.Z(b1).i("ad<1,o>")).EZ(0,new A.azZ())
 b1=A.fL(b1,b1.$ti.i("p.E"))
 s=A.m(b1).i("jh<1,hP<o>>")
@@ -105262,7 +105262,7 @@ m=A.Z(o)
 l=m.i("eC<1,e>")
 B.b.a4(n,A.a3(new A.eC(new A.aM(o,new A.arK(),m.i("aM<1>")),new A.arL(g,s,a0),l),!0,l.i("p.E")))}else{o=A.a([g.qx(a0,B.tb,"/home",s?"\u0921\u0948\u0936\u092c\u094b\u0930\u094d\u0921":"Dashboard")],j)
 if(B.b.n(r,"POS"))o.push(g.yY(a0,B.mL,"FAST",B.np,"/pos",s?"\u0928\u092f\u093e \u092c\u093f\u0932 / POS":"New Sale / POS"))
-o.push(g.qx(a0,B.QE,"/item-master",s?"\u0938\u093e\u092e\u093e\u0928 \u092e\u093e\u0938\u094d\u091f\u0930 (Item Master)":"Item Master"))
+o.push(g.qx(a0,B.QE,"/item-master",s?"\u0938\u093e\u092e\u093e\u0928 (Items)":"Items"))
 if(B.b.n(r,"Products"))o.push(g.qx(a0,B.e9,"/products",s?"\u0938\u094d\u091f\u0949\u0915 \u0907\u0928 (Stock In)":"Stock In & Inventory"))
 o.push(g.yY(a0,B.hf,"PRINT",B.fa,"/sales-history",s?"\u092c\u093f\u0915\u094d\u0930\u0940 \u0907\u0924\u093f\u0939\u093e\u0938 (Sale History)":"Sale History & Invoices"))
 if(B.b.n(r,"Customers"))o.push(g.qx(a0,B.no,"/customers",s?"\u0917\u094d\u0930\u093e\u0939\u0915 \u0909\u0927\u093e\u0930 \u0916\u093e\u0924\u093e":"Customer Udhaar"))

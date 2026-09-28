@@ -363,7 +363,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           const Icon(Icons.inventory_rounded, color: Colors.blue, size: 20),
                           const SizedBox(width: 6),
                           Text(
-                            isHindi ? 'मास्टर आइटम से चुनें (Stock In Quick Link):' : 'Select from Item Master (Stock In Quick Link):',
+                            isHindi ? 'सामान से चुनें (Stock In Quick Link):' : 'Select Item (Stock In Quick Link):',
                             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue),
                           ),
                         ],
@@ -371,7 +371,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
                         value: selectedMasterItem,
-                        hint: Text(isHindi ? '-- मास्टर लिस्ट से ऑटो-फिल करें --' : '-- Auto-fill details from Item Master --'),
+                        hint: Text(isHindi ? '-- सामान लिस्ट से ऑटो-फिल करें --' : '-- Auto-fill details from Items --'),
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.white,

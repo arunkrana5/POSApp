@@ -127,7 +127,7 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(
-          isHindi ? 'सामान मास्टर (Item Master)' : 'Item Master Catalog',
+          isHindi ? 'सामान (Items)' : 'Items Catalog',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -139,7 +139,7 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
       ),
       body: Column(
         children: [
-          // Banner Notice Explaining Item Master Architecture
+          // Banner Notice Explaining Items Architecture
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             color: Colors.blue.shade50,
@@ -150,8 +150,8 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
                 Expanded(
                   child: Text(
                     isHindi
-                        ? 'नोट: आइटम मास्टर में केवल मूल विवरण (नाम, कोड, UOM, कैटेगरी) सुरक्षित होते हैं। रेट, टैक्स और स्टॉक जानकारी Stock In मेनू में दर्ज होती है।'
-                        : 'Note: Item Master holds core definitions (Code, Name, UOM, Category). Pricing, Tax, Barcode & Stock entry are managed under Stock In.',
+                        ? 'नोट: सामान (Items) में केवल मूल विवरण (नाम, कोड, UOM, कैटेगरी) सुरक्षित होते हैं। रेट, टैक्स और स्टॉक जानकारी Stock In मेनू में दर्ज होती है।'
+                        : 'Note: Items hold core definitions (Code, Name, UOM, Category). Pricing, Tax, Barcode & Stock entry are managed under Stock In.',
                     style: TextStyle(fontSize: 11.5, color: Colors.blue.shade900, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -328,8 +328,8 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
                       children: [
                         Text(
                           existing != null
-                              ? (isHindi ? 'सामान मास्टर अपडेट करें' : 'Edit Master Item')
-                              : (isHindi ? 'नया मास्टर सामान जोड़ें' : 'Define New Master Item'),
+                              ? (isHindi ? 'सामान अपडेट करें' : 'Edit Item')
+                              : (isHindi ? 'नया सामान जोड़ें' : 'Define New Item'),
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         IconButton(
@@ -516,8 +516,8 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
                         },
                         child: Text(
                           existing != null
-                              ? (isHindi ? 'अपडेट सेव करें' : 'Update Master Definition')
-                              : (isHindi ? 'मास्टर में सेव करें' : 'Save to Item Master'),
+                              ? (isHindi ? 'अपडेट सेव करें' : 'Update Item')
+                              : (isHindi ? 'सेव करें' : 'Save Item'),
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: themeProvider.buttonTextColor),
                         ),
                       ),
