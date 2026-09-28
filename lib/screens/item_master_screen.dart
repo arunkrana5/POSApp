@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import '../config/api_config.dart';
 import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
@@ -13,7 +16,7 @@ class ItemMasterScreen extends StatefulWidget {
 }
 
 class _ItemMasterScreenState extends State<ItemMasterScreen> {
-  static final List<Map<String, dynamic>> _masterItems = [
+  final List<Map<String, dynamic>> _masterItems = [
     {
       'id': '1',
       'itemCode': 'ITM-1001',
@@ -71,6 +74,41 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
   ];
 
   String _searchQuery = '';
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchItemMasters();
+  }
+
+  Future<void> _fetchItemMasters() async {
+    setState(() => _isLoading = true);
+    try {
+      final url = Uri.parse('${ApiConfig.baseUrl}/ItemMasters');
+      final res = await http.get(url).timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(res.body);
+        if (data.isNotEmpty) {
+          setState(() {
+            _masterItems.clear();
+            for (var item in data) {
+              _masterItems.add({
+                'id': (item['id'] ?? item['ID'] ?? '').toString(),
+                'itemCode': item['itemCode'] ?? item['ItemCode'] ?? '',
+                'name': item['name'] ?? item['Name'] ?? '',
+                'category': item['category'] ?? item['Category'] ?? 'Groceries',
+                'uom': item['unit'] ?? item['Unit'] ?? 'pcs',
+                'format': (item['format'] ?? item['Format'] ?? 'Packed') == 'Loose' ? 'Loose' : 'Packed',
+                'description': item['description'] ?? item['Description'] ?? '',
+              });
+            }
+          });
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +130,12 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
           isHindi ? 'सामान मास्टर (Item Master)' : 'Item Master Catalog',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _fetchItemMasters,
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -153,6 +197,9 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
               ],
             ),
           ),
+
+          if (_isLoading)
+            const LinearProgressIndicator(),
 
           // Master Items Catalog List
           Expanded(
@@ -250,194 +297,238 @@ class _ItemMasterScreenState extends State<ItemMasterScreen> {
     final codeCtrl = TextEditingController(text: existing?['itemCode'] ?? 'ITM-${1000 + Random().nextInt(8999)}');
     final nameCtrl = TextEditingController(text: existing?['name'] ?? '');
     final descCtrl = TextEditingController(text: existing?['description'] ?? '');
-    String selectedCategory = existing?['category'] ?? 'Groceries';
-    String selectedUOM = existing?['uom'] ?? 'pkt';
-    String selectedFormat = existing?['format'] ?? 'Packed';
+
+    String categoryVal = existing?['category'] ?? 'Groceries';
+    String uomVal = existing?['uom'] ?? 'pkt';
+    String formatVal = existing?['format'] ?? 'Packed';
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 16,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+                top: 20,
+                left: 20,
+                right: 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          existing != null
+                              ? (isHindi ? 'सामान मास्टर अपडेट करें' : 'Edit Master Item')
+                              : (isHindi ? 'नया मास्टर सामान जोड़ें' : 'Define New Master Item'),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(modalCtx),
+                        ),
+                      ],
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 8),
+
+                    // Format Toggle (Packed vs Loose Bulk)
                     Text(
-                      existing != null
-                          ? (isHindi ? 'मास्टर आइटम एडिट करें' : 'Edit Master Item')
-                          : (isHindi ? 'नया मास्टर आइटम (Define Item)' : 'Create New Master Item'),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      isHindi ? 'सामान का प्रकार (Type/Format)' : 'Item Packaging Format',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.red),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextField(
-                        controller: codeCtrl,
-                        decoration: InputDecoration(
-                          labelText: isHindi ? 'आइटम कोड *' : 'Item Code *',
-                          border: const OutlineInputBorder(),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ChoiceChip(
+                            avatar: const Icon(Icons.inventory_2_rounded, size: 16),
+                            label: Text(isHindi ? 'पैक्ड सामान (Packed)' : 'Packed Item'),
+                            selected: formatVal == 'Packed',
+                            selectedColor: Colors.blue.shade100,
+                            onSelected: (sel) {
+                              if (sel) setModalState(() => formatVal = 'Packed');
+                            },
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 3,
-                      child: TextField(
-                        controller: nameCtrl,
-                        decoration: InputDecoration(
-                          labelText: isHindi ? 'सामान का नाम *' : 'Item Name *',
-                          border: const OutlineInputBorder(),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ChoiceChip(
+                            avatar: const Icon(Icons.scale_rounded, size: 16),
+                            label: Text(isHindi ? 'खुला सामान (Loose)' : 'Loose Bulk'),
+                            selected: formatVal == 'Loose',
+                            selectedColor: Colors.orange.shade100,
+                            onSelected: (sel) {
+                              if (sel) setModalState(() => formatVal = 'Loose');
+                            },
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedCategory,
-                        decoration: InputDecoration(
-                          labelText: isHindi ? 'कैटेगरी' : 'Category',
-                          border: const OutlineInputBorder(),
-                        ),
-                        items: ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'Dairy', 'Grains', 'General']
-                            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                            .toList(),
-                        onChanged: (v) => setModalState(() => selectedCategory = v ?? 'Groceries'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: selectedUOM,
-                        decoration: InputDecoration(
-                          labelText: isHindi ? 'UOM (यूनिट)' : 'UOM (Unit)',
-                          border: const OutlineInputBorder(),
-                        ),
-                        items: ['pkt', 'pcs', 'bottle', 'box', 'bag', 'kg', 'gm', 'ltr', 'ml']
-                            .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                            .toList(),
-                        onChanged: (v) => setModalState(() => selectedUOM = v ?? 'pkt'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                // Format Switch (Packed vs Loose)
-                Row(
-                  children: [
-                    const Text('Format / Type: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('Packed Item'),
-                      selected: selectedFormat == 'Packed',
-                      selectedColor: Colors.blue.shade700,
-                      labelStyle: TextStyle(color: selectedFormat == 'Packed' ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
-                      onSelected: (sel) {
-                        if (sel) {
-                          setModalState(() {
-                            selectedFormat = 'Packed';
-                            if (['kg', 'ltr', 'gm', 'ml'].contains(selectedUOM)) selectedUOM = 'pkt';
-                          });
-                        }
-                      },
+                    // Item Code & Name
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: TextField(
+                            controller: codeCtrl,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'आइटम कोड' : 'Item Code',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: nameCtrl,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'सामान का नाम *' : 'Item Name *',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('Loose Bulk (Weight)'),
-                      selected: selectedFormat == 'Loose',
-                      selectedColor: Colors.orange.shade800,
-                      labelStyle: TextStyle(color: selectedFormat == 'Loose' ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
-                      onSelected: (sel) {
-                        if (sel) {
-                          setModalState(() {
-                            selectedFormat = 'Loose';
-                            selectedUOM = 'kg';
-                          });
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
-                TextField(
-                  controller: descCtrl,
-                  maxLines: 2,
-                  decoration: InputDecoration(
-                    labelText: isHindi ? 'विवरण / डिस्क्रिप्शन' : 'Item Description / Specifications',
-                    border: const OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: themeProvider.buttonBgColor,
-                      foregroundColor: themeProvider.buttonTextColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    // Category & UOM Dropdowns
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: categoryVal,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'कैटेगरी' : 'Category',
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'Dairy', 'Grains', 'General']
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) setModalState(() => categoryVal = val);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: uomVal,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'UOM (इकाई)' : 'UOM (Unit)',
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: ['pkt', 'bottle', 'kg', 'gm', 'ltr', 'pcs', 'box']
+                                .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) setModalState(() => uomVal = val);
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    onPressed: () {
-                      if (nameCtrl.text.isNotEmpty) {
-                        setState(() {
+                    const SizedBox(height: 12),
+
+                    // Description / Notes
+                    TextField(
+                      controller: descCtrl,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'विवरण / विवरण टिप्पणी' : 'Description / Notes',
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeProvider.buttonBgColor,
+                          foregroundColor: themeProvider.buttonTextColor,
+                        ),
+                        onPressed: () async {
+                          if (nameCtrl.text.trim().isEmpty) return;
+
+                          final payload = {
+                            'itemCode': codeCtrl.text.trim(),
+                            'name': nameCtrl.text.trim(),
+                            'category': categoryVal,
+                            'unit': uomVal,
+                            'format': formatVal,
+                            'description': descCtrl.text.trim(),
+                          };
+
                           if (existing != null) {
-                            existing['itemCode'] = codeCtrl.text;
-                            existing['name'] = nameCtrl.text;
-                            existing['category'] = selectedCategory;
-                            existing['uom'] = selectedUOM;
-                            existing['format'] = selectedFormat;
-                            existing['description'] = descCtrl.text;
+                            try {
+                              await http.put(
+                                Uri.parse('${ApiConfig.baseUrl}/ItemMasters/${existing['id']}'),
+                                headers: {'Content-Type': 'application/json'},
+                                body: jsonEncode({...payload, 'id': int.tryParse(existing['id']) ?? 0}),
+                              );
+                            } catch (_) {}
+
+                            setState(() {
+                              final idx = _masterItems.indexWhere((i) => i['id'] == existing['id']);
+                              if (idx != -1) {
+                                _masterItems[idx] = {
+                                  'id': existing['id'],
+                                  ...payload,
+                                  'uom': uomVal,
+                                };
+                              }
+                            });
                           } else {
-                            _masterItems.insert(0, {
-                              'id': '${_masterItems.length + 1}',
-                              'itemCode': codeCtrl.text,
-                              'name': nameCtrl.text,
-                              'category': selectedCategory,
-                              'uom': selectedUOM,
-                              'format': selectedFormat,
-                              'description': descCtrl.text,
+                            try {
+                              final res = await http.post(
+                                Uri.parse('${ApiConfig.baseUrl}/ItemMasters'),
+                                headers: {'Content-Type': 'application/json'},
+                                body: jsonEncode(payload),
+                              );
+                              if (res.statusCode == 200) {
+                                _fetchItemMasters();
+                              }
+                            } catch (_) {}
+
+                            setState(() {
+                              _masterItems.insert(0, {
+                                'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                                ...payload,
+                                'uom': uomVal,
+                              });
                             });
                           }
-                        });
-                        Navigator.pop(ctx);
-                      }
-                    },
-                    child: Text(
-                      existing != null ? (isHindi ? 'अपडेट करें' : 'Update Item') : (isHindi ? 'मास्टर में सेव करें' : 'Save to Item Master'),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+
+                          if (modalCtx.mounted) Navigator.pop(modalCtx);
+                        },
+                        child: Text(
+                          existing != null
+                              ? (isHindi ? 'अपडेट सेव करें' : 'Update Master Definition')
+                              : (isHindi ? 'मास्टर में सेव करें' : 'Save to Item Master'),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: themeProvider.buttonTextColor),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
