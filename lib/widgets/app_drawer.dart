@@ -197,11 +197,17 @@ class _AppDrawerState extends State<AppDrawer> {
                       badgeColor: Colors.amber.shade700,
                       badgeText: 'FAST',
                     ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.assignment_rounded,
+                    title: isHindi ? 'सामान मास्टर (Item Master)' : 'Item Master',
+                    route: '/item-master',
+                  ),
                   if (enabledMods.contains('Products'))
                     _buildDrawerItem(
                       context,
                       icon: Icons.inventory_2_rounded,
-                      title: isHindi ? 'सामान और स्टॉक' : 'Products & Stock',
+                      title: isHindi ? 'स्टॉक इन (Stock In)' : 'Stock In & Inventory',
                       route: '/products',
                     ),
                   _buildDrawerItem(
