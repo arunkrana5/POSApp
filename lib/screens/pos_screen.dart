@@ -19,6 +19,27 @@ class PosScreen extends StatefulWidget {
 }
 
 class _PosScreenState extends State<PosScreen> {
+  Widget _buildTileThumbnail(String imgUrl, {double size = 36}) {
+    if (imgUrl.startsWith('data:image/')) {
+      try {
+        final parts = imgUrl.split(',');
+        if (parts.length > 1) {
+          final bytes = base64Decode(parts[1]);
+          return Image.memory(bytes, width: size, height: size, fit: BoxFit.cover);
+        }
+      } catch (_) {}
+    } else if (imgUrl.startsWith('http')) {
+      return Image.network(
+        imgUrl,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Icon(Icons.inventory_2_rounded, size: size * 0.6, color: Colors.blue),
+      );
+    }
+    return Icon(Icons.inventory_2_rounded, size: size * 0.6, color: Colors.blue);
+  }
+
   final List<Map<String, dynamic>> _availableProducts = [
     {'id': '1', 'name': 'Aashirvaad Atta 5kg', 'price': 220.0, 'stock': 15, 'unit': 'pkt'},
     {'id': '2', 'name': 'Fortune Mustard Oil 1L', 'price': 145.0, 'stock': 8, 'unit': 'bottle'},
@@ -795,9 +816,7 @@ class _PosScreenState extends State<PosScreen> {
                                 border: Border.all(color: Colors.grey.shade200),
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: (imgUrl.isNotEmpty && Uri.tryParse(imgUrl)?.hasAbsolutePath == true)
-                                  ? Image.network(imgUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.inventory_2_rounded, size: 20, color: Colors.blue))
-                                  : const Icon(Icons.inventory_2_rounded, size: 20, color: Colors.blue),
+                              child: _buildTileThumbnail(imgUrl, size: 36),
                             ),
                             const SizedBox(width: 8),
                             Expanded(

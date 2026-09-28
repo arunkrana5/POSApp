@@ -1,5 +1,6 @@
 class Product {
   final int id;
+  final int? itemId;
   final String productCode;
   final String name;
   final String category;
@@ -20,6 +21,7 @@ class Product {
 
   Product({
     required this.id,
+    this.itemId,
     required this.productCode,
     required this.name,
     required this.category,
@@ -42,6 +44,7 @@ class Product {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'itemId': itemId,
       'productCode': productCode,
       'name': name,
       'category': category,
@@ -64,24 +67,25 @@ class Product {
 
   factory Product.fromMap(Map<String, dynamic> map) {
     return Product(
-      id: map['id'] ?? 0,
-      productCode: map['productCode'] ?? '',
-      name: map['name'] ?? '',
-      category: map['category'] ?? '',
-      brand: map['brand'] ?? '',
-      unit: map['unit'] ?? 'pcs',
-      barcode: map['barcode'] ?? '',
-      purchasePrice: (map['purchasePrice'] as num?)?.toDouble() ?? 0.0,
-      sellingPrice: (map['sellingPrice'] as num?)?.toDouble() ?? 0.0,
-      mrp: (map['mrp'] as num?)?.toDouble() ?? 0.0,
-      gstPercent: (map['gstPercent'] as num?)?.toDouble() ?? (map['gstRate'] as num?)?.toDouble() ?? 0.0,
-      currentStock: (map['currentStock'] as num?)?.toDouble() ?? 0.0,
-      minimumStock: (map['minimumStock'] as num?)?.toDouble() ?? 5.0,
-      batchNumber: map['batchNumber'] ?? map['batchNo'] ?? '',
-      rackNumber: map['rackNumber'] ?? map['rackNo'] ?? '',
+      id: map['id'] ?? map['ID'] ?? 0,
+      itemId: (map['itemId'] as num?)?.toInt() ?? (map['ItemID'] as num?)?.toInt(),
+      productCode: map['productCode'] ?? map['ProductCode'] ?? '',
+      name: map['name'] ?? map['Name'] ?? '',
+      category: map['category'] ?? map['Category'] ?? '',
+      brand: map['brand'] ?? map['Brand'] ?? '',
+      unit: map['unit'] ?? map['Unit'] ?? 'pcs',
+      barcode: map['barcode'] ?? map['Barcode'] ?? '',
+      purchasePrice: (map['purchasePrice'] as num?)?.toDouble() ?? (map['PurchasePrice'] as num?)?.toDouble() ?? 0.0,
+      sellingPrice: (map['sellingPrice'] as num?)?.toDouble() ?? (map['SellingPrice'] as num?)?.toDouble() ?? 0.0,
+      mrp: (map['mrp'] as num?)?.toDouble() ?? (map['MRP'] as num?)?.toDouble() ?? 0.0,
+      gstPercent: (map['gstPercent'] as num?)?.toDouble() ?? (map['GSTPercent'] as num?)?.toDouble() ?? 0.0,
+      currentStock: (map['currentStock'] as num?)?.toDouble() ?? (map['CurrentStock'] as num?)?.toDouble() ?? 0.0,
+      minimumStock: (map['minimumStock'] as num?)?.toDouble() ?? (map['MinimumStock'] as num?)?.toDouble() ?? 5.0,
+      batchNumber: map['batchNumber'] ?? map['BatchNumber'] ?? '',
+      rackNumber: map['rackNumber'] ?? map['RackNumber'] ?? '',
       expiryDate: map['expiryDate'] != null ? map['expiryDate'].toString().split('T')[0] : '',
-      hsnCode: map['hsnCode'] ?? '',
-      imageUrl: map['imageUrl'] ?? map['logoUrl'] ?? map['image'] ?? '',
+      hsnCode: map['hsnCode'] ?? map['HSNCode'] ?? '',
+      imageUrl: map['imageUrl'] ?? map['ImageUrl'] ?? '',
     );
   }
 
