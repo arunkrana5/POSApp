@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../config/api_config.dart';
+import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
@@ -54,8 +55,21 @@ class _StockScreenState extends State<StockScreen> {
 
   Future<void> _fetchItems() async {
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/Items');
-      final res = await http.get(url).timeout(const Duration(seconds: 8));
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final token = auth.accessToken ?? '';
+      final tenantId = auth.tenantId ?? 0;
+      final tenantCode = auth.tenantCode ?? '';
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+        if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
+      };
+
+      final qStr = tenantId > 0 ? '?tenantId=$tenantId' : '';
+      final url = Uri.parse('${ApiConfig.baseUrl}/Items$qStr');
+      final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
         final List<Map<String, dynamic>> fetched = [];
@@ -82,8 +96,10 @@ class _StockScreenState extends State<StockScreen> {
   Future<void> _loadProducts() async {
     setState(() => _isLoading = true);
     try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final token = auth.accessToken ?? '';
       final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-      final fetchedProducts = await syncProvider.fetchProducts();
+      final fetchedProducts = await syncProvider.fetchProducts(token);
 
       final List<Map<String, dynamic>> loadedList = fetchedProducts.map((p) => {
         'id': p.id.toString(),
@@ -209,9 +225,54 @@ class _StockScreenState extends State<StockScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    itemCount: filtered.length,
+                : filtered.isEmpty
+                    ? Center(
+                        child: SingleChildScrollView(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.inventory_2_outlined, size: 64, color: themeProvider.primaryColor.withOpacity(0.5)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  isHindi ? 'स्टॉक लिस्ट खाली है' : 'No Active Inventory / Stock Items Found',
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _availableItems.isNotEmpty
+                                      ? (isHindi
+                                          ? 'आपके पास Catalog में ${_availableItems.length} सामान मौजूद हैं! ऊपर "+ स्टॉक इन" बटन दबाकर उनका बिक्री मूल्य और स्टॉक दर्ज करें।'
+                                          : 'You have ${_availableItems.length} item(s) in your Item Catalog! Click "+ Stock In" to set prices & initial stock levels for them.')
+                                      : (isHindi
+                                          ? 'सामान जोड़ने के लिए ऊपर "+ स्टॉक इन" दबाएं या "Items Catalog" में नया सामान बनाएं।'
+                                          : 'Click "+ Stock In" above to register stock, or create items in "Items Catalog".'),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(fontSize: 13.5, color: Colors.grey.shade700),
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: themeProvider.buttonBgColor,
+                                    foregroundColor: themeProvider.buttonTextColor,
+                                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                  ),
+                                  icon: Icon(Icons.add_box_rounded, color: themeProvider.buttonTextColor),
+                                  label: Text(
+                                    isHindi ? '+ पहला स्टॉक इन करें' : '+ Perform Stock In Now',
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.buttonTextColor),
+                                  ),
+                                  onPressed: () => _showAddProductModal(context, isHindi),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        itemCount: filtered.length,
                     separatorBuilder: (ctx, i) => const SizedBox(height: 8),
                     itemBuilder: (ctx, index) {
                       final item = filtered[index];
@@ -392,9 +453,21 @@ class _StockScreenState extends State<StockScreen> {
                     };
                     String createdId = Random().nextInt(10000).toString();
                     try {
+                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      final token = auth.accessToken ?? '';
+                      final tenantId = auth.tenantId ?? 0;
+                      final tenantCode = auth.tenantCode ?? '';
+
+                      final headers = <String, String>{
+                        'Content-Type': 'application/json',
+                        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+                        if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+                        if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
+                      };
+
                       final res = await http.post(
                         Uri.parse('${ApiConfig.baseUrl}/Items'),
-                        headers: {'Content-Type': 'application/json'},
+                        headers: headers,
                         body: jsonEncode(payload),
                       );
                       if (res.statusCode == 200 || res.statusCode == 201) {
