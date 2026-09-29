@@ -52,7 +52,7 @@ class SyncEngine {
       final qStr = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
 
       final response = await http.get(
-        Uri.parse('$apiBaseUrl/products$qStr'),
+        Uri.parse('$apiBaseUrl/stock$qStr'),
         headers: headers,
       ).timeout(const Duration(seconds: 15));
 
@@ -147,7 +147,7 @@ class SyncEngine {
     try {
       final headers = await _getTenantHeaders();
       await http.post(
-        Uri.parse('$apiBaseUrl/products'),
+        Uri.parse('$apiBaseUrl/stock'),
         headers: headers,
         body: jsonEncode(payload),
       ).timeout(const Duration(seconds: 8));

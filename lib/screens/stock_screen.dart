@@ -32,14 +32,14 @@ Widget buildProductThumbnail(String imgUrl, {double size = 40}) {
   return Icon(Icons.inventory_2_rounded, size: size * 0.6, color: Colors.blue);
 }
 
-class StockInScreen extends StatefulWidget {
-  const StockInScreen({super.key});
+class StockScreen extends StatefulWidget {
+  const StockScreen({super.key});
 
   @override
-  State<StockInScreen> createState() => _StockInScreenState();
+  State<StockScreen> createState() => _StockScreenState();
 }
 
-class _StockInScreenState extends State<StockInScreen> {
+class _StockScreenState extends State<StockScreen> {
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _availableItems = [];
   String _searchQuery = '';
@@ -304,6 +304,127 @@ class _StockInScreenState extends State<StockInScreen> {
     );
   }
 
+  Future<Map<String, dynamic>?> _showQuickCreateItemDialog(BuildContext context, bool isHindi) async {
+    final codeCtrl = TextEditingController(text: 'ITM-${1000 + Random().nextInt(8999)}');
+    final nameCtrl = TextEditingController();
+    final catCtrl = TextEditingController(text: 'Groceries');
+    final uomCtrl = TextEditingController(text: 'pcs');
+    String selectedFormat = 'Packed';
+
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dlgCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDlgState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text(
+                isHindi ? 'नया सामान Catalog में जोड़ें' : '+ Create New Catalog Item',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: codeCtrl,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'सामान कोड (Item Code)' : 'Item Code',
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: nameCtrl,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'सामान का नाम (Item Name) *' : 'Item Name *',
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: catCtrl,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'कैटेगरी (Category)' : 'Category',
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: uomCtrl,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'माप इकाई (UOM / Unit)' : 'Unit (e.g. kg, pkt, bottle, pcs)',
+                        isDense: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: selectedFormat,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'पैकिंग का प्रकार (Format)' : 'Format',
+                        isDense: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Packed', child: Text('Packed Item (पैक्ड सामान)')),
+                        DropdownMenuItem(value: 'Loose', child: Text('Loose / Adjustable Item (खुला सामान)')),
+                      ],
+                      onChanged: (v) => setDlgState(() => selectedFormat = v ?? 'Packed'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dlgCtx, null),
+                  child: Text(isHindi ? 'रद्द करें' : 'Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (nameCtrl.text.trim().isEmpty) return;
+                    final payload = {
+                      'itemCode': codeCtrl.text.trim(),
+                      'name': nameCtrl.text.trim(),
+                      'category': catCtrl.text.trim(),
+                      'unit': uomCtrl.text.trim(),
+                      'format': selectedFormat,
+                      'description': 'Created via Quick Add in Stock In',
+                    };
+                    String createdId = Random().nextInt(10000).toString();
+                    try {
+                      final res = await http.post(
+                        Uri.parse('${ApiConfig.baseUrl}/Items'),
+                        headers: {'Content-Type': 'application/json'},
+                        body: jsonEncode(payload),
+                      );
+                      if (res.statusCode == 200 || res.statusCode == 201) {
+                        final data = jsonDecode(res.body);
+                        createdId = (data['id'] ?? data['ID'] ?? createdId).toString();
+                      }
+                    } catch (_) {}
+
+                    if (context.mounted) {
+                      Navigator.pop(dlgCtx, {
+                        'id': createdId,
+                        'itemCode': payload['itemCode'],
+                        'name': payload['name'],
+                        'category': payload['category'],
+                        'uom': payload['unit'],
+                        'format': payload['format'],
+                        'description': payload['description'],
+                      });
+                    }
+                  },
+                  child: Text(isHindi ? 'सेव करें' : 'Save & Select'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showAddProductModal(BuildContext context, bool isHindi) {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
 
@@ -368,49 +489,107 @@ class _StockInScreenState extends State<StockInScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Icon(Icons.inventory_2_rounded, color: Colors.blue, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                isHindi ? '1. सामान चुनें (Select Item) *' : '1. Select Item from Directory *',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue),
+                              Row(
+                                children: [
+                                  const Icon(Icons.inventory_2_rounded, color: Colors.blue, size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    isHindi ? '1. सामान चुनें (Select Item) *' : '1. Select Item from Directory *',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue),
+                                  ),
+                                ],
+                              ),
+                              InkWell(
+                                onTap: () async {
+                                  final newItem = await _showQuickCreateItemDialog(context, isHindi);
+                                  if (newItem != null) {
+                                    setModalState(() {
+                                      _availableItems.insert(0, newItem);
+                                      selectedItemObj = newItem;
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade700,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.add, color: Colors.white, size: 15),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        isHindi ? '+ नया सामान' : '+ New Item',
+                                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            value: (selectedItemObj != null && _availableItems.any((i) => i['id'].toString() == selectedItemObj!['id'].toString()))
-                                ? selectedItemObj!['id'].toString()
-                                : null,
-                            hint: Text(isHindi ? '-- सामान चुनें --' : '-- Choose Item from Catalog --'),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.white,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            items: _availableItems.map((item) {
-                              return DropdownMenuItem<String>(
-                                value: item['id'].toString(),
-                                child: Text(
-                                  '${item['name']} (${item['category']} • ${item['uom']})',
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                final found = _availableItems.firstWhere((i) => i['id'].toString() == val, orElse: () => {});
-                                if (found.isNotEmpty) {
-                                  setModalState(() {
-                                    selectedItemObj = found;
-                                  });
+                          if (_availableItems.isEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.blue.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      isHindi
+                                          ? 'Catalog में कोई सामान नहीं मिला। ऊपर "+ नया सामान" बटन दबाकर जोड़ें!'
+                                          : 'No items in catalog. Click "+ New Item" above to create one!',
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              value: (selectedItemObj != null && _availableItems.any((i) => i['id'].toString() == selectedItemObj!['id'].toString()))
+                                  ? selectedItemObj!['id'].toString()
+                                  : null,
+                              hint: Text(isHindi ? '-- सामान चुनें --' : '-- Choose Item from Catalog --'),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              items: _availableItems.map((item) {
+                                return DropdownMenuItem<String>(
+                                  value: item['id'].toString(),
+                                  child: Text(
+                                    '${item['name']} (${item['category']} • ${item['uom']})',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  final found = _availableItems.firstWhere((i) => i['id'].toString() == val, orElse: () => {});
+                                  if (found.isNotEmpty) {
+                                    setModalState(() {
+                                      selectedItemObj = found;
+                                    });
+                                  }
                                 }
-                              }
-                            },
-                          ),
+                              },
+                            ),
                         ],
                       ),
                     ),

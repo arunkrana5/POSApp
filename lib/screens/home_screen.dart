@@ -476,10 +476,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: _buildActionButton(
                 context,
-                title: isHindi ? 'स्टॉक इन' : 'Stock In',
+                title: isHindi ? 'स्टॉक' : 'Stock',
                 icon: Icons.add_box_rounded,
                 color: themeProvider.secondaryColor,
-                route: '/stock-in',
+                route: '/stock',
                 themeProvider: themeProvider,
               ),
             ),
