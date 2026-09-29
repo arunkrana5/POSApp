@@ -11,9 +11,10 @@ class ApiConfig {
     if (kIsWeb) {
       try {
         final origin = html.window.location.origin;
-        if (origin.isNotEmpty && !origin.startsWith('file:')) {
+        if (origin.contains('localhost') || origin.contains('185.100.212.57')) {
           return '$origin/api';
         }
+        return 'https://villageshop-api.onrender.com/api';
       } catch (_) {}
     }
     return 'http://185.100.212.57:5000/api';
@@ -25,18 +26,18 @@ class ApiConfig {
 
   static List<String> get candidateUrls {
     final list = <String>[];
+    list.add('https://villageshop-api.onrender.com/api');
     if (kIsWeb) {
       try {
         final origin = html.window.location.origin;
-        if (origin.isNotEmpty && !origin.startsWith('file:')) {
-          list.add('$origin/api');
+        if (origin.contains('localhost') || origin.contains('185.100.212.57')) {
+          list.insert(0, '$origin/api');
         }
       } catch (_) {}
     }
     list.addAll([
       'http://localhost:5000/api',
       'http://185.100.212.57:5000/api',
-      'https://villageshop-api.onrender.com/api',
     ]);
     return list.toSet().toList();
   }
