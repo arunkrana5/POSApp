@@ -62,11 +62,11 @@ class AuthProvider with ChangeNotifier {
           }),
         ).timeout(const Duration(seconds: 15));
 
-        if (response.statusCode == 200) {
+        if (response.statusCode == 200 || response.statusCode == 400 || response.statusCode == 401) {
           final json = jsonDecode(response.body);
           final postResp = PostResponse.fromJson(json);
 
-          if (postResp.status) {
+          if (postResp.status && response.statusCode == 200) {
             final Map<String, dynamic> tokenData = jsonDecode(postResp.additionalMessage);
             _accessToken = tokenData['accessToken'] ?? tokenData['AccessToken'];
             _tenantName = tokenData['tenantName'] ?? tokenData['TenantName'] ?? tokenData['name'] ?? tokenData['Name'];

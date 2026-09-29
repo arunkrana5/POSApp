@@ -92932,7 +92932,7 @@ a=A.ap(["Content-Type","application/json"],d,d)
 s=10
 return A.A(A.xh(l,B.ac.kf(A.ap(["tenantCode",a7,"username",a8,"password",a9],d,d),null),a).hu(0,B.ix),$async$ku)
 case 10:k=b2
-s=k.b===200?11:12
+s=k.b===200||k.b===400||k.b===401?11:12
 break
 case 11:a=k
 j=B.ac.hj(0,A.jA(A.jy(a.e)).dC(0,a.w),null)
@@ -92948,7 +92948,7 @@ a0.h(a,"redirectURL")
 a0.h(a,"id")
 a=a0.h(a,"additionalMessage")
 i=new A.Bb(a1,a2,a==null?"":a)
-s=i.b?13:14
+s=i.b&&k.b===200?13:14
 break
 case 13:h=B.ac.hj(0,i.r,null)
 a=J.t(h,"accessToken")
