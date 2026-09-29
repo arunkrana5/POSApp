@@ -226,6 +226,25 @@ class TenantThemeProvider with ChangeNotifier {
                 });
               }
 
+              final hasStock = list.any((m) {
+                final r = (m['Route'] ?? m['route'] ?? '').toString();
+                return r == '/stock';
+              });
+              if (!hasStock) {
+                final itemsIdx = list.indexWhere((m) {
+                  final r = (m['Route'] ?? m['route'] ?? '').toString();
+                  return r == '/items' || r == '/pos';
+                });
+                final insertAt = itemsIdx >= 0 ? itemsIdx + 1 : 1;
+                list.insert(insertAt <= list.length ? insertAt : list.length, {
+                  'titleEn': 'Stock & Inventory',
+                  'titleHi': 'स्टॉक (Stock)',
+                  'route': '/stock',
+                  'icon': 'inventory_2',
+                  'isEnabled': true,
+                });
+              }
+
               final hasSalesHistory = list.any((m) {
                 final r = (m['Route'] ?? m['route'] ?? '').toString();
                 return r == '/sales-history' || r == '/sales';
