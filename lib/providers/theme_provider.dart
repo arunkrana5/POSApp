@@ -55,7 +55,7 @@ class TenantThemeProvider with ChangeNotifier {
       final savedTenantName = prefs.getString('tenant_name');
 
       if (pColorHex != null && pColorHex.isNotEmpty) {
-        primaryColor = _hexToColor(pColorHex, const Color(0xFF2563EB));
+        primaryColor = _hexToColor(pColorHex, const Color(0xFFDC2626));
       }
       if (sColorHex != null && sColorHex.isNotEmpty) {
         secondaryColor = _hexToColor(sColorHex, const Color(0xFFD97706));
@@ -143,7 +143,7 @@ class TenantThemeProvider with ChangeNotifier {
             final enHindi = config['EnableHindiLanguage'] ?? config['enableHindiLanguage'];
             final enReceipt = config['EnableReceiptPrinting'] ?? config['enableReceiptPrinting'];
 
-            if (primaryHex != null) primaryColor = _hexToColor(primaryHex, const Color(0xFF2563EB));
+            if (primaryHex != null) primaryColor = _hexToColor(primaryHex, const Color(0xFFDC2626));
             if (secondaryHex != null) secondaryColor = _hexToColor(secondaryHex, const Color(0xFFD97706));
             if (accentHex != null) accentColor = _hexToColor(accentHex, const Color(0xFF10B981));
 
@@ -151,7 +151,7 @@ class TenantThemeProvider with ChangeNotifier {
             if (pageBgHex != null) pageBgColor = _hexToColor(pageBgHex, const Color(0xFFF8FAFC));
             if (cardBgHex != null) cardBgColor = _hexToColor(cardBgHex, const Color(0xFFFFFFFF));
             if (amountHex != null) amountColor = _hexToColor(amountHex, const Color(0xFF16A34A));
-            if (buttonBgHex != null) buttonBgColor = _hexToColor(buttonBgHex, const Color(0xFF2563EB));
+            if (buttonBgHex != null) buttonBgColor = _hexToColor(buttonBgHex, const Color(0xFFDC2626));
             if (buttonTextHex != null) buttonTextColor = _hexToColor(buttonTextHex, const Color(0xFFFFFFFF));
 
             if (fontFam != null && fontFam.toString().isNotEmpty) fontFamily = fontFam.toString();
@@ -229,7 +229,7 @@ class TenantThemeProvider with ChangeNotifier {
   }
 
   void updateColors(String primaryHex, String secondaryHex) async {
-    primaryColor = _hexToColor(primaryHex, const Color(0xFF2563EB));
+    primaryColor = _hexToColor(primaryHex, const Color(0xFFDC2626));
     secondaryColor = _hexToColor(secondaryHex, const Color(0xFFD97706));
     notifyListeners();
     try {

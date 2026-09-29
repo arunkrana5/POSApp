@@ -35,33 +35,45 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.storefront, size: 64, color: Color(0xFF2563EB)),
+                  Icon(Icons.storefront_rounded, size: 64, color: themeProvider.primaryColor),
                   const SizedBox(height: 12),
-                  Text("Shop Portal",
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  const Text("Shop Portal",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
-                  const Text("दुकानदार लॉगिन (Shopkeeper Login)", style: TextStyle(color: Colors.grey)),
+                  const Text("दुकानदार लॉगिन (Shopkeeper Login)", style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
                   const SizedBox(height: 24),
                   if (_errorMessage != null) ...[
-                    Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(8)),
+                      child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold)),
+                    ),
                     const SizedBox(height: 12),
                   ],
                   TextField(
                     controller: _userController,
-                    decoration: const InputDecoration(
+                    style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 16),
+                    decoration: InputDecoration(
                       labelText: "Username / यूजरनाम",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
+                      labelStyle: const TextStyle(color: Color(0xFF475569)),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person_rounded, color: themeProvider.primaryColor),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _passwordController,
                     obscureText: true,
-                    decoration: const InputDecoration(
+                    style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 16),
+                    decoration: InputDecoration(
                       labelText: "Password / पासवर्ड",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock),
+                      labelStyle: const TextStyle(color: Color(0xFF475569)),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock_rounded, color: themeProvider.primaryColor),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -69,6 +81,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeProvider.buttonBgColor,
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                       onPressed: auth.isLoading
                           ? null
                           : () async {
@@ -97,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                       child: auth.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("लॉगिन करें (LOGIN)", style: TextStyle(fontSize: 18)),
+                          : const Text("लॉगिन करें (LOGIN)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ],
