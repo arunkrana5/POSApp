@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../config/api_config.dart';
+import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
@@ -30,8 +31,21 @@ class _ItemsScreenState extends State<ItemsScreen> {
   Future<void> _fetchItems() async {
     setState(() => _isLoading = true);
     try {
-      final url = Uri.parse('${ApiConfig.baseUrl}/Items');
-      final res = await http.get(url).timeout(const Duration(seconds: 8));
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final token = auth.accessToken ?? '';
+      final tenantId = auth.tenantId ?? 0;
+      final tenantCode = auth.tenantCode ?? '';
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+        if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
+      };
+
+      final qStr = tenantId > 0 ? '?tenantId=$tenantId' : '';
+      final url = Uri.parse('${ApiConfig.baseUrl}/Items$qStr');
+      final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
         final List<dynamic> data = jsonDecode(res.body);
         _masterItems.clear();
@@ -408,6 +422,18 @@ class _ItemsScreenState extends State<ItemsScreen> {
                         onPressed: () async {
                           if (nameCtrl.text.trim().isEmpty) return;
 
+                          final auth = Provider.of<AuthProvider>(context, listen: false);
+                          final token = auth.accessToken ?? '';
+                          final tenantId = auth.tenantId ?? 0;
+                          final tenantCode = auth.tenantCode ?? '';
+
+                          final headers = <String, String>{
+                            'Content-Type': 'application/json',
+                            if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+                            if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+                            if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
+                          };
+
                           final payload = {
                             'itemCode': codeCtrl.text.trim(),
                             'name': nameCtrl.text.trim(),
@@ -415,47 +441,28 @@ class _ItemsScreenState extends State<ItemsScreen> {
                             'unit': uomVal,
                             'format': formatVal,
                             'description': descCtrl.text.trim(),
+                            'tenantId': tenantId > 0 ? tenantId : 1,
                           };
 
                           if (existing != null) {
                             try {
                               await http.put(
                                 Uri.parse('${ApiConfig.baseUrl}/Items/${existing['id']}'),
-                                headers: {'Content-Type': 'application/json'},
+                                headers: headers,
                                 body: jsonEncode({...payload, 'id': int.tryParse(existing['id']) ?? 0}),
                               );
                             } catch (_) {}
-
-                            setState(() {
-                              final idx = _masterItems.indexWhere((i) => i['id'] == existing['id']);
-                              if (idx != -1) {
-                                _masterItems[idx] = {
-                                  'id': existing['id'],
-                                  ...payload,
-                                  'uom': uomVal,
-                                };
-                              }
-                            });
                           } else {
                             try {
-                              final res = await http.post(
+                              await http.post(
                                 Uri.parse('${ApiConfig.baseUrl}/Items'),
-                                headers: {'Content-Type': 'application/json'},
+                                headers: headers,
                                 body: jsonEncode(payload),
                               );
-                              if (res.statusCode == 200) {
-                                _fetchItems();
-                              }
                             } catch (_) {}
-
-                            setState(() {
-                              _masterItems.insert(0, {
-                                'id': DateTime.now().millisecondsSinceEpoch.toString(),
-                                ...payload,
-                                'uom': uomVal,
-                              });
-                            });
                           }
+
+                          await _fetchItems();
 
                           if (modalCtx.mounted) Navigator.pop(modalCtx);
                         },
