@@ -87,17 +87,17 @@ class _ItemsScreenState extends State<ItemsScreen> {
           // Banner Notice Explaining Items Architecture
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: Colors.blue.shade50,
+            color: themeProvider.primaryColor.withOpacity(0.08),
             child: Row(
               children: [
-                const Icon(Icons.info_outline_rounded, color: Colors.blue, size: 22),
+                Icon(Icons.info_outline_rounded, color: themeProvider.primaryColor, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     isHindi
                         ? 'नोट: सामान (Items) में केवल मूल विवरण (नाम, कोड, UOM, कैटेगरी) सुरक्षित होते हैं। रेट, टैक्स और स्टॉक जानकारी Stock In मेनू में दर्ज होती है।'
                         : 'Note: Items hold core definitions (Code, Name, UOM, Category). Pricing, Tax, Barcode & Stock entry are managed under Stock In.',
-                    style: TextStyle(fontSize: 11.5, color: Colors.blue.shade900, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: 11.5, color: themeProvider.textColor, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -169,13 +169,13 @@ class _ItemsScreenState extends State<ItemsScreen> {
                         width: 46,
                         height: 46,
                         decoration: BoxDecoration(
-                          color: isLoose ? Colors.orange.shade50 : Colors.blue.shade50,
+                          color: isLoose ? Colors.orange.shade50 : themeProvider.primaryColor.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: isLoose ? Colors.orange.shade200 : Colors.blue.shade200),
+                          border: Border.all(color: isLoose ? Colors.orange.shade200 : themeProvider.primaryColor.withOpacity(0.2)),
                         ),
                         child: Icon(
                           isLoose ? Icons.scale_rounded : Icons.inventory_2_rounded,
-                          color: isLoose ? Colors.orange.shade800 : Colors.blue.shade800,
+                          color: isLoose ? Colors.orange.shade800 : themeProvider.primaryColor,
                           size: 24,
                         ),
                       ),
@@ -188,18 +188,18 @@ class _ItemsScreenState extends State<ItemsScreen> {
                               children: [
                                 Text(
                                   item['itemCode'] ?? 'ITM-000',
-                                  style: const TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: Colors.blue),
+                                  style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: isLoose ? Colors.orange.shade100 : Colors.blue.shade100,
+                                    color: isLoose ? Colors.orange.shade100 : themeProvider.primaryColor.withOpacity(0.12),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
                                     isLoose ? 'Loose Bulk' : 'Packed',
-                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isLoose ? Colors.orange.shade900 : Colors.blue.shade900),
+                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isLoose ? Colors.orange.shade900 : themeProvider.primaryColor),
                                   ),
                                 ),
                               ],
@@ -223,7 +223,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
+                        icon: Icon(Icons.edit_note_rounded, color: themeProvider.primaryColor),
                         onPressed: () => _showAddMasterItemModal(context, isHindi, item),
                       ),
                     ],

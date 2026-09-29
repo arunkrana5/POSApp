@@ -463,7 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 context,
                 title: isHindi ? 'बिक्री इतिहास' : 'Sale History',
                 icon: Icons.receipt_long_rounded,
-                color: Colors.blue.shade700,
+                color: themeProvider.primaryColor,
                 route: '/sales-history',
                 themeProvider: themeProvider,
               ),

@@ -481,9 +481,9 @@ class _StockScreenState extends State<StockScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
+                        color: themeProvider.primaryColor.withOpacity(0.06),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade300, width: 1.5),
+                        border: Border.all(color: themeProvider.primaryColor.withOpacity(0.3), width: 1.5),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -493,11 +493,11 @@ class _StockScreenState extends State<StockScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.inventory_2_rounded, color: Colors.blue, size: 20),
+                                  Icon(Icons.inventory_2_rounded, color: themeProvider.primaryColor, size: 20),
                                   const SizedBox(width: 8),
                                   Text(
                                     isHindi ? '1. सामान चुनें (Select Item) *' : '1. Select Item from Directory *',
-                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue),
+                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
                                   ),
                                 ],
                               ),
@@ -514,7 +514,7 @@ class _StockScreenState extends State<StockScreen> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.shade700,
+                                    color: themeProvider.buttonBgColor,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Row(
@@ -539,18 +539,18 @@ class _StockScreenState extends State<StockScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.blue.shade200),
+                                border: Border.all(color: themeProvider.primaryColor.withOpacity(0.2)),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                                  Icon(Icons.info_outline, color: themeProvider.primaryColor, size: 20),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       isHindi
                                           ? 'Catalog में कोई सामान नहीं मिला। ऊपर "+ नया सामान" बटन दबाकर जोड़ें!'
                                           : 'No items in catalog. Click "+ New Item" above to create one!',
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue),
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: themeProvider.textColor),
                                     ),
                                   ),
                                 ],
