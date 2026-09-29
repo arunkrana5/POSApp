@@ -207,18 +207,36 @@ class TenantThemeProvider with ChangeNotifier {
                 return r != '/products' && id != 'products';
               }).toList();
 
+              final hasItems = list.any((m) {
+                final r = (m['Route'] ?? m['route'] ?? '').toString();
+                return r == '/items';
+              });
+              if (!hasItems) {
+                final posIdx = list.indexWhere((m) {
+                  final r = (m['Route'] ?? m['route'] ?? '').toString();
+                  return r == '/pos';
+                });
+                final insertAt = posIdx >= 0 ? posIdx + 1 : 1;
+                list.insert(insertAt <= list.length ? insertAt : list.length, {
+                  'titleEn': 'Items & Catalog',
+                  'titleHi': 'सामान (Items)',
+                  'route': '/items',
+                  'icon': 'assignment',
+                  'isEnabled': true,
+                });
+              }
+
               final hasSalesHistory = list.any((m) {
                 final r = (m['Route'] ?? m['route'] ?? '').toString();
                 return r == '/sales-history' || r == '/sales';
               });
               if (!hasSalesHistory) {
-                // Insert Sale History right after POS
-                final posIdx = list.indexWhere((m) {
+                final itemsIdx = list.indexWhere((m) {
                   final r = (m['Route'] ?? m['route'] ?? '').toString();
-                  return r == '/pos' || r == '/stock-in';
+                  return r == '/items' || r == '/pos';
                 });
-                final insertAt = posIdx >= 0 ? posIdx + 1 : 1;
-                list.insert(insertAt < list.length ? insertAt : list.length, {
+                final insertAt = itemsIdx >= 0 ? itemsIdx + 1 : 1;
+                list.insert(insertAt <= list.length ? insertAt : list.length, {
                   'titleEn': 'Sale History & Invoices',
                   'titleHi': 'बिक्री इतिहास (Sale History)',
                   'route': '/sales-history',
