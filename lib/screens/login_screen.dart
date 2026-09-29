@@ -13,7 +13,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _tenantController = TextEditingController();
   final _userController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _errorMessage;
@@ -48,16 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 12),
                   ],
                   TextField(
-                    controller: _tenantController,
-                    decoration: const InputDecoration(
-                      labelText: "Tenant Code",
-                      hintText: "Enter your store tenant code",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.business),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
                     controller: _userController,
                     decoration: const InputDecoration(
                       labelText: "Username / यूजरनाम",
@@ -85,7 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           : () async {
                               setState(() => _errorMessage = null);
                               final res = await auth.login(
-                                _tenantController.text.trim(),
+                                '',
                                 _userController.text.trim(),
                                 _passwordController.text.trim(),
                               );
