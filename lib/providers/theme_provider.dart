@@ -249,19 +249,18 @@ class TenantThemeProvider with ChangeNotifier {
     return null;
   }
 
-  Color _hexToColor(String hex, [Color fallback = const Color(0xFF0F172A)]) {
+  Color _hexToColor(String hex, [Color fallback = const Color(0xFFDC2626)]) {
     final clean = hex.replaceFirst('#', '').trim().toLowerCase();
     if (clean.isEmpty) return fallback;
-    if (clean == 'red' || clean == 'crimson' || clean == 'darkred') return const Color(0xFFDC2626);
-    if (clean == 'blue') return const Color(0xFF2563EB);
+    if (clean == 'red' || clean == 'crimson' || clean == 'darkred' || clean == 'blue' || clean == '2563eb') return const Color(0xFFDC2626);
     if (clean == 'green') return const Color(0xFF16A34A);
     if (clean == 'yellow') return const Color(0xFFEAB308);
     if (clean == 'orange') return const Color(0xFFEA580C);
     if (clean == 'purple') return const Color(0xFF9333EA);
     if (clean == 'pink') return const Color(0xFFEC4899);
     if (clean == 'teal') return const Color(0xFF0D9488);
-    if (clean == 'black') return const Color(0xFF0F172A);
-    if (clean == 'white') return const Color(0xFFFFFFFF);
+    if (clean == 'black' || clean == '0f172a') return const Color(0xFF0F172A);
+    if (clean == 'white' || clean == 'ffffff') return const Color(0xFFFFFFFF);
 
     final buffer = StringBuffer();
     if (clean.length == 6) buffer.write('ff');
