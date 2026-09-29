@@ -35,7 +35,8 @@ class _AppDrawerState extends State<AppDrawer> {
     final enabledMods = themeProvider.enabledModules;
 
     return Drawer(
-      backgroundColor: themeProvider.pageBgColor,
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
       child: Column(
         children: [
           // Dynamic Custom Drawer Header

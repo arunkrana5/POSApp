@@ -324,8 +324,22 @@ class TenantThemeProvider with ChangeNotifier {
         onError: Colors.white,
       ),
       textTheme: scaledTextTheme,
+      drawerTheme: const DrawerThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 16,
+      ),
+      dialogTheme: const DialogTheme(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
       cardTheme: CardTheme(
         color: cardBgColor,
+        surfaceTintColor: Colors.transparent,
         elevation: 1,
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
