@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
@@ -55,10 +56,17 @@ class _StockScreenState extends State<StockScreen> {
 
   Future<void> _fetchItems() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      final token = auth.accessToken ?? '';
-      final tenantId = auth.tenantId ?? 0;
-      final tenantCode = auth.tenantCode ?? '';
+      final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty)
+          ? auth.accessToken!
+          : (prefs.getString('auth_token') ?? '');
+      final tenantId = (auth.tenantId != null && auth.tenantId! > 0)
+          ? auth.tenantId!
+          : (prefs.getInt('tenant_id') ?? 0);
+      final tenantCode = (auth.tenantCode != null && auth.tenantCode!.isNotEmpty)
+          ? auth.tenantCode!
+          : (prefs.getString('tenant_code') ?? '');
 
       final headers = <String, String>{
         'Content-Type': 'application/json',
@@ -86,18 +94,23 @@ class _StockScreenState extends State<StockScreen> {
             });
           }
         }
-        setState(() {
-          _availableItems = fetched;
-        });
+        if (mounted) {
+          setState(() {
+            _availableItems = fetched;
+          });
+        }
       }
     } catch (_) {}
   }
 
   Future<void> _loadProducts() async {
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
     try {
+      final prefs = await SharedPreferences.getInstance();
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      final token = auth.accessToken ?? '';
+      final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty)
+          ? auth.accessToken!
+          : (prefs.getString('auth_token') ?? '');
       final syncProvider = Provider.of<SyncProvider>(context, listen: false);
       final fetchedProducts = await syncProvider.fetchProducts(token);
 
@@ -123,11 +136,13 @@ class _StockScreenState extends State<StockScreen> {
         'imageUrl': p.imageUrl ?? '',
       }).toList();
 
-      setState(() {
-        _products = loadedList;
-      });
+      if (mounted) {
+        setState(() {
+          _products = loadedList;
+        });
+      }
     } catch (_) {}
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   Future<String?> _pickAndCompressProductImage() async {
@@ -243,11 +258,11 @@ class _StockScreenState extends State<StockScreen> {
                                 Text(
                                   _availableItems.isNotEmpty
                                       ? (isHindi
-                                          ? 'आपके पास Catalog में ${_availableItems.length} सामान मौजूद हैं! ऊपर "+ स्टॉक इन" बटन दबाकर उनका बिक्री मूल्य और स्टॉक दर्ज करें।'
-                                          : 'You have ${_availableItems.length} item(s) in your Item Catalog! Click "+ Stock In" to set prices & initial stock levels for them.')
+                                          ? 'आपके पास Catalog में ${_availableItems.length} सामान मौजूद हैं! ऊपर "+ स्टॉक इन" बटन दबाकर नया स्टॉक जोड़ें।'
+                                          : 'You have ${_availableItems.length} item(s) in your Catalog! Click "+ Stock In" to add stock & prices for them.')
                                       : (isHindi
-                                          ? 'सामान जोड़ने के लिए ऊपर "+ स्टॉक इन" दबाएं या "Items Catalog" में नया सामान बनाएं।'
-                                          : 'Click "+ Stock In" above to register stock, or create items in "Items Catalog".'),
+                                          ? 'सामान जोड़ने के लिए ऊपर "+ स्टॉक इन" दबाएं।'
+                                          : 'Click "+ Stock In" above to add item stock.'),
                                   textAlign: TextAlign.center,
                                   style: TextStyle(fontSize: 13.5, color: Colors.grey.shade700),
                                 ),
@@ -273,236 +288,109 @@ class _StockScreenState extends State<StockScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         itemCount: filtered.length,
-                    separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                    itemBuilder: (ctx, index) {
-                      final item = filtered[index];
-                      final stock = (item['stock'] is num) ? (item['stock'] as num).toInt() : 0;
-                      final isLowStock = stock > 0 && stock <= 5;
-                      final isOutOfStock = stock <= 0;
-                      final imgUrl = item['imageUrl']?.toString() ?? '';
+                        separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                        itemBuilder: (ctx, index) {
+                          final item = filtered[index];
+                          final stock = (item['stock'] is num) ? (item['stock'] as num).toInt() : 0;
+                          final isLowStock = stock > 0 && stock <= 5;
+                          final isOutOfStock = stock <= 0;
+                          final imgUrl = item['imageUrl']?.toString() ?? '';
 
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: isOutOfStock
-                                    ? Colors.red.shade50
-                                    : (isLowStock ? Colors.orange.shade50 : Colors.blue.shade50),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: Colors.grey.shade300),
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: buildProductThumbnail(imgUrl, size: 48),
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item['name'] ?? '',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Category: ${item["category"]} • Rate: ₹${item["price"]}/${item["unit"] ?? "pcs"}',
-                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
-                                  ),
-                                  if (item['barcode'] != null && item['barcode'].toString().isNotEmpty)
-                                    Text(
-                                      'Barcode: ${item['barcode']}',
-                                      style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.purple, fontWeight: FontWeight.bold),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  width: 48,
+                                  height: 48,
                                   decoration: BoxDecoration(
                                     color: isOutOfStock
-                                        ? Colors.red.shade100
-                                        : (isLowStock ? Colors.orange.shade100 : Colors.green.shade100),
-                                    borderRadius: BorderRadius.circular(6),
+                                        ? Colors.red.shade50
+                                        : (isLowStock ? Colors.orange.shade50 : Colors.blue.shade50),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: Colors.grey.shade300),
                                   ),
-                                  child: Text(
-                                    isOutOfStock ? 'OUT OF STOCK' : 'Stock: $stock ${item["unit"] ?? ""}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: isOutOfStock
-                                          ? Colors.red.shade900
-                                          : (isLowStock ? Colors.orange.shade900 : Colors.green.shade900),
-                                    ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: buildProductThumbnail(imgUrl, size: 48),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item['name'] ?? '',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Category: ${item["category"]} • Rate: ₹${item["price"]}/${item["unit"] ?? "pcs"}',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                                      ),
+                                      if (item['barcode'] != null && item['barcode'].toString().isNotEmpty)
+                                        Text(
+                                          'Barcode: ${item['barcode']}',
+                                          style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.purple, fontWeight: FontWeight.bold),
+                                        ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '₹ ${item["price"]}',
-                                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isOutOfStock
+                                            ? Colors.red.shade100
+                                            : (isLowStock ? Colors.orange.shade100 : Colors.green.shade100),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        isOutOfStock ? 'OUT OF STOCK' : 'Stock: $stock ${item["unit"] ?? ""}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: isOutOfStock
+                                              ? Colors.red.shade900
+                                              : (isLowStock ? Colors.orange.shade900 : Colors.green.shade900),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '₹ ${item["price"]}',
+                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
     );
   }
 
-  Future<Map<String, dynamic>?> _showQuickCreateItemDialog(BuildContext context, bool isHindi) async {
-    final codeCtrl = TextEditingController(text: 'ITM-${1000 + Random().nextInt(8999)}');
-    final nameCtrl = TextEditingController();
-    final catCtrl = TextEditingController(text: 'Groceries');
-    final uomCtrl = TextEditingController(text: 'pcs');
-    String selectedFormat = 'Packed';
-
-    return showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (dlgCtx) {
-        return StatefulBuilder(
-          builder: (ctx, setDlgState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: Text(
-                isHindi ? 'नया सामान Catalog में जोड़ें' : '+ Create New Catalog Item',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: codeCtrl,
-                      decoration: InputDecoration(
-                        labelText: isHindi ? 'सामान कोड (Item Code)' : 'Item Code',
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: nameCtrl,
-                      autofocus: true,
-                      decoration: InputDecoration(
-                        labelText: isHindi ? 'सामान का नाम (Item Name) *' : 'Item Name *',
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: catCtrl,
-                      decoration: InputDecoration(
-                        labelText: isHindi ? 'कैटेगरी (Category)' : 'Category',
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: uomCtrl,
-                      decoration: InputDecoration(
-                        labelText: isHindi ? 'माप इकाई (UOM / Unit)' : 'Unit (e.g. kg, pkt, bottle, pcs)',
-                        isDense: true,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: selectedFormat,
-                      decoration: InputDecoration(
-                        labelText: isHindi ? 'पैकिंग का प्रकार (Format)' : 'Format',
-                        isDense: true,
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'Packed', child: Text('Packed Item (पैक्ड सामान)')),
-                        DropdownMenuItem(value: 'Loose', child: Text('Loose / Adjustable Item (खुला सामान)')),
-                      ],
-                      onChanged: (v) => setDlgState(() => selectedFormat = v ?? 'Packed'),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dlgCtx, null),
-                  child: Text(isHindi ? 'रद्द करें' : 'Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (nameCtrl.text.trim().isEmpty) return;
-                    final payload = {
-                      'itemCode': codeCtrl.text.trim(),
-                      'name': nameCtrl.text.trim(),
-                      'category': catCtrl.text.trim(),
-                      'unit': uomCtrl.text.trim(),
-                      'format': selectedFormat,
-                      'description': 'Created via Quick Add in Stock In',
-                    };
-                    String createdId = Random().nextInt(10000).toString();
-                    try {
-                      final auth = Provider.of<AuthProvider>(context, listen: false);
-                      final token = auth.accessToken ?? '';
-                      final tenantId = auth.tenantId ?? 0;
-                      final tenantCode = auth.tenantCode ?? '';
-
-                      final headers = <String, String>{
-                        'Content-Type': 'application/json',
-                        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-                        if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
-                        if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
-                      };
-
-                      final res = await http.post(
-                        Uri.parse('${ApiConfig.baseUrl}/Items'),
-                        headers: headers,
-                        body: jsonEncode(payload),
-                      );
-                      if (res.statusCode == 200 || res.statusCode == 201) {
-                        final data = jsonDecode(res.body);
-                        createdId = (data['id'] ?? data['ID'] ?? createdId).toString();
-                      }
-                    } catch (_) {}
-
-                    if (context.mounted) {
-                      Navigator.pop(dlgCtx, {
-                        'id': createdId,
-                        'itemCode': payload['itemCode'],
-                        'name': payload['name'],
-                        'category': payload['category'],
-                        'uom': payload['unit'],
-                        'format': payload['format'],
-                        'description': payload['description'],
-                      });
-                    }
-                  },
-                  child: Text(isHindi ? 'सेव करें' : 'Save & Select'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   void _showAddProductModal(BuildContext context, bool isHindi) {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
 
-    Map<String, dynamic>? selectedItemObj;
+    Map<String, dynamic>? selectedCatalogItem;
     String? uploadedCompressedPhotoUrl;
+
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController(text: 'ITM-${1000 + Random().nextInt(8999)}');
+    String categoryVal = 'Groceries';
+    String uomVal = 'pcs';
+    String formatVal = 'Packed';
 
     final priceCtrl = TextEditingController();
     final costCtrl = TextEditingController();
@@ -538,7 +426,7 @@ class _StockScreenState extends State<StockScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          isHindi ? 'स्टॉक इन एंट्री (Stock In)' : 'Stock In Inventory Entry',
+                          isHindi ? 'सामान एवं स्टॉक जोड़ें (+ Stock In)' : '+ Add Item & Stock In Entry',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         IconButton(
@@ -550,96 +438,34 @@ class _StockScreenState extends State<StockScreen> {
                     const Divider(),
                     const SizedBox(height: 6),
 
-                    // STEP 1: Select Item Dropdown at the Top
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: themeProvider.primaryColor.withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: themeProvider.primaryColor.withOpacity(0.3), width: 1.5),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.inventory_2_rounded, color: themeProvider.primaryColor, size: 20),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    isHindi ? '1. सामान चुनें (Select Item) *' : '1. Select Item from Directory *',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
-                                  ),
-                                ],
-                              ),
-                              InkWell(
-                                onTap: () async {
-                                  final newItem = await _showQuickCreateItemDialog(context, isHindi);
-                                  if (newItem != null) {
-                                    setModalState(() {
-                                      _availableItems.insert(0, newItem);
-                                      selectedItemObj = newItem;
-                                    });
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: themeProvider.buttonBgColor,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.add, color: Colors.white, size: 15),
-                                      const SizedBox(width: 2),
-                                      Text(
-                                        isHindi ? '+ नया सामान' : '+ New Item',
-                                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          if (_availableItems.isEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: themeProvider.primaryColor.withOpacity(0.2)),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.info_outline, color: themeProvider.primaryColor, size: 20),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      isHindi
-                                          ? 'Catalog में कोई सामान नहीं मिला। ऊपर "+ नया सामान" बटन दबाकर जोड़ें!'
-                                          : 'No items in catalog. Click "+ New Item" above to create one!',
-                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: themeProvider.textColor),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
+                    // OPTIONAL: Quick Pick from Existing Catalog Items
+                    if (_availableItems.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: themeProvider.primaryColor.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: themeProvider.primaryColor.withOpacity(0.3)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isHindi ? 'Catalog से सामान चुनें (ऐच्छिक)' : 'Pick Existing Catalog Item (Optional)',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
+                            ),
+                            const SizedBox(height: 6),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                              value: (selectedItemObj != null && _availableItems.any((i) => i['id'].toString() == selectedItemObj!['id'].toString()))
-                                  ? selectedItemObj!['id'].toString()
+                              value: (selectedCatalogItem != null && _availableItems.any((i) => i['id'].toString() == selectedCatalogItem!['id'].toString()))
+                                  ? selectedCatalogItem!['id'].toString()
                                   : null,
-                              hint: Text(isHindi ? '-- सामान चुनें --' : '-- Choose Item from Catalog --'),
+                              hint: Text(isHindi ? '-- Existing Catalog सामान चुनें --' : '-- Choose Existing Catalog Item --'),
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.white,
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                isDense: true,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                               ),
                               items: _availableItems.map((item) {
@@ -657,310 +483,414 @@ class _StockScreenState extends State<StockScreen> {
                                   final found = _availableItems.firstWhere((i) => i['id'].toString() == val, orElse: () => {});
                                   if (found.isNotEmpty) {
                                     setModalState(() {
-                                      selectedItemObj = found;
+                                      selectedCatalogItem = found;
+                                      nameCtrl.text = found['name'] ?? '';
+                                      codeCtrl.text = (found['itemCode'] ?? '').isNotEmpty ? found['itemCode'] : codeCtrl.text;
+                                      if (found['category'] != null && found['category'].toString().isNotEmpty) {
+                                        categoryVal = found['category'];
+                                      }
+                                      if (found['uom'] != null && found['uom'].toString().isNotEmpty) {
+                                        uomVal = found['uom'];
+                                      }
+                                      if (found['format'] != null) {
+                                        formatVal = found['format'];
+                                      }
                                     });
                                   }
                                 }
                               },
                             ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Format Toggle (Packed vs Loose Bulk)
+                    Text(
+                      isHindi ? 'सामान का प्रकार (Packaging Format)' : 'Packaging Format',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ChoiceChip(
+                            avatar: const Icon(Icons.inventory_2_rounded, size: 16),
+                            label: Text(isHindi ? 'पैक्ड (Packed)' : 'Packed Item'),
+                            selected: formatVal == 'Packed',
+                            selectedColor: Colors.blue.shade100,
+                            onSelected: (sel) {
+                              if (sel) setModalState(() => formatVal = 'Packed');
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ChoiceChip(
+                            avatar: const Icon(Icons.scale_rounded, size: 16),
+                            label: Text(isHindi ? 'खुला सामान (Loose)' : 'Loose Bulk'),
+                            selected: formatVal == 'Loose',
+                            selectedColor: Colors.orange.shade100,
+                            onSelected: (sel) {
+                              if (sel) setModalState(() => formatVal = 'Loose');
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
 
-                    // STEP 2: Display Read-Only Item Metadata or Prompt Warning
-                    if (selectedItemObj == null)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.amber.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 22),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                isHindi
-                                    ? 'कृपया ऊपर दिए गए ड्रॉपडाउन से सामान चुनें ताकि स्टॉक इन जानकारी दर्ज की जा सके।'
-                                    : 'Please select an Item from the dropdown above to proceed with Stock In entry.',
-                                style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
-                              ),
+                    // Item Code & Item Name
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: TextField(
+                            controller: codeCtrl,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'सामान कोड' : 'Item Code',
+                              border: const OutlineInputBorder(),
                             ),
-                          ],
+                          ),
                         ),
-                      )
-                    else ...[
-                      // Disabled / Read-Only Preview Card of Selected Item
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Selected Item Details (Read-Only)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-                            const SizedBox(height: 6),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(selectedItemObj!['name'] ?? '', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
-                                Chip(
-                                  label: Text(selectedItemObj!['format'] == 'Loose' ? 'LOOSE BULK' : 'PACKED', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
-                                  backgroundColor: selectedItemObj!['format'] == 'Loose' ? Colors.orange.shade100 : Colors.blue.shade100,
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                              ],
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: nameCtrl,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'सामान का नाम *' : 'Item Name *',
+                              border: const OutlineInputBorder(),
                             ),
-                            Text(
-                              'Item Code: ${selectedItemObj!['itemCode']}  •  Category: ${selectedItemObj!['category']}  •  UOM: ${selectedItemObj!['uom']}',
-                              style: const TextStyle(fontSize: 11.5, color: Colors.black54),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
-                      // Commercial Inputs (Price, Cost, MRP, GST)
-                      Row(
+                    // Category & UOM Dropdowns
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'Dairy', 'Grains', 'General'].contains(categoryVal) ? categoryVal : 'Groceries',
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'कैटेगरी' : 'Category',
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'Dairy', 'Grains', 'General']
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) setModalState(() => categoryVal = val);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: ['pcs', 'kg', 'gm', 'ltr', 'pkt', 'bottle', 'box'].contains(uomVal) ? uomVal : 'pcs',
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'इकाई (UOM / Unit)' : 'UOM (Unit)',
+                              border: const OutlineInputBorder(),
+                            ),
+                            items: ['pcs', 'kg', 'gm', 'ltr', 'pkt', 'bottle', 'box']
+                                .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) setModalState(() => uomVal = val);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Commercial Inputs (Price, Cost, MRP, GST)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: priceCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'बिक्री मूल्य (₹) *' : 'Selling Price (₹) *',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: costCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'खरीद मूल्य (₹)' : 'Purchase Cost (₹)',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: mrpCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'MRP (₹)' : 'MRP (₹)',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: gstCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'GST %' : 'GST %',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Inventory Inputs (Stock Qty, Min Stock Alert)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: stockCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'स्टॉक मात्रा *' : 'Stock Qty *',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: minStockCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'न्यूनतम अलर्ट स्टॉक' : 'Min Stock Alert',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Barcode & HSN Code
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: barcodeCtrl,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'बारकोड नंबर' : 'Barcode',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: hsnCtrl,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'HSN कोड' : 'HSN Code',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Image Upload Button
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: TextField(
-                              controller: priceCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'बिक्री मूल्य (₹) *' : 'Selling Price (₹) *',
-                                border: const OutlineInputBorder(),
-                              ),
-                            ),
+                          const Text(
+                            'Product Photo Upload (Auto-Compressed < 20 KB)',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: costCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'खरीद मूल्य (₹)' : 'Purchase Cost (₹)',
-                                border: const OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: mrpCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'MRP (₹)' : 'MRP (₹)',
-                                border: const OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: gstCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'GST %' : 'GST %',
-                                border: const OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Inventory Inputs (Stock Qty, Min Stock)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: stockCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'स्टॉक मात्रा *' : 'Stock Qty *',
-                                border: const OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: minStockCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'न्यूनतम अलर्ट स्टॉक' : 'Min Stock Alert',
-                                border: const OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Barcode & HSN Code
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: barcodeCtrl,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'बारकोड नंबर' : 'Barcode',
-                                border: const OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: hsnCtrl,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'HSN कोड' : 'HSN Code',
-                                border: const OutlineInputBorder(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Image Upload Button (Photo Upload with Compression < 20 KB)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Product Photo Upload (Auto-Compressed < 20 KB)',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                if (uploadedCompressedPhotoUrl != null && uploadedCompressedPhotoUrl!.isNotEmpty)
-                                  Container(
-                                    width: 54,
-                                    height: 54,
-                                    margin: const EdgeInsets.only(right: 12),
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.green, width: 2),
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: buildProductThumbnail(uploadedCompressedPhotoUrl!, size: 54),
-                                  )
-                                else
-                                  Container(
-                                    width: 54,
-                                    height: 54,
-                                    margin: const EdgeInsets.only(right: 12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade100,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.grey.shade300),
-                                    ),
-                                    child: const Icon(Icons.add_a_photo_rounded, color: Colors.grey),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              if (uploadedCompressedPhotoUrl != null && uploadedCompressedPhotoUrl!.isNotEmpty)
+                                Container(
+                                  width: 54,
+                                  height: 54,
+                                  margin: const EdgeInsets.only(right: 12),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.green, width: 2),
                                   ),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.camera_alt_rounded),
-                                    label: Text(
-                                      uploadedCompressedPhotoUrl != null ? 'Change Photo (<20 KB)' : '📷 Upload Product Photo',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                    onPressed: () async {
-                                      final base64Photo = await _pickAndCompressProductImage();
-                                      if (base64Photo != null) {
-                                        setModalState(() {
-                                          uploadedCompressedPhotoUrl = base64Photo;
-                                        });
-                                      }
-                                    },
+                                  clipBehavior: Clip.antiAlias,
+                                  child: buildProductThumbnail(uploadedCompressedPhotoUrl!, size: 54),
+                                )
+                              else
+                                Container(
+                                  width: 54,
+                                  height: 54,
+                                  margin: const EdgeInsets.only(right: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: Colors.grey.shade300),
                                   ),
+                                  child: const Icon(Icons.add_a_photo_rounded, color: Colors.grey),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Submit Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: themeProvider.buttonBgColor,
-                            foregroundColor: themeProvider.buttonTextColor,
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.camera_alt_rounded),
+                                  label: Text(
+                                    uploadedCompressedPhotoUrl != null ? 'Change Photo (<20 KB)' : '📷 Upload Product Photo',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () async {
+                                    final base64Photo = await _pickAndCompressProductImage();
+                                    if (base64Photo != null) {
+                                      setModalState(() {
+                                        uploadedCompressedPhotoUrl = base64Photo;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
-                          onPressed: () async {
-                            final double price = double.tryParse(priceCtrl.text) ?? 0.0;
-                            final double stock = double.tryParse(stockCtrl.text) ?? 0.0;
-                            if (price <= 0 || selectedItemObj == null) return;
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
 
-                            final payload = {
-                              'itemId': int.tryParse(selectedItemObj!['id'].toString()) ?? 0,
-                              'productCode': selectedItemObj!['itemCode'],
-                              'name': selectedItemObj!['name'],
-                              'category': selectedItemObj!['category'],
-                              'unit': selectedItemObj!['uom'],
-                              'sellingPrice': price,
-                              'purchasePrice': double.tryParse(costCtrl.text) ?? 0.0,
-                              'mrp': double.tryParse(mrpCtrl.text) ?? price,
-                              'gstPercent': double.tryParse(gstCtrl.text) ?? 0.0,
-                              'currentStock': stock,
-                              'openingStock': stock,
-                              'minimumStock': double.tryParse(minStockCtrl.text) ?? 5.0,
-                              'barcode': barcodeCtrl.text.trim(),
-                              'hsnCode': hsnCtrl.text.trim(),
-                              'imageUrl': uploadedCompressedPhotoUrl ?? '',
+                    // Submit Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeProvider.buttonBgColor,
+                          foregroundColor: themeProvider.buttonTextColor,
+                        ),
+                        onPressed: () async {
+                          final String itemName = nameCtrl.text.trim();
+                          final double price = double.tryParse(priceCtrl.text) ?? 0.0;
+                          final double stock = double.tryParse(stockCtrl.text) ?? 0.0;
+                          if (itemName.isEmpty || price <= 0) return;
+
+                          // 1. Save or Update Catalog Item (/api/Items)
+                          String catalogItemId = selectedCatalogItem != null ? selectedCatalogItem!['id'].toString() : '0';
+                          try {
+                            final prefs = await SharedPreferences.getInstance();
+                            final auth = Provider.of<AuthProvider>(context, listen: false);
+                            final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty)
+                                ? auth.accessToken!
+                                : (prefs.getString('auth_token') ?? '');
+                            final tenantId = (auth.tenantId != null && auth.tenantId! > 0)
+                                ? auth.tenantId!
+                                : (prefs.getInt('tenant_id') ?? 0);
+                            final tenantCode = (auth.tenantCode != null && auth.tenantCode!.isNotEmpty)
+                                ? auth.tenantCode!
+                                : (prefs.getString('tenant_code') ?? '');
+
+                            final headers = <String, String>{
+                              'Content-Type': 'application/json',
+                              if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+                              if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+                              if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
                             };
 
-                            try {
-                              final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-                              await syncProvider.saveOfflineProduct(payload);
-                            } catch (_) {}
+                            final itemPayload = {
+                              'itemCode': codeCtrl.text.trim(),
+                              'name': itemName,
+                              'category': categoryVal,
+                              'unit': uomVal,
+                              'format': formatVal,
+                              'description': 'Saved via Stock In Screen',
+                              'tenantId': tenantId > 0 ? tenantId : 1,
+                            };
 
+                            final itemRes = await http.post(
+                              Uri.parse('${ApiConfig.baseUrl}/Items'),
+                              headers: headers,
+                              body: jsonEncode(itemPayload),
+                            );
+                            if (itemRes.statusCode == 200 || itemRes.statusCode == 201) {
+                              final itemData = jsonDecode(itemRes.body);
+                              catalogItemId = (itemData['id'] ?? itemData['ID'] ?? catalogItemId).toString();
+                            }
+                          } catch (_) {}
+
+                          // 2. Save Stock Product Record (/api/stock)
+                          final stockPayload = {
+                            'itemId': int.tryParse(catalogItemId) ?? 0,
+                            'productCode': codeCtrl.text.trim(),
+                            'name': itemName,
+                            'category': categoryVal,
+                            'unit': uomVal,
+                            'sellingPrice': price,
+                            'purchasePrice': double.tryParse(costCtrl.text) ?? 0.0,
+                            'mrp': double.tryParse(mrpCtrl.text) ?? price,
+                            'gstPercent': double.tryParse(gstCtrl.text) ?? 0.0,
+                            'currentStock': stock,
+                            'openingStock': stock,
+                            'minimumStock': double.tryParse(minStockCtrl.text) ?? 5.0,
+                            'barcode': barcodeCtrl.text.trim(),
+                            'hsnCode': hsnCtrl.text.trim(),
+                            'imageUrl': uploadedCompressedPhotoUrl ?? '',
+                          };
+
+                          try {
+                            final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                            await syncProvider.saveOfflineProduct(stockPayload);
+                          } catch (_) {}
+
+                          if (mounted) {
                             setState(() {
                               _products.insert(0, {
                                 'id': DateTime.now().millisecondsSinceEpoch.toString(),
-                                'itemId': selectedItemObj!['id'].toString(),
-                                'name': selectedItemObj!['name'],
-                                'category': selectedItemObj!['category'],
-                                'unit': selectedItemObj!['uom'],
+                                'itemId': catalogItemId,
+                                'productCode': codeCtrl.text.trim(),
+                                'name': itemName,
+                                'category': categoryVal,
+                                'unit': uomVal,
                                 'price': price,
                                 'stock': stock.toInt(),
                                 'barcode': barcodeCtrl.text.trim(),
                                 'imageUrl': uploadedCompressedPhotoUrl ?? '',
                               });
                             });
+                          }
 
-                            if (ctx.mounted) Navigator.pop(ctx);
-                          },
-                          child: Text(
-                            isHindi ? 'स्टॉक इन सेव करें' : 'Submit Stock In',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: themeProvider.buttonTextColor),
-                          ),
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _fetchItems();
+                          _loadProducts();
+                        },
+                        child: Text(
+                          isHindi ? 'सेव एवं स्टॉक इन करें' : 'Save Item & Perform Stock In',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: themeProvider.buttonTextColor),
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
