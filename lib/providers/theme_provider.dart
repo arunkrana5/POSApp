@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 class TenantThemeProvider with ChangeNotifier {
-  Color primaryColor = const Color(0xFFDC2626); // Red Header default
+  Color primaryColor = const Color(0xFF93387A); // Plum #93387A default fallback for App Bar
   Color secondaryColor = const Color(0xFFD97706); // Gold Accent
   Color accentColor = const Color(0xFF10B981); // Emerald
 
@@ -13,7 +13,7 @@ class TenantThemeProvider with ChangeNotifier {
   Color pageBgColor = const Color(0xFFF8FAFC);
   Color cardBgColor = const Color(0xFFFFFFFF);
   Color amountColor = const Color(0xFF16A34A);
-  Color buttonBgColor = const Color(0xFFDC2626);
+  Color buttonBgColor = const Color(0xFF93387A);
   Color buttonTextColor = const Color(0xFFFFFFFF);
 
   String fontFamily = 'Roboto';
@@ -55,9 +55,9 @@ class TenantThemeProvider with ChangeNotifier {
       final savedTenantName = prefs.getString('tenant_name');
 
       if (pColorHex != null && pColorHex.isNotEmpty) {
-        primaryColor = _hexToColor(pColorHex, const Color(0xFFDC2626));
+        primaryColor = _hexToColor(pColorHex, const Color(0xFF93387A));
       } else {
-        primaryColor = const Color(0xFFDC2626);
+        primaryColor = const Color(0xFF93387A);
       }
       if (sColorHex != null && sColorHex.isNotEmpty) {
         secondaryColor = _hexToColor(sColorHex, const Color(0xFFD97706));
@@ -69,7 +69,7 @@ class TenantThemeProvider with ChangeNotifier {
         appTitle = savedTenantName;
       }
     } catch (_) {
-      primaryColor = const Color(0xFFDC2626);
+      primaryColor = const Color(0xFF93387A);
     } finally {
       notifyListeners();
     }
@@ -254,14 +254,15 @@ class TenantThemeProvider with ChangeNotifier {
     return null;
   }
 
-  Color _hexToColor(String hex, [Color fallback = const Color(0xFFDC2626)]) {
+  Color _hexToColor(String hex, [Color fallback = const Color(0xFF93387A)]) {
     final clean = hex.replaceFirst('#', '').trim().toLowerCase();
     if (clean.isEmpty) return fallback;
-    if (clean == 'red' || clean == 'crimson' || clean == 'darkred' || clean == 'blue' || clean == '2563eb') return const Color(0xFFDC2626);
+    if (clean == 'red' || clean == 'crimson' || clean == 'darkred') return const Color(0xFFDC2626);
+    if (clean == 'blue') return const Color(0xFF2563EB);
+    if (clean == 'purple' || clean == 'plum' || clean == '93387a') return const Color(0xFF93387A);
     if (clean == 'green') return const Color(0xFF16A34A);
     if (clean == 'yellow') return const Color(0xFFEAB308);
     if (clean == 'orange') return const Color(0xFFEA580C);
-    if (clean == 'purple') return const Color(0xFF9333EA);
     if (clean == 'pink') return const Color(0xFFEC4899);
     if (clean == 'teal') return const Color(0xFF0D9488);
     if (clean == 'black' || clean == '0f172a') return const Color(0xFF0F172A);
