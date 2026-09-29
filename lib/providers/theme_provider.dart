@@ -250,11 +250,29 @@ class TenantThemeProvider with ChangeNotifier {
   }
 
   Color _hexToColor(String hex, [Color fallback = const Color(0xFF0F172A)]) {
-    final clean = hex.replaceFirst('#', '').trim();
+    final clean = hex.replaceFirst('#', '').trim().toLowerCase();
     if (clean.isEmpty) return fallback;
+    if (clean == 'red' || clean == 'crimson' || clean == 'darkred') return const Color(0xFFDC2626);
+    if (clean == 'blue') return const Color(0xFF2563EB);
+    if (clean == 'green') return const Color(0xFF16A34A);
+    if (clean == 'yellow') return const Color(0xFFEAB308);
+    if (clean == 'orange') return const Color(0xFFEA580C);
+    if (clean == 'purple') return const Color(0xFF9333EA);
+    if (clean == 'pink') return const Color(0xFFEC4899);
+    if (clean == 'teal') return const Color(0xFF0D9488);
+    if (clean == 'black') return const Color(0xFF0F172A);
+    if (clean == 'white') return const Color(0xFFFFFFFF);
+
     final buffer = StringBuffer();
     if (clean.length == 6) buffer.write('ff');
-    buffer.write(clean);
+    else if (clean.length == 3) {
+      buffer.write('ff');
+      for (var char in clean.split('')) {
+        buffer.write(char * 2);
+      }
+    } else {
+      buffer.write(clean);
+    }
     try {
       return Color(int.parse(buffer.toString(), radix: 16));
     } catch (_) {
