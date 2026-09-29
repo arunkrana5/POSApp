@@ -38,10 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Icon(Icons.storefront, size: 64, color: Color(0xFF2563EB)),
                   const SizedBox(height: 12),
-                  Text(
-                    themeProvider.tenantName.isNotEmpty && themeProvider.tenantName != "Store Client" 
-                        ? themeProvider.tenantName 
-                        : "Shop SaaS Portal",
+                  Text("Shop Portal",
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
                   const Text("दुकानदार लॉगिन (Shopkeeper Login)", style: TextStyle(color: Colors.grey)),
@@ -53,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextField(
                     controller: _tenantController,
                     decoration: const InputDecoration(
-                      labelText: "Tenant Code (e.g. ARUN_DC, SUPERADMIN)",
+                      labelText: "Tenant Code",
                       hintText: "Enter your store tenant code",
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.business),
