@@ -203,13 +203,12 @@ class _AppDrawerState extends State<AppDrawer> {
                     title: isHindi ? 'सामान (Items)' : 'Items',
                     route: '/items',
                   ),
-                  if (enabledMods.contains('Products'))
-                    _buildDrawerItem(
-                      context,
-                      icon: Icons.inventory_2_rounded,
-                      title: isHindi ? 'स्टॉक (Stock)' : 'Stock & Inventory',
-                      route: '/stock',
-                    ),
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.inventory_2_rounded,
+                    title: isHindi ? 'स्टॉक (Stock)' : 'Stock & Inventory',
+                    route: '/stock',
+                  ),
                   _buildDrawerItem(
                     context,
                     icon: Icons.receipt_long_rounded,

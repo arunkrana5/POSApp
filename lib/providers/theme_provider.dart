@@ -200,16 +200,22 @@ class TenantThemeProvider with ChangeNotifier {
             if (enReceipt != null) enableReceiptPrinting = enReceipt == true || enReceipt.toString().toLowerCase() == 'true';
 
             if (rawMenuItems != null && rawMenuItems is List) {
-              final list = List<Map<String, dynamic>>.from(rawMenuItems.map((e) => Map<String, dynamic>.from(e)));
+              var list = List<Map<String, dynamic>>.from(rawMenuItems.map((e) => Map<String, dynamic>.from(e)));
+              list = list.where((m) {
+                final r = (m['Route'] ?? m['route'] ?? '').toString().toLowerCase();
+                final id = (m['Id'] ?? m['id'] ?? '').toString().toLowerCase();
+                return r != '/products' && id != 'products';
+              }).toList();
+
               final hasSalesHistory = list.any((m) {
                 final r = (m['Route'] ?? m['route'] ?? '').toString();
                 return r == '/sales-history' || r == '/sales';
               });
               if (!hasSalesHistory) {
-                // Insert Sale History right after POS/Products
+                // Insert Sale History right after POS
                 final posIdx = list.indexWhere((m) {
                   final r = (m['Route'] ?? m['route'] ?? '').toString();
-                  return r == '/pos' || r == '/products' || r == '/stock-in';
+                  return r == '/pos' || r == '/stock-in';
                 });
                 final insertAt = posIdx >= 0 ? posIdx + 1 : 1;
                 list.insert(insertAt < list.length ? insertAt : list.length, {
