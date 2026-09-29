@@ -56,15 +56,20 @@ class TenantThemeProvider with ChangeNotifier {
 
       if (pColorHex != null && pColorHex.isNotEmpty) {
         primaryColor = _hexToColor(pColorHex, const Color(0xFFDC2626));
+      } else {
+        primaryColor = const Color(0xFFDC2626);
       }
       if (sColorHex != null && sColorHex.isNotEmpty) {
         secondaryColor = _hexToColor(sColorHex, const Color(0xFFD97706));
+      } else {
+        secondaryColor = const Color(0xFFD97706);
       }
       if (savedTenantName != null && savedTenantName.isNotEmpty) {
         tenantName = savedTenantName;
         appTitle = savedTenantName;
       }
     } catch (_) {
+      primaryColor = const Color(0xFFDC2626);
     } finally {
       notifyListeners();
     }
