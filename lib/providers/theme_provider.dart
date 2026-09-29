@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
 class TenantThemeProvider with ChangeNotifier {
-  Color primaryColor = const Color(0xFF2563EB); // Royal Blue Header
+  Color primaryColor = const Color(0xFFDC2626); // Red Header default
   Color secondaryColor = const Color(0xFFD97706); // Gold Accent
   Color accentColor = const Color(0xFF10B981); // Emerald
 
@@ -13,7 +13,7 @@ class TenantThemeProvider with ChangeNotifier {
   Color pageBgColor = const Color(0xFFF8FAFC);
   Color cardBgColor = const Color(0xFFFFFFFF);
   Color amountColor = const Color(0xFF16A34A);
-  Color buttonBgColor = const Color(0xFF2563EB);
+  Color buttonBgColor = const Color(0xFFDC2626);
   Color buttonTextColor = const Color(0xFFFFFFFF);
 
   String fontFamily = 'Roboto';
@@ -299,15 +299,18 @@ class TenantThemeProvider with ChangeNotifier {
       fontFamily: fontFamily,
       scaffoldBackgroundColor: pageBgColor,
       primaryColor: primaryColor,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryColor,
+      colorScheme: ColorScheme.light(
         primary: primaryColor,
+        onPrimary: Colors.white,
         secondary: secondaryColor,
+        onSecondary: Colors.white,
         tertiary: accentColor,
         surface: cardBgColor,
+        onSurface: textColor,
         background: pageBgColor,
         onBackground: textColor,
-        onSurface: textColor,
+        error: Colors.red,
+        onError: Colors.white,
       ),
       textTheme: scaledTextTheme,
       cardTheme: CardTheme(
@@ -319,6 +322,8 @@ class TenantThemeProvider with ChangeNotifier {
       appBarTheme: AppBarTheme(
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
         elevation: 2,
         titleTextStyle: TextStyle(fontFamily: fontFamily, fontSize: 18 * fontSizeScale, fontWeight: FontWeight.bold, color: Colors.white),
       ),
