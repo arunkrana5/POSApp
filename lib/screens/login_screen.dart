@@ -84,7 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ? null
                           : () async {
                               setState(() => _errorMessage = null);
-                              ApiConfig.baseUrl = 'https://villageshop-api.onrender.com/api';
                               final res = await auth.login(
                                 _tenantController.text.trim(),
                                 _userController.text.trim(),
