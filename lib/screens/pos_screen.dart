@@ -11,6 +11,8 @@ import '../providers/theme_provider.dart';
 import '../database/sqlite_helper.dart';
 import '../widgets/app_drawer.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class PosScreen extends StatefulWidget {
   const PosScreen({super.key});
 
@@ -40,29 +42,13 @@ class _PosScreenState extends State<PosScreen> {
     return Icon(Icons.inventory_2_rounded, size: size * 0.6, color: Colors.blue);
   }
 
-  final List<Map<String, dynamic>> _availableProducts = [
-    {'id': '1', 'name': 'Aashirvaad Atta 5kg', 'price': 220.0, 'stock': 15, 'unit': 'pkt'},
-    {'id': '2', 'name': 'Fortune Mustard Oil 1L', 'price': 145.0, 'stock': 8, 'unit': 'bottle'},
-    {'id': '3', 'name': 'Tata Salt 1kg', 'price': 28.0, 'stock': 40, 'unit': 'pkt'},
-    {'id': '4', 'name': 'Surf Excel 1kg', 'price': 130.0, 'stock': 12, 'unit': 'pkt'},
-    {'id': '5', 'name': 'Sugar (चीनी) 1kg', 'price': 42.0, 'stock': 50, 'unit': 'kg'},
-    {'id': '6', 'name': 'Toor Dal 1kg', 'price': 160.0, 'stock': 20, 'unit': 'kg'},
-  ];
+  final List<Map<String, dynamic>> _availableProducts = [];
 
   final List<String> _customerList = [
     'Walk-in Customer',
-    'Ramesh Kumar',
-    'Suresh Patel',
-    'Anita Devi',
-    'Vikas Verma',
   ];
 
-  final Map<String, String> _customerPhoneMap = {
-    'Ramesh Kumar': '9876543210',
-    'Suresh Patel': '9812345678',
-    'Anita Devi': '9765432109',
-    'Vikas Verma': '9988776655',
-  };
+  final Map<String, String> _customerPhoneMap = {};
 
   final TextEditingController _customerPhoneController = TextEditingController();
   final List<Map<String, dynamic>> _cartItems = [];
@@ -114,36 +100,36 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _loadProducts() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty)
+          ? auth.accessToken!
+          : (prefs.getString('auth_token') ?? '');
       final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-      final fetchedProducts = await syncProvider.fetchProducts();
+      final fetchedProducts = await syncProvider.fetchProducts(token);
 
-      if (fetchedProducts.isNotEmpty) {
-        final List<Map<String, dynamic>> loadedList = fetchedProducts.map((p) => {
-          'id': p.id.toString(),
-          'productCode': p.productCode,
-          'name': p.name,
-          'category': p.category.isNotEmpty ? p.category : 'General',
-          'brand': p.brand,
-          'price': p.sellingPrice > 0 ? p.sellingPrice : (p.mrp > 0 ? p.mrp : p.purchasePrice),
-          'mrp': p.mrp,
-          'purchasePrice': p.purchasePrice,
-          'gstPercent': p.gstPercent,
-          'stock': p.currentStock.toInt(),
-          'minimumStock': p.minimumStock.toInt(),
-          'unit': p.unit.isNotEmpty ? p.unit : 'pcs',
-          'batchNumber': p.batchNumber,
-          'rackNumber': p.rackNumber,
-          'expiryDate': p.expiryDate,
-          'hsnCode': p.hsnCode,
-          'barcode': p.barcode,
-        }).toList();
+      final List<Map<String, dynamic>> loadedList = fetchedProducts.map((p) => {
+        'id': p.id.toString(),
+        'productCode': p.productCode,
+        'name': p.name,
+        'category': p.category.isNotEmpty ? p.category : 'General',
+        'brand': p.brand,
+        'price': p.sellingPrice > 0 ? p.sellingPrice : (p.mrp > 0 ? p.mrp : p.purchasePrice),
+        'mrp': p.mrp,
+        'purchasePrice': p.purchasePrice,
+        'gstPercent': p.gstPercent,
+        'stock': p.currentStock.toInt(),
+        'minimumStock': p.minimumStock.toInt(),
+        'unit': p.unit.isNotEmpty ? p.unit : 'pcs',
+        'batchNumber': p.batchNumber,
+        'rackNumber': p.rackNumber,
+        'expiryDate': p.expiryDate,
+        'hsnCode': p.hsnCode,
+        'barcode': p.barcode,
+        'imageUrl': p.imageUrl ?? '',
+      }).toList();
 
-        final existingNames = loadedList.map((e) => e['name'].toString().toLowerCase()).toSet();
-        for (var d in _availableProducts) {
-          if (!existingNames.contains(d['name'].toString().toLowerCase())) {
-            loadedList.add(d);
-          }
-        }
+      if (mounted) {
         setState(() {
           _availableProducts.clear();
           _availableProducts.addAll(loadedList);
