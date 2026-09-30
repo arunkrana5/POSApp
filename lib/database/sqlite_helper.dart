@@ -178,6 +178,16 @@ class SQLiteHelper {
     await db.delete('customers', where: 'name = ?', whereArgs: [name]);
   }
 
+  Future<void> deleteProductRecord(String name) async {
+    final db = await instance.database;
+    await db.delete('products', where: 'name = ?', whereArgs: [name]);
+  }
+
+  Future<void> deleteSaleRecord(String id) async {
+    final db = await instance.database;
+    await db.delete('sales', where: 'id = ?', whereArgs: [id]);
+  }
+
   Future<void> addToSyncQueue(String clientTxId, String entityName, String payloadJson) async {
     final db = await instance.database;
     await ensureTablesExist();
