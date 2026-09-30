@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import '../config/api_config.dart';
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
@@ -41,6 +44,15 @@ class _CustomersScreenState extends State<CustomersScreen> {
           'id': c['id']?.toString() ?? '0',
           'name': c['name'] ?? '',
           'phone': c['phone'] ?? '',
+          'email': c['email'] ?? '',
+          'whatsapp': c['whatsapp'] ?? '',
+          'fatherName': c['fatherName'] ?? '',
+          'address': c['address'] ?? '',
+          'village': c['village'] ?? '',
+          'po': c['po'] ?? '',
+          'ps': c['ps'] ?? '',
+          'dist': c['dist'] ?? '',
+          'pincode': c['pincode'] ?? '',
           'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
           'lastTx': c['lastTx'] ?? 'Registered Today',
         }).toList();
@@ -61,6 +73,15 @@ class _CustomersScreenState extends State<CustomersScreen> {
             'id': c['id']?.toString() ?? '0',
             'name': c['name'] ?? '',
             'phone': c['phone'] ?? '',
+            'email': c['email'] ?? '',
+            'whatsapp': c['whatsapp'] ?? '',
+            'fatherName': c['fatherName'] ?? '',
+            'address': c['address'] ?? '',
+            'village': c['village'] ?? '',
+            'po': c['po'] ?? '',
+            'ps': c['ps'] ?? '',
+            'dist': c['dist'] ?? '',
+            'pincode': c['pincode'] ?? '',
             'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
             'lastTx': c['lastTx'] ?? 'Today',
           }).toList();
@@ -703,15 +724,53 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
                       final sqlite = SQLiteHelper.instance;
                       if (existing != null) {
-                        await sqlite.updateCustomerRecord(existing['name'], record);
+                        final oldName = existing['name']?.toString() ?? nameCtrl.text.trim();
+                        await sqlite.updateCustomerRecord(oldName, record);
                       } else {
                         await sqlite.saveCustomer(record);
                       }
 
+                      try {
+                        final baseUrl = ApiConfig.baseUrl;
+                        final targetId = existing != null ? (existing['id']?.toString() ?? existing['name']) : '';
+                        if (existing != null && targetId != null && targetId.toString().isNotEmpty) {
+                          await http.put(
+                            Uri.parse('$baseUrl/customers/$targetId'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode(record),
+                          ).timeout(const Duration(seconds: 10));
+                        } else {
+                          await http.post(
+                            Uri.parse('$baseUrl/customers'),
+                            headers: {'Content-Type': 'application/json'},
+                            body: jsonEncode(record),
+                          ).timeout(const Duration(seconds: 10));
+                        }
+                      } catch (_) {}
+
                       final syncProvider = Provider.of<SyncProvider>(context, listen: false);
                       await syncProvider.saveOfflineCustomer(nameCtrl.text, phoneStr);
 
-                      await _loadCustomers();
+                      if (mounted) {
+                        setState(() {
+                          if (existing != null) {
+                            existing['name'] = record['name'];
+                            existing['phone'] = record['phone'];
+                            existing['email'] = record['email'];
+                            existing['whatsapp'] = record['whatsapp'];
+                            existing['fatherName'] = record['fatherName'];
+                            existing['address'] = record['address'];
+                            existing['village'] = record['village'];
+                            existing['po'] = record['po'];
+                            existing['ps'] = record['ps'];
+                            existing['dist'] = record['dist'];
+                            existing['pincode'] = record['pincode'];
+                            existing['udhaar'] = record['udhaar'];
+                          } else {
+                            _customers.insert(0, Map<String, dynamic>.from(record));
+                          }
+                        });
+                      }
 
                       if (mounted) {
                         Navigator.pop(ctx);
@@ -720,7 +779,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             content: Text(
                               existing != null
                                   ? (isHindi ? 'ग्राहक मास्टर प्रोफाइल अपडेट हुई!' : 'Customer Master profile updated!')
-                                  : (isHindi ? 'ग्राहक सफलतापूर्‍वक सहेजा गया!' : 'Customer saved successfully!'),
+                                  : (isHindi ? 'ग्राहक सफलतापूर्वक सहेजा गया!' : 'Customer saved successfully!'),
                             ),
                             backgroundColor: Colors.green.shade700,
                           ),
