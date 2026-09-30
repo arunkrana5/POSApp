@@ -337,76 +337,78 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.storefront_rounded, size: 28, color: Colors.white),
-              ),
-              const SizedBox(width: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isHindi ? 'नमस्ते, ${userName ?? "दुकानदार"}' : 'Welcome, ${userName ?? "Shopkeeper"} 👋',
-                    style: TextStyle(
-                      fontFamily: themeProvider.fontFamily,
-                      fontSize: 20 * themeProvider.fontSizeScale,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
+          Expanded(
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 4),
-                  Row(
+                  child: const Icon(Icons.storefront_rounded, size: 22, color: Colors.white),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.calendar_today_rounded, size: 12, color: Colors.white.withOpacity(0.85)),
-                      const SizedBox(width: 4),
+                      Text(
+                        '${isHindi ? "नमस्ते" : "Welcome"}, ${userName ?? "Shopkeeper"}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: themeProvider.fontFamily,
+                          fontSize: 16 * themeProvider.fontSizeScale,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
                       Text(
                         '${isHindi ? "दिनांक" : "Date"}: $dateStr',
                         style: TextStyle(
                           fontFamily: themeProvider.fontFamily,
                           color: Colors.white.withOpacity(0.9),
-                          fontSize: 13 * themeProvider.fontSizeScale,
+                          fontSize: 12 * themeProvider.fontSizeScale,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   decoration: BoxDecoration(
                     color: syncProvider.pendingSyncCount > 0 ? Colors.amberAccent : Colors.greenAccent,
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Text(
                   syncProvider.pendingSyncCount > 0
                       ? '${syncProvider.pendingSyncCount} ${isHindi ? "पेंडिंग" : "Pending"}'
-                      : (isHindi ? 'ऑनलाइन' : 'Live Active'),
+                      : (isHindi ? 'ऑनलाइन' : 'Live'),
                   style: TextStyle(
                     fontFamily: themeProvider.fontFamily,
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 12 * themeProvider.fontSizeScale,
+                    fontSize: 11 * themeProvider.fontSizeScale,
                   ),
                 ),
               ],

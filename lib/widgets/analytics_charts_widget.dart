@@ -98,22 +98,23 @@ class _AnalyticsChartsWidgetState extends State<AnalyticsChartsWidget> with Sing
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: themeProvider.primaryColor.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: themeProvider.primaryColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.analytics_rounded, color: themeProvider.primaryColor, size: 20),
                   ),
-                  child: Icon(Icons.analytics_rounded, color: themeProvider.primaryColor, size: 22),
-                ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.isHindi ? 'रियल-टाइम बिक्री ग्राफ (Live Analytics)' : 'Real-time Sales Analytics & Trend',
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.isHindi ? 'बिक्री ग्राफ' : 'Sales Analytics',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontFamily: themeProvider.fontFamily,
                         fontSize: 16 * themeProvider.fontSizeScale,
@@ -121,35 +122,65 @@ class _AnalyticsChartsWidgetState extends State<AnalyticsChartsWidget> with Sing
                         color: themeProvider.textColor,
                       ),
                     ),
-                    Text(
-                      widget.isHindi ? 'डेटाबेस से रीयल-टाइम अपडेट' : 'Dynamic charts updated live from DB',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            Wrap(
-              spacing: 6,
-              children: ['Today', 'This Week', 'This Month', 'All Time'].map((f) {
-                final isSelected = _selectedFilter == f;
-                return ChoiceChip(
-                  label: Text(
-                    _getFilterLabel(f, widget.isHindi),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.white : Colors.grey.shade800,
-                    ),
                   ),
-                  selected: isSelected,
-                  selectedColor: themeProvider.primaryColor,
-                  backgroundColor: Colors.grey.shade100,
-                  elevation: isSelected ? 2 : 0,
-                  onSelected: (_) => _onFilterChanged(f),
-                );
-              }).toList(),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
+            if (isDesktop)
+              Wrap(
+                spacing: 6,
+                children: ['Today', 'This Week', 'This Month', 'All Time'].map((f) {
+                  final isSelected = _selectedFilter == f;
+                  return ChoiceChip(
+                    label: Text(
+                      _getFilterLabel(f, widget.isHindi),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? Colors.white : Colors.grey.shade800,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: themeProvider.primaryColor,
+                    backgroundColor: Colors.grey.shade100,
+                    elevation: isSelected ? 2 : 0,
+                    onSelected: (_) => _onFilterChanged(f),
+                  );
+                }).toList(),
+              )
+            else
+              Container(
+                height: 34,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: themeProvider.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: themeProvider.primaryColor.withOpacity(0.25)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedFilter,
+                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: themeProvider.primaryColor, size: 18),
+                    isDense: true,
+                    style: TextStyle(
+                      fontFamily: themeProvider.fontFamily,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: themeProvider.primaryColor,
+                    ),
+                    items: ['Today', 'This Week', 'This Month', 'All Time'].map((f) {
+                      return DropdownMenuItem<String>(
+                        value: f,
+                        child: Text(_getFilterLabel(f, widget.isHindi)),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) _onFilterChanged(val);
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
         const SizedBox(height: 14),

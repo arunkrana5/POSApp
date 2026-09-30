@@ -126,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // 2. Personal Profile & Account Details Grid
                 _buildSectionTitle(
-                  isHindi ? 'व्यक्तिगत जानकारी एवं खाता विवरण' : 'Personal Profile & Store Details',
+                  isHindi ? 'खाता विवरण' : 'Profile & Store Details',
                   Icons.person_outline_rounded,
                   themeProvider,
                 ),
@@ -144,7 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // 3. App Preferences & Appearance Settings
                 _buildSectionTitle(
-                  isHindi ? 'ऐप प्राथमिकताएँ एवं भाषा' : 'App Preferences & Language',
+                  isHindi ? 'ऐप सेटिंग्स' : 'App Preferences',
                   Icons.tune_rounded,
                   themeProvider,
                 ),
@@ -159,7 +159,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // 4. Firebase Cloud Messaging (FCM) Push Notification Config
                 _buildSectionTitle(
-                  isHindi ? 'FCM पुष्पा सूचना कंफ़िगरेशन (Push Notifications)' : 'FCM Push Notifications Config',
+                  isHindi ? 'पुश सूचना (FCM Config)' : 'Notification Config',
                   Icons.notifications_active_rounded,
                   themeProvider,
                 ),
@@ -173,7 +173,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // 5. Offline Data Sync Engine
                 _buildSectionTitle(
-                  isHindi ? 'ऑफलाइन डेटा सिंक इंजन' : 'Offline Data Sync Engine',
+                  isHindi ? 'डेटा सिंक' : 'Data Sync Engine',
                   Icons.cloud_sync_rounded,
                   themeProvider,
                 ),
