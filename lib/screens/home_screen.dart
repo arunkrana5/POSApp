@@ -145,12 +145,12 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: themeProvider.secondaryColor,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.storefront_rounded, size: 20, color: Colors.white),
+              child: const Icon(Icons.storefront_rounded, size: 18, color: Colors.white),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -163,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontFamily: themeProvider.fontFamily,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16 * themeProvider.fontSizeScale,
+                  fontSize: 15 * themeProvider.fontSizeScale,
                   color: Colors.white,
                 ),
               ),
@@ -173,9 +173,12 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           const NotificationBellIcon(),
           IconButton(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            constraints: const BoxConstraints(),
             icon: Icon(
               localeProvider.isHindi ? Icons.g_translate_rounded : Icons.language_rounded,
               color: Colors.white,
+              size: 20,
             ),
             tooltip: 'Switch Language',
             onPressed: () {
@@ -185,7 +188,9 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            padding: const EdgeInsets.only(left: 4, right: 10),
+            constraints: const BoxConstraints(),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 20),
             tooltip: 'Refresh Dashboard',
             onPressed: _loadDashboardMetrics,
           ),
@@ -251,10 +256,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isHindi ? 'हाल के लेन-देन (Recent DB Sales)' : 'Recent Transactions (Live DB)',
+                    isHindi ? 'हाल के लेन-देन' : 'Recent Transactions',
                     style: TextStyle(
                       fontFamily: themeProvider.fontFamily,
-                      fontSize: 18 * themeProvider.fontSizeScale,
+                      fontSize: 17 * themeProvider.fontSizeScale,
                       fontWeight: FontWeight.bold,
                       color: themeProvider.textColor,
                     ),
@@ -268,7 +273,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontFamily: themeProvider.fontFamily,
                         fontWeight: FontWeight.bold,
-                        fontSize: 14 * themeProvider.fontSizeScale,
+                        fontSize: 13 * themeProvider.fontSizeScale,
                         color: themeProvider.buttonBgColor,
                       ),
                     ),
@@ -290,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 4,
         icon: Icon(Icons.add_shopping_cart_rounded, color: themeProvider.buttonTextColor),
         label: Text(
-          isHindi ? '+ नया बिल बनाएँ' : '+ New Sale / Bill',
+          isHindi ? '+ नया बिल बनाएँ' : '+ New Bill',
           style: TextStyle(
             fontFamily: themeProvider.fontFamily,
             fontWeight: FontWeight.bold,
@@ -396,7 +401,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   syncProvider.pendingSyncCount > 0
                       ? '${syncProvider.pendingSyncCount} ${isHindi ? "पेंडिंग" : "Pending"}'
-                      : (isHindi ? 'ऑनलाइन DB' : 'Live DB Active'),
+                      : (isHindi ? 'ऑनलाइन' : 'Live Active'),
                   style: TextStyle(
                     fontFamily: themeProvider.fontFamily,
                     color: Colors.white,
@@ -435,7 +440,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildStatCard(
               context,
-              isHindi ? 'कुल उधार बकाया' : 'Total Udhaar',
+              isHindi ? 'कुल उधार' : 'Total Udhaar',
               '₹ ${_totalUdhaar.toStringAsFixed(2)}',
               Icons.account_balance_wallet_rounded,
               Colors.red.shade700,
@@ -444,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildStatCard(
               context,
-              isHindi ? 'कम स्टॉक सामान' : 'Low Stock Alert',
+              isHindi ? 'कम स्टॉक' : 'Low Stock',
               '$_lowStockCount ${isHindi ? "सामान" : "Items"}',
               Icons.warning_amber_rounded,
               themeProvider.secondaryColor,
@@ -453,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildStatCard(
               context,
-              isHindi ? 'अनुमानित लाभ' : 'Estimated Profit',
+              isHindi ? 'लाभ (अनुमानित)' : 'Profit (Est.)',
               '₹ ${_todayProfit.toStringAsFixed(2)}',
               Icons.trending_up_rounded,
               themeProvider.buttonBgColor,

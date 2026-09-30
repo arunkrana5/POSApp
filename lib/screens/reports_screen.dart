@@ -253,10 +253,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isHindi ? 'बिक्री सारांश (Live DB)' : 'Sales Overview (Live DB)',
+                    isHindi ? 'बिक्री सारांश' : 'Sales Overview',
                     style: TextStyle(
                       fontFamily: themeProvider.fontFamily,
-                      fontSize: 18 * themeProvider.fontSizeScale,
+                      fontSize: 17 * themeProvider.fontSizeScale,
                       fontWeight: FontWeight.bold,
                       color: themeProvider.textColor,
                     ),
@@ -281,10 +281,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     childAspectRatio: isWide ? 2.1 : 1.8,
                     children: [
-                      _buildReportCard(context, isHindi ? 'कुल बिक्री (Total)' : 'Total Revenue', '₹ ${_totalRevenue.toStringAsFixed(2)}', Icons.payments_rounded, themeProvider.amountColor, themeProvider),
+                      _buildReportCard(context, isHindi ? 'कुल बिक्री' : 'Total Sales', '₹ ${_totalRevenue.toStringAsFixed(2)}', Icons.payments_rounded, themeProvider.amountColor, themeProvider),
                       _buildReportCard(context, isHindi ? 'आज की बिक्री' : 'Today\'s Sales', '₹ ${_todayRevenue.toStringAsFixed(2)}', Icons.today_rounded, themeProvider.buttonBgColor, themeProvider),
                       _buildReportCard(context, isHindi ? 'नकद एकत्र' : 'Cash Collected', '₹ ${_cashCollected.toStringAsFixed(2)}', Icons.account_balance_rounded, themeProvider.accentColor, themeProvider),
-                      _buildReportCard(context, isHindi ? 'उधार दिया' : 'Udhaar Extended', '₹ ${_udhaarGiven.toStringAsFixed(2)}', Icons.assignment_late_rounded, Colors.red.shade700, themeProvider),
+                      _buildReportCard(context, isHindi ? 'उधार दिया' : 'Udhaar Given', '₹ ${_udhaarGiven.toStringAsFixed(2)}', Icons.assignment_late_rounded, Colors.red.shade700, themeProvider),
                     ],
                   );
                 },
@@ -293,10 +293,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
               // Detailed Sales History List
               Text(
-                isHindi ? 'बिक्री इतिहास (Sales Invoices)' : 'Sales Invoices & Receipts History',
+                isHindi ? 'बिक्री इतिहास' : 'Sales History',
                 style: TextStyle(
                   fontFamily: themeProvider.fontFamily,
-                  fontSize: 18 * themeProvider.fontSizeScale,
+                  fontSize: 17 * themeProvider.fontSizeScale,
                   fontWeight: FontWeight.bold,
                   color: themeProvider.textColor,
                 ),
