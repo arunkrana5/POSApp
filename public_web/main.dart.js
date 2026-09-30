@@ -98309,6 +98309,9 @@ $S:124}
 A.aqz.prototype={
 $1(a){var s=J.a5(a),r=s.h(a,"IsEnabled"),q=r==null?s.h(a,"isEnabled"):r
 if(q==null)q=s.h(a,"is_enabled")
+r=s.h(a,"Route")
+s=r==null?s.h(a,"route"):r
+if(J.V(s==null?"":s).toLowerCase()==="/settings")return!1
 if(q==null)return!0
 if(A.jG(q))return q
 if(typeof q=="string")return q.toLowerCase()==="true"
@@ -98318,6 +98321,9 @@ $S:11}
 A.aqA.prototype={
 $1(a){var s=J.a5(a),r=s.h(a,"IsEnabled"),q=r==null?s.h(a,"isEnabled"):r
 if(q==null)q=s.h(a,"is_enabled")
+r=s.h(a,"Route")
+s=r==null?s.h(a,"route"):r
+if(J.V(s==null?"":s).toLowerCase()==="/settings")return!1
 if(q==null)return!0
 if(A.jG(q))return q
 if(typeof q=="string")return q.toLowerCase()==="true"

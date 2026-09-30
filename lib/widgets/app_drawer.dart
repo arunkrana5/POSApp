@@ -152,6 +152,8 @@ class _AppDrawerState extends State<AppDrawer> {
               children: [
                 if (themeProvider.dynamicMenuItems.where((m) {
                   final isEnabled = m['IsEnabled'] ?? m['isEnabled'] ?? m['is_enabled'];
+                  final route = (m['Route'] ?? m['route'] ?? '').toString().toLowerCase();
+                  if (route == '/settings') return false;
                   if (isEnabled == null) return true;
                   if (isEnabled is bool) return isEnabled;
                   if (isEnabled is String) return isEnabled.toLowerCase() == 'true';
@@ -160,6 +162,8 @@ class _AppDrawerState extends State<AppDrawer> {
                 }).isNotEmpty)
                   ...themeProvider.dynamicMenuItems.where((m) {
                     final isEnabled = m['IsEnabled'] ?? m['isEnabled'] ?? m['is_enabled'];
+                    final route = (m['Route'] ?? m['route'] ?? '').toString().toLowerCase();
+                    if (route == '/settings') return false;
                     if (isEnabled == null) return true;
                     if (isEnabled is bool) return isEnabled;
                     if (isEnabled is String) return isEnabled.toLowerCase() == 'true';
