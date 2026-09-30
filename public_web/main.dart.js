@@ -94405,30 +94405,30 @@ if(l){l=b?"\u092a\u0947\u0902\u0921\u093f\u0902\u0917":"Pending"
 l=""+a3+" "+l
 a3=l}else a3=b?"\u0911\u0928\u0932\u093e\u0907\u0928":"Online"
 n=A.aW(g,A.az(A.a([m,A.aW(g,A.az(A.a([i,B.ee,A.y(a3,g,g,g,A.ar(g,g,B.i,g,g,g,g,g,c.y,g,g,12*c.z,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g)],r),B.l,B.m,B.f),B.n,g,g,new A.aQ(k,g,g,j,g,g,B.v),g,g,g,B.qv,g,g,g)],r),B.l,B.P,B.f),B.n,g,g,new A.aQ(s,g,o,p,n,g,B.v),g,g,g,B.bT,g,g,g)
+p=h.x
 a3=b?"\u0906\u091c \u0915\u093e \u0935\u094d\u092f\u093e\u092a\u093e\u0930 \u0938\u093e\u0930\u093e\u0902\u0936 (Live DB)":"Today's Business Summary (Live DB)"
 s=c.y
-p=c.z
-p=A.y(a3,g,g,g,A.ar(g,g,c.d,g,g,g,g,g,s,g,g,18*p,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g)
+o=c.z
+o=A.y(a3,g,g,g,A.ar(g,g,c.d,g,g,g,g,g,s,g,g,18*o,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g)
 s=h.a47(a4,b,c)
-a3=h.x
-o=b?"\u0924\u094d\u0935\u0930\u093f\u0924 \u0915\u093e\u0930\u094d\u092f":"Quick Actions"
+a3=b?"\u0924\u094d\u0935\u0930\u093f\u0924 \u0915\u093e\u0930\u094d\u092f":"Quick Actions"
 m=c.y
 l=c.z
-l=A.y(o,g,g,g,A.ar(g,g,c.d,g,g,g,g,g,m,g,g,18*l,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g)
+l=A.y(a3,g,g,g,A.ar(g,g,c.d,g,g,g,g,g,m,g,g,18*l,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g)
 m=h.a44(a4,b,c)
-o=b?"\u0939\u093e\u0932 \u0915\u0947 \u0932\u0947\u0928-\u0926\u0947\u0928 (Recent DB Sales)":"Recent Transactions (Live DB)"
+a3=b?"\u0939\u093e\u0932 \u0915\u0947 \u0932\u0947\u0928-\u0926\u0947\u0928 (Recent DB Sales)":"Recent Transactions (Live DB)"
 k=c.y
 j=c.z
-j=A.y(o,g,g,g,A.ar(g,g,c.d,g,g,g,g,g,k,g,g,18*j,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g)
-o=b?"\u0938\u092d\u0940 \u0926\u0947\u0916\u0947\u0902 \u2192":"View All \u2192"
+j=A.y(a3,g,g,g,A.ar(g,g,c.d,g,g,g,g,g,k,g,g,18*j,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g)
+a3=b?"\u0938\u092d\u0940 \u0926\u0947\u0916\u0947\u0902 \u2192":"View All \u2192"
 k=c.y
 i=c.z
-r=A.aMh(A.jk(new A.d8(B.bS,g,g,new A.da(B.dI,A.aU(A.a([n,B.oa,p,B.av,s,B.cN,new A.t_(a3,b,g),B.cN,l,B.av,m,B.cN,A.az(A.a([j,A.o9(A.y(o,g,g,g,A.ar(g,g,c.w,g,g,g,g,g,k,g,g,14*i,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g),new A.aug(a4),g)],r),B.l,B.P,B.f),B.ah,h.a45(a4,b,c)],r),B.J,B.m,B.f),g),g),B.bT,B.fK),new A.auh(h,c,d))
+r=A.aMh(A.jk(new A.d8(B.bS,g,g,new A.da(B.dI,A.aU(A.a([n,B.oa,new A.t_(p,b,g),B.cN,o,B.av,s,B.cN,l,B.av,m,B.cN,A.az(A.a([j,A.o9(A.y(a3,g,g,g,A.ar(g,g,c.w,g,g,g,g,g,k,g,g,14*i,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g),new A.aug(a4),g)],r),B.l,B.P,B.f),B.ah,h.a45(a4,b,c)],r),B.J,B.m,B.f),g),g),B.bT,B.fK),new A.auh(h,c,d))
 i=c.w
 k=c.x
-o=A.c5(B.Q_,k,g,g)
-a3=b?"+ \u0928\u092f\u093e \u092c\u093f\u0932 \u092c\u0928\u093e\u090f\u0901":"+ New Sale / Bill"
-return A.nU(a2,a1,r,B.de,new A.tY(o,i,new A.aui(a4),B.cl,4,!0,B.Jg,A.y(a3,g,g,g,A.ar(g,g,k,g,g,g,g,g,c.y,g,g,14*c.z,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g),g))},
+a3=A.c5(B.Q_,k,g,g)
+s=b?"+ \u0928\u092f\u093e \u092c\u093f\u0932 \u092c\u0928\u093e\u090f\u0901":"+ New Sale / Bill"
+return A.nU(a2,a1,r,B.de,new A.tY(a3,i,new A.aui(a4),B.cl,4,!0,B.Jg,A.y(s,g,g,g,A.ar(g,g,k,g,g,g,g,g,c.y,g,g,14*c.z,g,g,B.p,g,g,!0,g,g,g,g,g,g,g,g),g,g),g))},
 a47(a,b,c){return new A.lt(new A.aua(this,b,c),null)},
 xm(a,b,c,d,e,f,g){var s,r,q,p,o,n,m=null,l=g.f,k=A.aN(14),j=g.d.a
 j=A.cC(A.C(20,j>>>16&255,j>>>8&255,j&255),1)
@@ -95786,27 +95786,27 @@ m.toString
 A.xv(!0,new A.ayV(this,b,k,s,q,p,o,r),m,t.z)},
 K(a){var s,r,q,p,o,n,m=this,l=null,k=A.bu(a,!0,t.o3).a.gcB(0)==="hi",j=A.bu(a,!0,t.B),i=j.e,h=A.y(k?"\u0930\u093f\u092a\u094b\u0930\u094d\u091f \u0914\u0930 \u0915\u092e\u093e\u0908":"Reports & Analytics",l,l,l,B.b_,l,l),g=m.ga6G(),f=t.p
 h=A.p2(A.a([A.ee(l,l,B.mL,l,g,l,l,l)],f),l,l,h)
-s=k?"\u092c\u093f\u0915\u094d\u0930\u0940 \u0938\u093e\u0930\u093e\u0902\u0936 (Live DB)":"Sales Overview (Live DB)"
-r=j.y
-q=j.z
-q=A.y(s,l,l,l,A.ar(l,l,j.d,l,l,l,l,l,r,l,l,18*q,l,l,B.p,l,l,!0,l,l,l,l,l,l,l,l),l,l)
-r=m.e.length
-s=k?"\u092c\u093f\u0932":"Bills"
-s=A.y(""+r+" "+s,l,l,l,B.IH,l,l)
-s=A.az(A.a([q,A.aJp(j.w,s,l)],f),B.l,B.P,B.f)
-r=k?"\u0915\u0941\u0932 \u092c\u093f\u0915\u094d\u0930\u0940 (Total)":"Total Revenue"
-r=m.xl(a,r,"\u20b9 "+B.c.a1(m.f,2),B.mF,j.r,j)
-q=k?"\u0906\u091c \u0915\u0940 \u092c\u093f\u0915\u094d\u0930\u0940":"Today's Sales"
-q=m.xl(a,q,"\u20b9 "+B.c.a1(m.r,2),B.Qn,j.w,j)
-p=k?"\u0928\u0915\u0926 \u090f\u0915\u0924\u094d\u0930":"Cash Collected"
-p=m.xl(a,p,"\u20b9 "+B.c.a1(m.w,2),B.PX,j.c,j)
-o=k?"\u0909\u0927\u093e\u0930 \u0926\u093f\u092f\u093e":"Udhaar Extended"
-o=A.aKK(1.5,A.a([r,q,p,m.xl(a,o,"\u20b9 "+B.c.a1(m.x,2),B.r6,B.bu,j)],f),2,12,12,B.kk,!0)
-p=m.e
-r=k?"\u092c\u093f\u0915\u094d\u0930\u0940 \u0907\u0924\u093f\u0939\u093e\u0938 (Sales Invoices)":"Sales Invoices & Receipts History"
+s=m.e
+r=k?"\u092c\u093f\u0915\u094d\u0930\u0940 \u0938\u093e\u0930\u093e\u0902\u0936 (Live DB)":"Sales Overview (Live DB)"
 q=j.y
-n=j.z
-f=A.a([s,B.av,o,B.cN,new A.t_(p,k,l),B.cN,A.y(r,l,l,l,A.ar(l,l,j.d,l,l,l,l,l,q,l,l,18*n,l,l,B.p,l,l,!0,l,l,l,l,l,l,l,l),l,l),B.bY],f)
+p=j.z
+p=A.y(r,l,l,l,A.ar(l,l,j.d,l,l,l,l,l,q,l,l,18*p,l,l,B.p,l,l,!0,l,l,l,l,l,l,l,l),l,l)
+q=m.e.length
+r=k?"\u092c\u093f\u0932":"Bills"
+r=A.y(""+q+" "+r,l,l,l,B.IH,l,l)
+r=A.az(A.a([p,A.aJp(j.w,r,l)],f),B.l,B.P,B.f)
+q=k?"\u0915\u0941\u0932 \u092c\u093f\u0915\u094d\u0930\u0940 (Total)":"Total Revenue"
+q=m.xl(a,q,"\u20b9 "+B.c.a1(m.f,2),B.mF,j.r,j)
+p=k?"\u0906\u091c \u0915\u0940 \u092c\u093f\u0915\u094d\u0930\u0940":"Today's Sales"
+p=m.xl(a,p,"\u20b9 "+B.c.a1(m.r,2),B.Qn,j.w,j)
+o=k?"\u0928\u0915\u0926 \u090f\u0915\u0924\u094d\u0930":"Cash Collected"
+o=m.xl(a,o,"\u20b9 "+B.c.a1(m.w,2),B.PX,j.c,j)
+n=k?"\u0909\u0927\u093e\u0930 \u0926\u093f\u092f\u093e":"Udhaar Extended"
+n=A.aKK(1.5,A.a([q,p,o,m.xl(a,n,"\u20b9 "+B.c.a1(m.x,2),B.r6,B.bu,j)],f),2,12,12,B.kk,!0)
+q=k?"\u092c\u093f\u0915\u094d\u0930\u0940 \u0907\u0924\u093f\u0939\u093e\u0938 (Sales Invoices)":"Sales Invoices & Receipts History"
+p=j.y
+o=j.z
+f=A.a([new A.t_(s,k,l),B.cN,r,B.av,n,B.cN,A.y(q,l,l,l,A.ar(l,l,j.d,l,l,l,l,l,p,l,l,18*o,l,l,B.p,l,l,!0,l,l,l,l,l,l,l,l),l,l),B.bY],f)
 if(m.d)f.push(B.M3)
 else{s=m.e.length
 if(s===0){s=A.aN(12)

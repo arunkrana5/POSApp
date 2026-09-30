@@ -223,6 +223,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+              // Interactive Real-time Analytics & Charts (Top Priority Position)
+              AnalyticsChartsWidget(
+                salesList: _salesList,
+                isHindi: isHindi,
+              ),
+              const SizedBox(height: 24),
+
               // Summary Cards Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -258,13 +265,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   _buildReportCard(context, isHindi ? 'नकद एकत्र' : 'Cash Collected', '₹ ${_cashCollected.toStringAsFixed(2)}', Icons.account_balance_rounded, themeProvider.accentColor, themeProvider),
                   _buildReportCard(context, isHindi ? 'उधार दिया' : 'Udhaar Extended', '₹ ${_udhaarGiven.toStringAsFixed(2)}', Icons.assignment_late_rounded, Colors.red.shade700, themeProvider),
                 ],
-              ),
-              const SizedBox(height: 24),
-
-              // Interactive Real-time Analytics & Charts
-              AnalyticsChartsWidget(
-                salesList: _salesList,
-                isHindi: isHindi,
               ),
               const SizedBox(height: 24),
 

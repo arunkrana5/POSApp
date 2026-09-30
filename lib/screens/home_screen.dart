@@ -189,6 +189,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildGreetingHeader(context, username ?? tenantName, isHindi, syncProvider, themeProvider),
               const SizedBox(height: 20),
 
+              // Interactive Real-time Analytics & Charts (Top Priority Position)
+              AnalyticsChartsWidget(
+                salesList: _salesList,
+                isHindi: isHindi,
+              ),
+              const SizedBox(height: 24),
+
               // Metric Summary Cards (4 Grids)
               Text(
                 isHindi ? 'आज का व्यापार सारांश (Live DB)' : 'Today\'s Business Summary (Live DB)',
@@ -201,13 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               _buildStatsGrid(context, isHindi, themeProvider),
-              const SizedBox(height: 24),
-
-              // Interactive Real-time Analytics & Charts
-              AnalyticsChartsWidget(
-                salesList: _salesList,
-                isHindi: isHindi,
-              ),
               const SizedBox(height: 24),
 
               // Quick Actions Row
