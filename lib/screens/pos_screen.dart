@@ -764,16 +764,29 @@ class _PosScreenState extends State<PosScreen> {
           // Product Catalog Grid
           Expanded(
             flex: 5,
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.25,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
-              itemCount: filteredProducts.length,
-              itemBuilder: (ctx, index) {
+            child: LayoutBuilder(
+              builder: (ctx, constraints) {
+                final width = constraints.maxWidth;
+                int crossAxisCount = 2;
+                double childAspectRatio = 1.25;
+                if (width >= 1200) {
+                  crossAxisCount = 4;
+                  childAspectRatio = 1.35;
+                } else if (width >= 800) {
+                  crossAxisCount = 3;
+                  childAspectRatio = 1.30;
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: childAspectRatio,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: filteredProducts.length,
+                  itemBuilder: (ctx, index) {
                 final product = filteredProducts[index];
                 final cartIndex = _cartItems.indexWhere((item) => item['id'] == product['id']);
                 final qtyInCart = cartIndex >= 0 ? _cartItems[cartIndex]['qty'] : 0;
@@ -886,8 +899,10 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                 );
               },
-            ),
-          ),
+            );
+          },
+        ),
+      ),
 
           // Cart Footer & Checkout Panel
           Container(
