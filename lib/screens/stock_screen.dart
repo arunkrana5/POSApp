@@ -776,52 +776,120 @@ class _StockScreenState extends State<StockScreen> {
                             foregroundColor: themeProvider.buttonTextColor,
                           ),
                           onPressed: () async {
-                            final double price = double.tryParse(priceCtrl.text) ?? 0.0;
-                            final double stock = double.tryParse(stockCtrl.text) ?? 0.0;
-                            if (selectedCatalogItem == null || price <= 0) return;
-
-                            final stockPayload = {
-                              'itemId': int.tryParse(selectedCatalogItem!['id'].toString()) ?? 0,
-                              'productCode': selectedCatalogItem!['itemCode'] ?? '',
-                              'name': selectedCatalogItem!['name'] ?? '',
-                              'category': selectedCatalogItem!['category'] ?? 'Groceries',
-                              'unit': selectedCatalogItem!['uom'] ?? 'pcs',
-                              'sellingPrice': price,
-                              'purchasePrice': double.tryParse(costCtrl.text) ?? 0.0,
-                              'mrp': double.tryParse(mrpCtrl.text) ?? price,
-                              'gstPercent': double.tryParse(gstCtrl.text) ?? 0.0,
-                              'currentStock': stock,
-                              'openingStock': stock,
-                              'minimumStock': double.tryParse(minStockCtrl.text) ?? 5.0,
-                              'barcode': barcodeCtrl.text.trim(),
-                              'hsnCode': hsnCtrl.text.trim(),
-                              'imageUrl': uploadedCompressedPhotoUrl ?? '',
-                            };
-
-                            try {
-                              final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-                              await syncProvider.saveOfflineProduct(stockPayload);
-                            } catch (_) {}
-
-                            if (mounted) {
-                              setState(() {
-                                _products.insert(0, {
-                                  'id': DateTime.now().millisecondsSinceEpoch.toString(),
-                                  'itemId': selectedCatalogItem!['id'].toString(),
-                                  'productCode': selectedCatalogItem!['itemCode'],
-                                  'name': selectedCatalogItem!['name'],
-                                  'category': selectedCatalogItem!['category'],
-                                  'unit': selectedCatalogItem!['uom'],
-                                  'price': price,
-                                  'stock': stock.toInt(),
-                                  'barcode': barcodeCtrl.text.trim(),
-                                  'imageUrl': uploadedCompressedPhotoUrl ?? '',
-                                });
-                              });
+                            if (selectedCatalogItem == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(isHindi ? 'कृपया ड्रॉपडाउन से सामान चुनें!' : 'Please select an item from the dropdown!'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
                             }
 
-                            if (ctx.mounted) Navigator.pop(ctx);
-                            _loadProducts();
+                            final double price = double.tryParse(priceCtrl.text) ?? 0.0;
+                            final double stock = double.tryParse(stockCtrl.text) ?? 0.0;
+                            if (price <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(isHindi ? 'कृपया मान्य बिक्री मूल्य (₹) दर्ज करें!' : 'Please enter a valid Selling Price (₹)!'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            try {
+                              final prefs = await SharedPreferences.getInstance();
+                              final auth = Provider.of<AuthProvider>(context, listen: false);
+                              final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty)
+                                  ? auth.accessToken!
+                                  : (prefs.getString('auth_token') ?? '');
+                              final tenantId = (auth.tenantId != null && auth.tenantId! > 0)
+                                  ? auth.tenantId!
+                                  : (prefs.getInt('tenant_id') ?? 0);
+                              final tenantCode = (auth.tenantCode != null && auth.tenantCode!.isNotEmpty)
+                                  ? auth.tenantCode!
+                                  : (prefs.getString('tenant_code') ?? '');
+
+                              final headers = <String, String>{
+                                'Content-Type': 'application/json',
+                                if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+                                if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+                                if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
+                              };
+
+                              final stockPayload = {
+                                'tenantId': tenantId > 0 ? tenantId : 1,
+                                'tenantCode': tenantCode,
+                                'itemId': int.tryParse(selectedCatalogItem!['id'].toString()) ?? 0,
+                                'productCode': selectedCatalogItem!['itemCode'] ?? '',
+                                'name': selectedCatalogItem!['name'] ?? '',
+                                'category': selectedCatalogItem!['category'] ?? 'Groceries',
+                                'unit': selectedCatalogItem!['uom'] ?? 'pcs',
+                                'sellingPrice': price,
+                                'purchasePrice': double.tryParse(costCtrl.text) ?? 0.0,
+                                'mrp': double.tryParse(mrpCtrl.text) ?? price,
+                                'gstPercent': double.tryParse(gstCtrl.text) ?? 0.0,
+                                'currentStock': stock,
+                                'openingStock': stock,
+                                'minimumStock': double.tryParse(minStockCtrl.text) ?? 5.0,
+                                'barcode': barcodeCtrl.text.trim(),
+                                'hsnCode': hsnCtrl.text.trim(),
+                                'imageUrl': uploadedCompressedPhotoUrl ?? '',
+                              };
+
+                              final res = await http.post(
+                                Uri.parse('${ApiConfig.baseUrl}/stock'),
+                                headers: headers,
+                                body: jsonEncode(stockPayload),
+                              ).timeout(const Duration(seconds: 12));
+
+                              if (res.statusCode == 200 || res.statusCode == 201) {
+                                if (mounted) {
+                                  setState(() {
+                                    _products.insert(0, {
+                                      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                                      'itemId': selectedCatalogItem!['id'].toString(),
+                                      'productCode': selectedCatalogItem!['itemCode'],
+                                      'name': selectedCatalogItem!['name'],
+                                      'category': selectedCatalogItem!['category'],
+                                      'unit': selectedCatalogItem!['uom'],
+                                      'price': price,
+                                      'stock': stock.toInt(),
+                                      'barcode': barcodeCtrl.text.trim(),
+                                      'imageUrl': uploadedCompressedPhotoUrl ?? '',
+                                    });
+                                  });
+                                }
+
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(isHindi ? 'स्टॉक इन सफलतापूर्वक दर्ज हो गया!' : 'Stock in entry saved successfully!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                                _loadProducts();
+                              } else {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to save stock: Status ${res.statusCode}'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Save error: ${e.toString()}'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
                           },
                           child: Text(
                             isHindi ? 'स्टॉक इन सेव करें' : 'Save Stock In Entry',
