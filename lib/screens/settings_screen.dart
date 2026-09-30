@@ -15,19 +15,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  late TextEditingController _urlController;
-
-  @override
-  void initState() {
-    super.initState();
-    _urlController = TextEditingController(text: ApiConfig.baseUrl);
-  }
-
-  @override
-  void dispose() {
-    _urlController.dispose();
-    super.dispose();
-  }
 
   void _showLogoutDialog(BuildContext context, AuthProvider auth, bool isHindi) {
     showDialog(
@@ -169,14 +156,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // 4. Cloud Server Connection & Offline Sync Engine
+                // 4. Offline Data Sync Engine
                 _buildSectionTitle(
-                  isHindi ? 'सर्वर कनेक्शन एवं डेटा सिंक' : 'Server Connection & Offline Sync',
+                  isHindi ? 'ऑफलाइन डेटा सिंक इंजन' : 'Offline Data Sync Engine',
                   Icons.cloud_sync_rounded,
                   themeProvider,
                 ),
                 const SizedBox(height: 12),
-                _buildSyncAndServerCard(
+                _buildSyncEngineCard(
                   context,
                   isHindi: isHindi,
                   syncProvider: syncProvider,
@@ -760,7 +747,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSyncAndServerCard(
+  Widget _buildSyncEngineCard(
     BuildContext context, {
     required bool isHindi,
     required SyncProvider syncProvider,
@@ -780,123 +767,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Server Base URL Config Input
-          TextField(
-            controller: _urlController,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13 * themeProvider.fontSizeScale,
-              fontWeight: FontWeight.w600,
-            ),
-            decoration: InputDecoration(
-              labelText: isHindi ? 'API क्लाउड सर्वर URL' : 'API Cloud Server Base URL',
-              prefixIcon: Icon(Icons.dns_rounded, color: themeProvider.primaryColor),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              filled: true,
-              fillColor: themeProvider.pageBgColor.withOpacity(0.5),
-            ),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: syncProvider.pendingSyncCount > 0
+                ? Colors.orange.shade100
+                : Colors.green.shade100,
+            borderRadius: BorderRadius.circular(12),
           ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeProvider.buttonBgColor,
-                foregroundColor: themeProvider.buttonTextColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              ),
-              icon: const Icon(Icons.save_rounded, size: 16),
-              label: Text(
-                isHindi ? 'सर्वर URL अपडेट करें' : 'Save Connection URL',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              onPressed: () {
-                setState(() {
-                  ApiConfig.baseUrl = _urlController.text.trim();
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isHindi ? 'सर्वर API URL अपडेट हो गया!' : 'Cloud Server URL updated successfully!'),
-                    backgroundColor: Colors.green.shade700,
-                  ),
-                );
-              },
-            ),
+          child: Icon(
+            syncProvider.pendingSyncCount > 0
+                ? Icons.cloud_upload_rounded
+                : Icons.check_circle_rounded,
+            color: syncProvider.pendingSyncCount > 0
+                ? Colors.orange.shade800
+                : Colors.green.shade800,
+            size: 24,
           ),
-          const Divider(height: 24),
-
-          // 2. Offline Sync Queue Status
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: syncProvider.pendingSyncCount > 0
-                    ? Colors.orange.shade100
-                    : Colors.green.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                syncProvider.pendingSyncCount > 0
-                    ? Icons.cloud_upload_rounded
-                    : Icons.check_circle_rounded,
-                color: syncProvider.pendingSyncCount > 0
-                    ? Colors.orange.shade800
-                    : Colors.green.shade800,
-                size: 24,
-              ),
-            ),
-            title: Text(
-              isHindi ? 'ऑफलाइन SQLite सिंक क्यू' : 'Offline Queue Sync Engine',
-              style: TextStyle(
-                fontFamily: themeProvider.fontFamily,
-                fontWeight: FontWeight.bold,
-                fontSize: 15 * themeProvider.fontSizeScale,
-                color: themeProvider.textColor,
-              ),
-            ),
-            subtitle: Text(
-              syncProvider.pendingSyncCount > 0
-                  ? '${syncProvider.pendingSyncCount} ${isHindi ? "आइटम सर्वर पर पेंडिंग हैं" : "items waiting to sync"}'
-                  : (isHindi ? 'सभी ट्रांजेक्शन क्लाउड DB पर सिंक हैं' : 'All transactions fully synced with Cloud DB'),
-              style: TextStyle(
-                fontFamily: themeProvider.fontFamily,
-                color: syncProvider.pendingSyncCount > 0
-                    ? Colors.orange.shade900
-                    : Colors.green.shade800,
-                fontSize: 12 * themeProvider.fontSizeScale,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            trailing: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: themeProvider.accentColor,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              icon: const Icon(Icons.sync_rounded, size: 16),
-              label: Text(
-                isHindi ? 'सिंक करें' : 'Sync Now',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              onPressed: () async {
-                await syncProvider.syncNow();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(isHindi ? 'डेटा सिंक पूरा हुआ!' : 'Sync completed successfully!'),
-                      backgroundColor: Colors.green.shade700,
-                    ),
-                  );
-                }
-              },
-            ),
+        ),
+        title: Text(
+          isHindi ? 'ऑफलाइन SQLite सिंक क्यू' : 'Offline Queue Sync Engine',
+          style: TextStyle(
+            fontFamily: themeProvider.fontFamily,
+            fontWeight: FontWeight.bold,
+            fontSize: 15 * themeProvider.fontSizeScale,
+            color: themeProvider.textColor,
           ),
-        ],
+        ),
+        subtitle: Text(
+          syncProvider.pendingSyncCount > 0
+              ? '${syncProvider.pendingSyncCount} ${isHindi ? "आइटम सर्वर पर पेंडिंग हैं" : "items waiting to sync"}'
+              : (isHindi ? 'सभी ट्रांजेक्शन क्लाउड DB पर सिंक हैं' : 'All transactions fully synced with Cloud DB'),
+          style: TextStyle(
+            fontFamily: themeProvider.fontFamily,
+            color: syncProvider.pendingSyncCount > 0
+                ? Colors.orange.shade900
+                : Colors.green.shade800,
+            fontSize: 12 * themeProvider.fontSizeScale,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: themeProvider.accentColor,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          icon: const Icon(Icons.sync_rounded, size: 16),
+          label: Text(
+            isHindi ? 'सिंक करें' : 'Sync Now',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          onPressed: () async {
+            await syncProvider.syncNow();
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(isHindi ? 'डेटा सिंक पूरा हुआ!' : 'Sync completed successfully!'),
+                  backgroundColor: Colors.green.shade700,
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }
