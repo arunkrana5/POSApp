@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:path/path.dart' as path;
 import '../models/sale.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sale_provider.dart';
@@ -114,11 +113,12 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text("बिक्री पक्की करें (COMPLETE SALE)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
-            )
+            ),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
