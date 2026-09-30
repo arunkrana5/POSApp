@@ -269,20 +269,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Summary Metric Cards Grid
-              GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 1.5,
-                children: [
-                  _buildReportCard(context, isHindi ? 'कुल बिक्री (Total)' : 'Total Revenue', '₹ ${_totalRevenue.toStringAsFixed(2)}', Icons.payments_rounded, themeProvider.amountColor, themeProvider),
-                  _buildReportCard(context, isHindi ? 'आज की बिक्री' : 'Today\'s Sales', '₹ ${_todayRevenue.toStringAsFixed(2)}', Icons.today_rounded, themeProvider.buttonBgColor, themeProvider),
-                  _buildReportCard(context, isHindi ? 'नकद एकत्र' : 'Cash Collected', '₹ ${_cashCollected.toStringAsFixed(2)}', Icons.account_balance_rounded, themeProvider.accentColor, themeProvider),
-                  _buildReportCard(context, isHindi ? 'उधार दिया' : 'Udhaar Extended', '₹ ${_udhaarGiven.toStringAsFixed(2)}', Icons.assignment_late_rounded, Colors.red.shade700, themeProvider),
-                ],
+              // Summary Metric Cards Grid (Responsive 4 cols on desktop, 2 cols on mobile)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 700;
+                  return GridView.count(
+                    crossAxisCount: isWide ? 4 : 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: isWide ? 2.1 : 1.8,
+                    children: [
+                      _buildReportCard(context, isHindi ? 'कुल बिक्री (Total)' : 'Total Revenue', '₹ ${_totalRevenue.toStringAsFixed(2)}', Icons.payments_rounded, themeProvider.amountColor, themeProvider),
+                      _buildReportCard(context, isHindi ? 'आज की बिक्री' : 'Today\'s Sales', '₹ ${_todayRevenue.toStringAsFixed(2)}', Icons.today_rounded, themeProvider.buttonBgColor, themeProvider),
+                      _buildReportCard(context, isHindi ? 'नकद एकत्र' : 'Cash Collected', '₹ ${_cashCollected.toStringAsFixed(2)}', Icons.account_balance_rounded, themeProvider.accentColor, themeProvider),
+                      _buildReportCard(context, isHindi ? 'उधार दिया' : 'Udhaar Extended', '₹ ${_udhaarGiven.toStringAsFixed(2)}', Icons.assignment_late_rounded, Colors.red.shade700, themeProvider),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 24),
 
@@ -372,13 +377,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildReportCard(BuildContext context, String title, String value, IconData icon, Color color, TenantThemeProvider themeProvider) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: themeProvider.cardBgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: themeProvider.textColor.withOpacity(0.08)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.18), width: 1.2),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: color.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -388,25 +397,41 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontFamily: themeProvider.fontFamily,
-                  fontSize: 12 * themeProvider.fontSizeScale,
-                  fontWeight: FontWeight.w600,
-                  color: themeProvider.textColor.withOpacity(0.7),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: themeProvider.fontFamily,
+                    fontSize: 12 * themeProvider.fontSizeScale,
+                    fontWeight: FontWeight.w600,
+                    color: themeProvider.textColor.withOpacity(0.65),
+                  ),
                 ),
               ),
-              Icon(icon, size: 20, color: color),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
             ],
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: themeProvider.fontFamily,
-              fontSize: 18 * themeProvider.fontSizeScale,
-              fontWeight: FontWeight.bold,
-              color: color,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontFamily: themeProvider.fontFamily,
+                fontSize: 18 * themeProvider.fontSizeScale,
+                fontWeight: FontWeight.w800,
+                color: color,
+                letterSpacing: -0.3,
+              ),
             ),
           ),
         ],

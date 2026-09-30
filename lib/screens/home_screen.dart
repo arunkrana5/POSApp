@@ -305,59 +305,93 @@ class _HomeScreenState extends State<HomeScreen> {
     final dateStr = '${now.day}/${now.month}/${now.year}';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: themeProvider.cardBgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: themeProvider.textColor.withOpacity(0.08), width: 1),
+        gradient: LinearGradient(
+          colors: [
+            themeProvider.primaryColor,
+            themeProvider.secondaryColor,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: themeProvider.primaryColor.withOpacity(0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                isHindi ? 'नमस्ते, ${userName ?? "दुकानदार"}' : 'Welcome, ${userName ?? "Shopkeeper"} 👋',
-                style: TextStyle(
-                  fontFamily: themeProvider.fontFamily,
-                  fontSize: 18 * themeProvider.fontSizeScale,
-                  fontWeight: FontWeight.bold,
-                  color: themeProvider.textColor,
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
                 ),
+                child: const Icon(Icons.storefront_rounded, size: 28, color: Colors.white),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '${isHindi ? "दिनांक" : "Date"}: $dateStr',
-                style: TextStyle(
-                  fontFamily: themeProvider.fontFamily,
-                  color: themeProvider.textColor.withOpacity(0.6),
-                  fontSize: 13 * themeProvider.fontSizeScale,
-                ),
+              const SizedBox(width: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isHindi ? 'नमस्ते, ${userName ?? "दुकानदार"}' : 'Welcome, ${userName ?? "Shopkeeper"} 👋',
+                    style: TextStyle(
+                      fontFamily: themeProvider.fontFamily,
+                      fontSize: 20 * themeProvider.fontSizeScale,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.calendar_today_rounded, size: 12, color: Colors.white.withOpacity(0.85)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${isHindi ? "दिनांक" : "Date"}: $dateStr',
+                        style: TextStyle(
+                          fontFamily: themeProvider.fontFamily,
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 13 * themeProvider.fontSizeScale,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: syncProvider.pendingSyncCount > 0 ? Colors.orange.shade800 : themeProvider.accentColor,
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
             ),
             child: Row(
               children: [
-                Icon(
-                  syncProvider.pendingSyncCount > 0 ? Icons.cloud_queue_rounded : Icons.check_circle_outline_rounded,
-                  size: 16,
-                  color: Colors.white,
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: syncProvider.pendingSyncCount > 0 ? Colors.amberAccent : Colors.greenAccent,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 6),
                 Text(
                   syncProvider.pendingSyncCount > 0
                       ? '${syncProvider.pendingSyncCount} ${isHindi ? "पेंडिंग" : "Pending"}'
-                      : (isHindi ? 'ऑनलाइन' : 'Online'),
+                      : (isHindi ? 'ऑनलाइन DB' : 'Live DB Active'),
                   style: TextStyle(
                     fontFamily: themeProvider.fontFamily,
                     color: Colors.white,
@@ -383,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
           mainAxisSpacing: 12,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: isDesktop ? 2.0 : 1.5,
+          childAspectRatio: isDesktop ? 2.1 : 1.8,
           children: [
             _buildStatCard(
               context,
@@ -429,13 +463,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color, Color bgColor, TenantThemeProvider themeProvider) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: themeProvider.cardBgColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: themeProvider.textColor.withOpacity(0.08), width: 1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2), width: 1.2),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 3)),
+          BoxShadow(
+            color: color.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -452,27 +490,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontFamily: themeProvider.fontFamily,
-                    fontSize: 13 * themeProvider.fontSizeScale,
+                    fontSize: 12.5 * themeProvider.fontSizeScale,
                     fontWeight: FontWeight.w600,
-                    color: themeProvider.textColor.withOpacity(0.8),
+                    color: themeProvider.textColor.withOpacity(0.7),
                   ),
                 ),
               ),
-              const SizedBox(width: 4),
               Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Icon(icon, size: 18, color: color),
               ),
             ],
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: themeProvider.fontFamily,
-              fontSize: 18 * themeProvider.fontSizeScale,
-              fontWeight: FontWeight.bold,
-              color: value.contains('₹') ? themeProvider.amountColor : themeProvider.textColor,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontFamily: themeProvider.fontFamily,
+                fontSize: 20 * themeProvider.fontSizeScale,
+                fontWeight: FontWeight.w800,
+                color: value.contains('₹') ? themeProvider.amountColor : themeProvider.textColor,
+                letterSpacing: -0.4,
+              ),
             ),
           ),
         ],
