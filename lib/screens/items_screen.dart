@@ -10,7 +10,8 @@ import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
 
 class ItemsScreen extends StatefulWidget {
-  const ItemsScreen({super.key});
+  final bool autoOpenAddModal;
+  const ItemsScreen({super.key, this.autoOpenAddModal = false});
 
   @override
   State<ItemsScreen> createState() => _ItemsScreenState();
@@ -26,6 +27,14 @@ class _ItemsScreenState extends State<ItemsScreen> {
   void initState() {
     super.initState();
     _fetchItems();
+    if (widget.autoOpenAddModal) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final isHindi = Provider.of<LocaleProvider>(context, listen: false).isHindi;
+          _showAddMasterItemModal(context, isHindi);
+        }
+      });
+    }
   }
 
   Future<void> _fetchItems() async {

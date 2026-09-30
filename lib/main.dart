@@ -59,7 +59,11 @@ class VillageShopApp extends StatelessWidget {
               '/login': (context) => const LoginScreen(),
               '/home': (context) => const HomeScreen(),
               '/pos': (context) => const PosScreen(),
-              '/items': (context) => const ItemsScreen(),
+              '/items': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                final bool autoOpen = args?['openAddModal'] == true;
+                return ItemsScreen(autoOpenAddModal: autoOpen);
+              },
               '/stock': (context) => const StockScreen(),
               '/stock-in': (context) => const StockScreen(),
               '/products': (context) => const StockScreen(),
