@@ -641,137 +641,141 @@ class _PosScreenState extends State<PosScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Customer & Payment Method Selector Header
-          Container(
-            padding: const EdgeInsets.all(12),
-            color: Colors.white,
-            child: Column(
-              children: [
-                Row(
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            children: [
+              // Customer & Payment Method Selector Header
+              Container(
+                padding: const EdgeInsets.all(12),
+                color: Colors.white,
+                child: Column(
                   children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: uniqueCustomers.contains(_selectedCustomer) ? _selectedCustomer : uniqueCustomers.first,
-                        decoration: InputDecoration(
-                          labelText: isHindi ? 'ग्राहक चुनें' : 'Select Customer',
-                          prefixIcon: const Icon(Icons.person_rounded, size: 20),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        items: uniqueCustomers
-                            .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 14))))
-                            .toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _selectedCustomer = val;
-                              if (val == 'Walk-in Customer') {
-                                _customerPhoneController.text = '';
-                              } else {
-                                _customerPhoneController.text = _customerPhoneMap[val] ?? '';
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: uniqueCustomers.contains(_selectedCustomer) ? _selectedCustomer : uniqueCustomers.first,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'ग्राहक चुनें' : 'Select Customer',
+                              prefixIcon: const Icon(Icons.person_rounded, size: 20),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            items: uniqueCustomers
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 14))))
+                                .toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _selectedCustomer = val;
+                                  if (val == 'Walk-in Customer') {
+                                    _customerPhoneController.text = '';
+                                  } else {
+                                    _customerPhoneController.text = _customerPhoneMap[val] ?? '';
+                                  }
+                                });
                               }
-                            });
-                          }
-                        },
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeProvider.buttonBgColor,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                          ),
+                          onPressed: () {
+                            _showAddCustomerDialog(context, isHindi);
+                          },
+                          child: Icon(Icons.person_add_rounded, color: themeProvider.buttonTextColor),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _customerPhoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'ग्राहक मोबाइल नंबर' : 'Customer Phone Number',
+                        hintText: _selectedCustomer == 'Walk-in Customer' ? 'Type mobile number (optional)' : 'Auto-filled from master',
+                        prefixIcon: const Icon(Icons.phone_rounded, size: 18, color: Colors.green),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeProvider.buttonBgColor,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                      ),
-                      onPressed: () {
-                        _showAddCustomerDialog(context, isHindi);
-                      },
-                      child: Icon(Icons.person_add_rounded, color: themeProvider.buttonTextColor),
+                    const SizedBox(height: 10),
+                    // Payment Mode Chips
+                    Row(
+                      children: ['Cash', if (themeProvider.enableOnlinePayment) 'UPI', if (themeProvider.enableUdhaar) 'Udhaar'].map((mode) {
+                        final isSelected = _selectedPaymentMode == mode;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ChoiceChip(
+                            label: Text(
+                              mode == 'Udhaar' ? (isHindi ? 'उधार' : 'Udhaar') : mode,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: mode == 'Udhaar' ? Colors.red.shade700 : themeProvider.buttonBgColor,
+                            onSelected: (selected) {
+                              if (selected) setState(() => _selectedPaymentMode = mode);
+                            },
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _customerPhoneController,
-                  keyboardType: TextInputType.phone,
+              ),
+
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: TextField(
+                  controller: _searchController,
                   decoration: InputDecoration(
-                    labelText: isHindi ? 'ग्राहक मोबाइल नंबर' : 'Customer Phone Number',
-                    hintText: _selectedCustomer == 'Walk-in Customer' ? 'Type mobile number (optional)' : 'Auto-filled from master',
-                    prefixIcon: const Icon(Icons.phone_rounded, size: 18, color: Colors.green),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    hintText: isHindi ? 'सामान खोजें...' : 'Search items...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: themeProvider.cardBgColor,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: themeProvider.textColor.withOpacity(0.1)),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                // Payment Mode Chips
-                Row(
-                  children: ['Cash', if (themeProvider.enableOnlinePayment) 'UPI', if (themeProvider.enableUdhaar) 'Udhaar'].map((mode) {
-                    final isSelected = _selectedPaymentMode == mode;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(
-                          mode == 'Udhaar' ? (isHindi ? 'उधार' : 'Udhaar') : mode,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : Colors.black87,
-                          ),
-                        ),
-                        selected: isSelected,
-                        selectedColor: mode == 'Udhaar' ? Colors.red.shade700 : themeProvider.buttonBgColor,
-                        onSelected: (selected) {
-                          if (selected) setState(() => _selectedPaymentMode = mode);
-                        },
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: isHindi ? 'सामान खोजें...' : 'Search items...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: themeProvider.cardBgColor,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: themeProvider.textColor.withOpacity(0.1)),
+                  onChanged: (val) {
+                    setState(() => _searchQuery = val);
+                  },
                 ),
               ),
-              onChanged: (val) {
-                setState(() => _searchQuery = val);
-              },
-            ),
-          ),
 
-          // Product Catalog Grid
-          Expanded(
-            flex: 5,
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 180,
-                childAspectRatio: 1.15,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-              ),
+              // Product Catalog Grid
+              Expanded(
+                flex: 5,
+                child: GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 180,
+                    mainAxisExtent: 130,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
               itemCount: filteredProducts.length,
               itemBuilder: (ctx, index) {
                 final product = filteredProducts[index];
@@ -1064,7 +1068,9 @@ class _PosScreenState extends State<PosScreen> {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 
   void _showAddCustomerDialog(BuildContext context, bool isHindi) {
