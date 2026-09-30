@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/analytics_charts_widget.dart';
 import '../widgets/app_drawer.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -257,6 +258,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   _buildReportCard(context, isHindi ? 'नकद एकत्र' : 'Cash Collected', '₹ ${_cashCollected.toStringAsFixed(2)}', Icons.account_balance_rounded, themeProvider.accentColor, themeProvider),
                   _buildReportCard(context, isHindi ? 'उधार दिया' : 'Udhaar Extended', '₹ ${_udhaarGiven.toStringAsFixed(2)}', Icons.assignment_late_rounded, Colors.red.shade700, themeProvider),
                 ],
+              ),
+              const SizedBox(height: 24),
+
+              // Interactive Real-time Analytics & Charts
+              AnalyticsChartsWidget(
+                salesList: _salesList,
+                isHindi: isHindi,
               ),
               const SizedBox(height: 24),
 

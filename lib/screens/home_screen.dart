@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
+import '../widgets/analytics_charts_widget.dart';
 import '../widgets/app_drawer.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _lowStockCount = 0;
   double _todayProfit = 0.0;
   List<Map<String, dynamic>> _recentTransactions = [];
+  List<Map<String, dynamic>> _salesList = [];
   bool _isLoadingMetrics = false;
 
   @override
@@ -97,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _lowStockCount = lowStock;
         _todayProfit = salesSum * 0.15; // 15% estimated profit margin
         _recentTransactions = salesList.take(6).toList();
+        _salesList = salesList;
       });
     } catch (_) {}
     setState(() => _isLoadingMetrics = false);
@@ -198,6 +201,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               _buildStatsGrid(context, isHindi, themeProvider),
+              const SizedBox(height: 24),
+
+              // Interactive Real-time Analytics & Charts
+              AnalyticsChartsWidget(
+                salesList: _salesList,
+                isHindi: isHindi,
+              ),
               const SizedBox(height: 24),
 
               // Quick Actions Row
