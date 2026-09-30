@@ -368,9 +368,22 @@ class _StockScreenState extends State<StockScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      Text(
-                                        '₹ ${item["price"]}',
-                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            '₹ ${item["price"]}',
+                                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          IconButton(
+                                            icon: Icon(Icons.edit_note_rounded, color: themeProvider.primaryColor, size: 20),
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            tooltip: 'Edit Stock Item',
+                                            onPressed: () => _showAddProductModal(context, isHindi, item),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -409,20 +422,26 @@ class _StockScreenState extends State<StockScreen> {
 );
 }
 
-  void _showAddProductModal(BuildContext context, bool isHindi) {
+  void _showAddProductModal(BuildContext context, bool isHindi, [Map<String, dynamic>? existingProduct]) {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
 
-    Map<String, dynamic>? selectedCatalogItem;
-    String? uploadedCompressedPhotoUrl;
+    Map<String, dynamic>? selectedCatalogItem = existingProduct != null ? {
+      'name': existingProduct['name'],
+      'category': existingProduct['category'],
+      'uom': existingProduct['unit'],
+      'format': existingProduct['unit'] == 'kg' ? 'Loose' : 'Packed',
+    } : null;
 
-    final priceCtrl = TextEditingController();
-    final costCtrl = TextEditingController();
-    final mrpCtrl = TextEditingController();
-    final gstCtrl = TextEditingController(text: '0');
-    final stockCtrl = TextEditingController(text: '10');
-    final minStockCtrl = TextEditingController(text: '5');
-    final barcodeCtrl = TextEditingController(text: '890${100000000 + Random().nextInt(899999999)}');
-    final hsnCtrl = TextEditingController();
+    String? uploadedCompressedPhotoUrl = existingProduct?['imageUrl'];
+
+    final priceCtrl = TextEditingController(text: (existingProduct?['price'] ?? '').toString());
+    final costCtrl = TextEditingController(text: (existingProduct?['purchasePrice'] ?? existingProduct?['costPrice'] ?? '').toString());
+    final mrpCtrl = TextEditingController(text: (existingProduct?['mrp'] ?? existingProduct?['price'] ?? '').toString());
+    final gstCtrl = TextEditingController(text: (existingProduct?['gst'] ?? '0').toString());
+    final stockCtrl = TextEditingController(text: (existingProduct?['stock'] ?? '10').toString());
+    final minStockCtrl = TextEditingController(text: (existingProduct?['minStock'] ?? '5').toString());
+    final barcodeCtrl = TextEditingController(text: existingProduct?['barcode'] ?? '890${100000000 + Random().nextInt(899999999)}');
+    final hsnCtrl = TextEditingController(text: existingProduct?['hsn'] ?? '');
 
     showModalBottomSheet(
       context: context,

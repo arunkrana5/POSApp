@@ -58,6 +58,15 @@ class SQLiteHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE,
         phone TEXT,
+        email TEXT,
+        whatsapp TEXT,
+        fatherName TEXT,
+        address TEXT,
+        village TEXT,
+        po TEXT,
+        ps TEXT,
+        dist TEXT,
+        pincode TEXT,
         udhaar REAL DEFAULT 0.0,
         lastTx TEXT
       )
@@ -67,6 +76,18 @@ class SQLiteHelper {
   Future<void> ensureTablesExist() async {
     final db = await instance.database;
     await _createDB(db, 1);
+    
+    // Auto-migrate missing columns for existing SQLite databases
+    final List<String> newColumns = [
+      'email', 'whatsapp', 'fatherName', 'address', 'village', 'po', 'ps', 'dist', 'pincode'
+    ];
+    for (var col in newColumns) {
+      try {
+        await db.execute('ALTER TABLE customers ADD COLUMN $col TEXT');
+      } catch (_) {
+        // Column already exists
+      }
+    }
   }
 
   Future<void> saveProducts(List<Product> products) async {
@@ -128,6 +149,33 @@ class SQLiteHelper {
       where: 'name = ?',
       whereArgs: [name],
     );
+  }
+
+  Future<void> updateCustomerRecord(String oldName, Map<String, dynamic> c) async {
+    final db = await instance.database;
+    await ensureTablesExist();
+    await db.update(
+      'customers',
+      c,
+      where: 'name = ?',
+      whereArgs: [oldName],
+    );
+  }
+
+  Future<void> updateProductRecord(String oldName, Map<String, dynamic> p) async {
+    final db = await instance.database;
+    await ensureTablesExist();
+    await db.update(
+      'products',
+      p,
+      where: 'name = ?',
+      whereArgs: [oldName],
+    );
+  }
+
+  Future<void> deleteCustomerRecord(String name) async {
+    final db = await instance.database;
+    await db.delete('customers', where: 'name = ?', whereArgs: [name]);
   }
 
   Future<void> addToSyncQueue(String clientTxId, String entityName, String payloadJson) async {

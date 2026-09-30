@@ -998,66 +998,15 @@ class _PosScreenState extends State<PosScreen> {
                         ),
                         onPressed: _cartItems.isEmpty
                             ? null
-                            : () async {
-                                final invoiceNo = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
-                                final cartSnapshot = List<Map<String, dynamic>>.from(_cartItems);
-                                final subtotalSnapshot = _subtotal;
-                                final taxSnapshot = taxAmount;
-                                final grandTotalSnapshot = grandTotal;
-                                final modeSnapshot = _selectedPaymentMode;
-                                final customerSnapshot = _selectedCustomer;
-                                final phoneSnapshot = _customerPhoneController.text;
-
-                                final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                                final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-                                await syncProvider.saveOfflineSale({
-                                  'clientTransactionId': invoiceNo,
-                                  'tenantId': authProvider.tenantId,
-                                  'tenantCode': authProvider.tenantCode,
-                                  'customer': customerSnapshot,
-                                  'customerName': customerSnapshot,
-                                  'customerPhone': phoneSnapshot,
-                                  'subtotal': subtotalSnapshot,
-                                  'taxAmount': taxSnapshot,
-                                  'amount': grandTotalSnapshot,
-                                  'totalAmount': grandTotalSnapshot,
-                                  'paidAmount': modeSnapshot == 'Udhaar' ? 0 : grandTotalSnapshot,
-                                  'paymentMode': modeSnapshot,
-                                  'items': cartSnapshot,
-                                  'createdAt': DateTime.now().toIso8601String(),
-                                });
-
-                                if (context.mounted) {
-                                  setState(() {
-                                    for (var cartItem in cartSnapshot) {
-                                      final idx = _availableProducts.indexWhere((p) => p['id'] == cartItem['id'] || p['name'] == cartItem['name']);
-                                      if (idx >= 0) {
-                                        final current = (_availableProducts[idx]['stock'] as num).toInt();
-                                        final qty = (cartItem['qty'] as num).toInt();
-                                        _availableProducts[idx]['stock'] = (current - qty) < 0 ? 0 : (current - qty);
-                                      }
-                                    }
-                                    _cartItems.clear();
-                                    _selectedCustomer = 'Walk-in Customer';
-                                    _customerPhoneController.clear();
-                                    _selectedPaymentMode = 'Cash';
-                                  });
-
-                                  // Pop up the completed invoice receipt with WhatsApp & Print options!
-                                  _showInvoiceReceiptModal(
-                                    context: context,
-                                    isHindi: isHindi,
-                                    themeProvider: themeProvider,
-                                    invoiceNo: invoiceNo,
-                                    customerName: customerSnapshot,
-                                    customerPhone: phoneSnapshot,
-                                    items: cartSnapshot,
-                                    subtotal: subtotalSnapshot,
-                                    taxAmount: taxSnapshot,
-                                    grandTotal: grandTotalSnapshot,
-                                    paymentMode: modeSnapshot,
-                                  );
-                                }
+                            : () {
+                                _showCheckoutPaymentModal(
+                                  context: context,
+                                  isHindi: isHindi,
+                                  themeProvider: themeProvider,
+                                  subtotal: _subtotal,
+                                  taxAmount: taxAmount,
+                                  grandTotal: grandTotal,
+                                );
                               },
                       ),
                     ),
@@ -1071,6 +1020,279 @@ class _PosScreenState extends State<PosScreen> {
     ),
   ),
 );
+}
+
+  void _showCheckoutPaymentModal({
+    required BuildContext context,
+    required bool isHindi,
+    required TenantThemeProvider themeProvider,
+    required double subtotal,
+    required double taxAmount,
+    required double grandTotal,
+  }) {
+    final discountCtrl = TextEditingController(text: '0');
+    final paidCtrl = TextEditingController(text: grandTotal.toStringAsFixed(0));
+    String mode = _selectedPaymentMode;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            final discount = double.tryParse(discountCtrl.text) ?? 0.0;
+            final netPayable = (grandTotal - discount).clamp(0.0, double.infinity);
+            final paidAmount = double.tryParse(paidCtrl.text) ?? netPayable;
+            final remainingUdhaar = mode == 'Udhaar'
+                ? netPayable
+                : (netPayable - paidAmount).clamp(0.0, double.infinity);
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isHindi ? 'भुगतान एवं रसीद सेटलमेंट' : 'Payment Settlement & Bill Checkout',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
+                        ),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(modalCtx)),
+                      ],
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 8),
+
+                    // Customer & Mode Info Header
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Customer: $_selectedCustomer', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text('Phone: ${_customerPhoneController.text.isEmpty ? "Walk-in" : _customerPhoneController.text}', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(color: themeProvider.primaryColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
+                            child: Text(mode.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.primaryColor, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Amount Breakdown
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Subtotal: ₹${subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)),
+                        if (taxAmount > 0) Text('GST: ₹${taxAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Round Off & Discount Field
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: discountCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'छूट / राउंड ऑफ (₹ Discount)' : 'Discount / Round Off (₹)',
+                              hintText: 'e.g. 1 for ₹41 -> ₹40',
+                              border: const OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                            onChanged: (val) {
+                              setModalState(() {
+                                final d = double.tryParse(val) ?? 0.0;
+                                final net = (grandTotal - d).clamp(0.0, double.infinity);
+                                paidCtrl.text = net.toStringAsFixed(0);
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () {
+                            setModalState(() {
+                              final roundTotal = grandTotal.floorToDouble();
+                              final autoDiscount = grandTotal - roundTotal;
+                              discountCtrl.text = autoDiscount.toStringAsFixed(2);
+                              paidCtrl.text = roundTotal.toStringAsFixed(0);
+                            });
+                          },
+                          child: Text(isHindi ? 'राउंड ऑफ ₹${grandTotal.floor()}' : 'Round to ₹${grandTotal.floor()}'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Paid Amount Field
+                    TextField(
+                      controller: paidCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'प्राप्त राशि (₹ Paid Amount)' : 'Amount Paid by Customer (₹)',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.payments_rounded, color: Colors.green),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Net Payable & Udhaar Notice Banner
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: remainingUdhaar > 0 ? Colors.red.shade50 : Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: remainingUdhaar > 0 ? Colors.red.shade200 : Colors.green.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(isHindi ? 'नेट देय राशि (Net Payable):' : 'Net Payable Total:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text('₹ ${netPayable.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: themeProvider.primaryColor)),
+                            ],
+                          ),
+                          if (remainingUdhaar > 0) ...[
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(Icons.info_outline, size: 16, color: Colors.red),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    isHindi
+                                        ? 'नोट: ₹ ${remainingUdhaar.toStringAsFixed(2)} बकाया ग्राहक (${_selectedCustomer}) के उधार खाते में जुड़ जाएगा।'
+                                        : 'Notice: Remaining ₹ ${remainingUdhaar.toStringAsFixed(2)} will be added to Customer (${_selectedCustomer}) Udhaar ledger balance.',
+                                    style: TextStyle(fontSize: 11, color: Colors.red.shade900, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: remainingUdhaar > 0 ? Colors.red.shade700 : themeProvider.buttonBgColor,
+                          foregroundColor: themeProvider.buttonTextColor,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () async {
+                          final invoiceNo = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+                          final cartSnapshot = List<Map<String, dynamic>>.from(_cartItems);
+                          final subtotalSnapshot = subtotal;
+                          final taxSnapshot = taxAmount;
+                          final netPayableSnapshot = netPayable;
+                          final modeSnapshot = mode;
+                          final customerSnapshot = _selectedCustomer;
+                          final phoneSnapshot = _customerPhoneController.text;
+
+                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                          final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                          await syncProvider.saveOfflineSale({
+                            'clientTransactionId': invoiceNo,
+                            'tenantId': authProvider.tenantId,
+                            'tenantCode': authProvider.tenantCode,
+                            'customer': customerSnapshot,
+                            'customerName': customerSnapshot,
+                            'customerPhone': phoneSnapshot,
+                            'subtotal': subtotalSnapshot,
+                            'taxAmount': taxSnapshot,
+                            'amount': netPayableSnapshot,
+                            'totalAmount': netPayableSnapshot,
+                            'paidAmount': paidAmount,
+                            'paymentMode': modeSnapshot,
+                            'items': cartSnapshot,
+                            'createdAt': DateTime.now().toIso8601String(),
+                          });
+
+                          // Update Customer Udhaar Ledger balance if remainingUdhaar > 0
+                          if (remainingUdhaar > 0 && customerSnapshot != 'Walk-in Customer') {
+                            final customersList = await SQLiteHelper.instance.getCustomers();
+                            final cust = customersList.firstWhere((c) => c['name'] == customerSnapshot, orElse: () => {});
+                            final currentBalance = (cust['udhaar'] as num?)?.toDouble() ?? 0.0;
+                            final newBalance = currentBalance + remainingUdhaar;
+                            await SQLiteHelper.instance.updateCustomerUdhaar(customerSnapshot, newBalance);
+                          }
+
+                          if (context.mounted) {
+                            setState(() {
+                              for (var cartItem in cartSnapshot) {
+                                final idx = _availableProducts.indexWhere((p) => p['id'] == cartItem['id'] || p['name'] == cartItem['name']);
+                                if (idx >= 0) {
+                                  final current = (_availableProducts[idx]['stock'] as num).toDouble();
+                                  final qty = (cartItem['qty'] as num).toDouble();
+                                  _availableProducts[idx]['stock'] = (current - qty) < 0 ? 0 : (current - qty);
+                                  // Update SQLite stock
+                                  SQLiteHelper.instance.deductProductStock(_availableProducts[idx]['name'], qty);
+                                }
+                              }
+                              _cartItems.clear();
+                              _selectedCustomer = 'Walk-in Customer';
+                              _customerPhoneController.clear();
+                              _selectedPaymentMode = 'Cash';
+                            });
+
+                            Navigator.pop(modalCtx);
+
+                            _showInvoiceReceiptModal(
+                              context: context,
+                              isHindi: isHindi,
+                              themeProvider: themeProvider,
+                              invoiceNo: invoiceNo,
+                              customerName: customerSnapshot,
+                              customerPhone: phoneSnapshot,
+                              items: cartSnapshot,
+                              subtotal: subtotalSnapshot,
+                              taxAmount: taxSnapshot,
+                              grandTotal: netPayableSnapshot,
+                              paymentMode: modeSnapshot,
+                            );
+                          }
+                        },
+                        child: Text(
+                          isHindi ? 'बिल पक्का करें (Complete & Print)' : 'Settle Bill & Print Receipt',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showAddCustomerDialog(BuildContext context, bool isHindi) {

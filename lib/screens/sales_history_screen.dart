@@ -383,7 +383,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     final themeProvider = Provider.of<TenantThemeProvider>(context);
     final isHindi = localeProvider.isHindi;
 
-    final filtered = _salesList.filter((s) {
+    final filtered = _salesList.where((s) {
       final invId = s['id']?.toString().toLowerCase() ?? '';
       final cust = s['customerName']?.toString().toLowerCase() ?? '';
       final mode = s['paymentMode']?.toString().toLowerCase() ?? '';
@@ -572,20 +572,29 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 10),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton.icon(
-                                      style: OutlinedButton.styleFrom(
-                                        side: BorderSide(color: themeProvider.primaryColor),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          style: OutlinedButton.styleFrom(
+                                            side: BorderSide(color: themeProvider.primaryColor),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          icon: Icon(Icons.print_rounded, size: 18, color: themeProvider.primaryColor),
+                                          label: Text(
+                                            isHindi ? 'इनवॉइस देखें / प्रिंट' : 'View / Print Invoice',
+                                            style: TextStyle(color: themeProvider.primaryColor, fontWeight: FontWeight.bold),
+                                          ),
+                                          onPressed: () => _showProfessionalInvoiceModal(sale),
+                                        ),
                                       ),
-                                      icon: Icon(Icons.print_rounded, size: 18, color: themeProvider.primaryColor),
-                                      label: Text(
-                                        isHindi ? 'इनवॉइस देखें / डाउनलोड' : 'View & Print A4 Invoice',
-                                        style: TextStyle(color: themeProvider.primaryColor, fontWeight: FontWeight.bold),
+                                      const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
+                                        tooltip: 'Edit Invoice Metadata',
+                                        onPressed: () => _showEditSaleModal(sale, isHindi, themeProvider),
                                       ),
-                                      onPressed: () => _showProfessionalInvoiceModal(sale),
-                                    ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -600,16 +609,147 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   ),
 );
 }
-}
 
-extension ListFilterExt on List<Map<String, dynamic>> {
-  List<Map<String, dynamic>> filter(bool Function(Map<String, dynamic>) test) {
-    final List<Map<String, dynamic>> result = [];
-    for (var element in this) {
-      if (test(element)) {
-        result.add(element);
-      }
-    }
-    return result;
+  void _showEditSaleModal(Map<String, dynamic> sale, bool isHindi, TenantThemeProvider themeProvider) {
+    final custCtrl = TextEditingController(text: (sale['customerName'] ?? sale['customer'] ?? '').toString());
+    final phoneCtrl = TextEditingController(text: (sale['customerPhone'] ?? '').toString());
+    final amtCtrl = TextEditingController(text: (sale['totalAmount'] ?? sale['amount'] ?? 0.0).toString());
+    final paidCtrl = TextEditingController(text: (sale['paidAmount'] ?? sale['totalAmount'] ?? 0.0).toString());
+    String selectedMode = (sale['paymentMode'] ?? 'Cash').toString();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 16,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isHindi ? 'बिक्री इनवॉइस एडिट करें' : 'Edit Invoice Record',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
+                        ),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(modalCtx)),
+                      ],
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 8),
+                    Text('Invoice ID: ${sale["id"] ?? sale["clientTransactionId"]}', style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: custCtrl,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'ग्राहक नाम' : 'Customer Name',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: phoneCtrl,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'ग्राहक मोबाइल' : 'Customer Phone',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: amtCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'कुल राशि (₹ Total)' : 'Total Bill (₹)',
+                              border: const OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: paidCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'प्राप्त नगद (₹ Paid)' : 'Paid Amount (₹)',
+                              border: const OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: ['Cash', 'UPI', 'Udhaar'].contains(selectedMode) ? selectedMode : 'Cash',
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'भुगतान का प्रकार' : 'Payment Mode',
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'Cash', child: Text('Cash (नगद)')),
+                        DropdownMenuItem(value: 'UPI', child: Text('UPI / Online')),
+                        DropdownMenuItem(value: 'Udhaar', child: Text('Udhaar (उधार)')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setModalState(() => selectedMode = val);
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeProvider.buttonBgColor,
+                          foregroundColor: themeProvider.buttonTextColor,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            sale['customerName'] = custCtrl.text.trim();
+                            sale['customer'] = custCtrl.text.trim();
+                            sale['customerPhone'] = phoneCtrl.text.trim();
+                            sale['totalAmount'] = double.tryParse(amtCtrl.text) ?? sale['totalAmount'];
+                            sale['paidAmount'] = double.tryParse(paidCtrl.text) ?? sale['paidAmount'];
+                            sale['paymentMode'] = selectedMode;
+                          });
+
+                          Navigator.pop(modalCtx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(isHindi ? 'इनवॉइस अपडेट किया गया!' : 'Invoice record updated successfully!'),
+                              backgroundColor: Colors.green.shade700,
+                            ),
+                          );
+                        },
+                        child: Text(isHindi ? 'अपडेट सेव करें' : 'Save Invoice Edits', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
