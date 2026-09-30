@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/locale_provider.dart';
+import 'providers/notification_provider.dart';
 import 'providers/sync_provider.dart';
 import 'providers/theme_provider.dart';
 
@@ -37,6 +38,7 @@ class VillageShopApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(create: (_) => SyncProvider()),
         ChangeNotifierProvider(create: (_) => TenantThemeProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: Consumer2<LocaleProvider, TenantThemeProvider>(
         builder: (context, localeProvider, themeProvider, child) {

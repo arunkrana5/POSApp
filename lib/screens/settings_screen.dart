@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
+import '../providers/notification_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
@@ -156,7 +157,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // 4. Offline Data Sync Engine
+                // 4. Firebase Cloud Messaging (FCM) Push Notification Config
+                _buildSectionTitle(
+                  isHindi ? 'FCM पुष्पा सूचना कंफ़िगरेशन (Push Notifications)' : 'FCM Push Notifications Config',
+                  Icons.notifications_active_rounded,
+                  themeProvider,
+                ),
+                const SizedBox(height: 12),
+                _buildFcmCredentialsCard(
+                  context,
+                  isHindi: isHindi,
+                  themeProvider: themeProvider,
+                ),
+                const SizedBox(height: 24),
+
+                // 5. Offline Data Sync Engine
                 _buildSectionTitle(
                   isHindi ? 'ऑफलाइन डेटा सिंक इंजन' : 'Offline Data Sync Engine',
                   Icons.cloud_sync_rounded,
@@ -832,6 +847,123 @@ class _SettingsScreenState extends State<SettingsScreen> {
             }
           },
         ),
+      ),
+    );
+  }
+
+  Widget _buildFcmCredentialsCard(
+    BuildContext context, {
+    required bool isHindi,
+    required TenantThemeProvider themeProvider,
+  }) {
+    final notifProvider = Provider.of<NotificationProvider>(context);
+    final fcm = notifProvider.fcmConfig;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: themeProvider.cardBgColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: themeProvider.textColor.withOpacity(0.08), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.mark_chat_unread_rounded, color: Colors.orange.shade800, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    isHindi ? 'FCM वेब एवं मोबाइल कंफ़िग' : 'FCM Web & Mobile Configuration',
+                    style: TextStyle(
+                      fontFamily: themeProvider.fontFamily,
+                      fontSize: 14 * themeProvider.fontSizeScale,
+                      fontWeight: FontWeight.bold,
+                      color: themeProvider.textColor,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'READY',
+                  style: TextStyle(
+                    color: Colors.green.shade800,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Divider(height: 20),
+          _buildFcmKeyRow('FcmApiKey', fcm['fcmApiKey'] ?? '', themeProvider),
+          _buildFcmKeyRow('FcmAuthDomain', fcm['fcmAuthDomain'] ?? '', themeProvider),
+          _buildFcmKeyRow('FcmProjectId', fcm['fcmProjectId'] ?? '', themeProvider),
+          _buildFcmKeyRow('FcmStorageBucket', fcm['fcmStorageBucket'] ?? '', themeProvider),
+          _buildFcmKeyRow('FcmMessagingSenderId', fcm['fcmMessagingSenderId'] ?? '', themeProvider),
+          _buildFcmKeyRow('FcmAppId', fcm['fcmAppId'] ?? '', themeProvider),
+          _buildFcmKeyRow('measurementId', fcm['measurementId'] ?? '', themeProvider),
+          _buildFcmKeyRow('FcmVapidKey', fcm['fcmVapidKey'] ?? '', themeProvider),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFcmKeyRow(String key, String value, TenantThemeProvider themeProvider) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 160,
+            child: Text(
+              key,
+              style: TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 11 * themeProvider.fontSizeScale,
+                fontWeight: FontWeight.bold,
+                color: themeProvider.textColor.withOpacity(0.7),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11 * themeProvider.fontSizeScale,
+                  color: Colors.grey.shade900,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

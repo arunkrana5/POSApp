@@ -7,8 +7,10 @@ import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/notification_provider.dart';
 import '../widgets/analytics_charts_widget.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/notification_bell_icon.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,6 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
         Provider.of<SyncProvider>(context, listen: false).loadPendingCount();
         Provider.of<TenantThemeProvider>(context, listen: false)
             .fetchAndApplyConfig(auth.accessToken ?? '', auth.tenantCode, auth.tenantId);
+        Provider.of<NotificationProvider>(context, listen: false)
+            .fetchNotifications(tenantId: auth.tenantId ?? 1, tenantCode: auth.tenantCode, token: auth.accessToken);
         _loadDashboardMetrics();
       }
     });
@@ -167,6 +171,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          const NotificationBellIcon(),
           IconButton(
             icon: Icon(
               localeProvider.isHindi ? Icons.g_translate_rounded : Icons.language_rounded,
