@@ -12,6 +12,7 @@ import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
+import '../database/sqlite_helper.dart';
 
 Widget buildProductThumbnail(String imgUrl, {double size = 40}) {
   if (imgUrl.startsWith('data:image/')) {
@@ -885,6 +886,34 @@ class _StockScreenState extends State<StockScreen> {
                                 'hsnCode': hsnCtrl.text.trim(),
                                 'imageUrl': uploadedCompressedPhotoUrl ?? '',
                               };
+
+                              if (existingProduct != null) {
+                                final pName = existingProduct['name']?.toString() ?? selectedCatalogItem?['name']?.toString() ?? 'Item';
+                                final updatedItem = {
+                                  'name': pName,
+                                  'price': price,
+                                  'stock': stock,
+                                  'barcode': barcodeCtrl.text.trim(),
+                                  'category': selectedCatalogItem?['category'] ?? existingProduct['category'] ?? 'Groceries',
+                                };
+                                await SQLiteHelper.instance.updateProductRecord(pName, updatedItem);
+                                if (mounted) {
+                                  setState(() {
+                                    existingProduct['price'] = price;
+                                    existingProduct['stock'] = stock;
+                                    existingProduct['barcode'] = barcodeCtrl.text.trim();
+                                  });
+                                }
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(isHindi ? 'स्टॉक आइटम अपडेट किया गया!' : 'Stock item updated successfully!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                                _loadProducts();
+                                return;
+                              }
 
                               final res = await http.post(
                                 Uri.parse('${ApiConfig.baseUrl}/stock'),
