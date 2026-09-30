@@ -17,12 +17,7 @@ class CustomersScreen extends StatefulWidget {
 }
 
 class _CustomersScreenState extends State<CustomersScreen> {
-  List<Map<String, dynamic>> _customers = [
-    {'id': '1', 'name': 'Ramesh Kumar', 'phone': '+91 98765 43210', 'udhaar': 2400.0, 'lastTx': '12 Sep 2026'},
-    {'id': '2', 'name': 'Suresh Patel', 'phone': '+91 98123 45678', 'udhaar': 1200.0, 'lastTx': '11 Sep 2026'},
-    {'id': '3', 'name': 'Anita Devi', 'phone': '+91 97654 32109', 'udhaar': 0.0, 'lastTx': '10 Sep 2026'},
-    {'id': '4', 'name': 'Vikas Verma', 'phone': '+91 99887 76655', 'udhaar': 880.0, 'lastTx': '09 Sep 2026'},
-  ];
+  List<Map<String, dynamic>> _customers = [];
 
   String _searchQuery = '';
   bool _isLoading = false;
@@ -57,12 +52,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
           'lastTx': c['lastTx'] ?? 'Registered Today',
         }).toList();
 
-        final existingNames = loaded.map((e) => e['name'].toString().toLowerCase()).toSet();
-        for (var d in _customers) {
-          if (!existingNames.contains(d['name'].toString().toLowerCase())) {
-            loaded.add(d);
-          }
-        }
         setState(() {
           _customers = loaded;
         });
@@ -86,12 +75,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
             'lastTx': c['lastTx'] ?? 'Today',
           }).toList();
 
-          final existingNames = loaded.map((e) => e['name'].toString().toLowerCase()).toSet();
-          for (var d in _customers) {
-            if (!existingNames.contains(d['name'].toString().toLowerCase())) {
-              loaded.add(d);
-            }
-          }
           setState(() {
             _customers = loaded;
           });
