@@ -21,23 +21,32 @@ class PosScreen extends StatefulWidget {
 }
 
 class _PosScreenState extends State<PosScreen> {
-  Widget _buildTileThumbnail(String imgUrl, {double size = 36}) {
-    if (imgUrl.startsWith('data:image/')) {
+  Widget _buildTileThumbnail(String imgUrl, {double size = 44}) {
+    final clean = imgUrl.trim();
+    if (clean.isEmpty) {
+      return Icon(Icons.inventory_2_rounded, size: size * 0.6, color: Colors.blue);
+    }
+    if (clean.startsWith('data:image/')) {
       try {
-        final parts = imgUrl.split(',');
+        final parts = clean.split(',');
         if (parts.length > 1) {
-          final bytes = base64Decode(parts[1]);
+          final bytes = base64Decode(parts[1].trim());
           return Image.memory(bytes, width: size, height: size, fit: BoxFit.cover);
         }
       } catch (_) {}
-    } else if (imgUrl.startsWith('http')) {
+    } else if (clean.startsWith('http://') || clean.startsWith('https://')) {
       return Image.network(
-        imgUrl,
+        clean,
         width: size,
         height: size,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Icon(Icons.inventory_2_rounded, size: size * 0.6, color: Colors.blue),
       );
+    } else {
+      try {
+        final bytes = base64Decode(clean);
+        return Image.memory(bytes, width: size, height: size, fit: BoxFit.cover);
+      } catch (_) {}
     }
     return Icon(Icons.inventory_2_rounded, size: size * 0.6, color: Colors.blue);
   }
@@ -794,15 +803,15 @@ class _PosScreenState extends State<PosScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              width: 36,
-                              height: 36,
+                              width: 44,
+                              height: 44,
                               decoration: BoxDecoration(
                                 color: Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: Colors.grey.shade200),
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: _buildTileThumbnail(imgUrl, size: 36),
+                              child: _buildTileThumbnail(imgUrl, size: 44),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
