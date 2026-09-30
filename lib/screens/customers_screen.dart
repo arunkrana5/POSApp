@@ -685,26 +685,71 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed: () async {
-                    if (nameCtrl.text.isNotEmpty) {
-                      final phoneStr = phoneCtrl.text.isNotEmpty ? phoneCtrl.text : '+91 99000 00000';
-                      final newUdhaar = double.tryParse(udhaarCtrl.text) ?? 0.0;
+                    if (nameCtrl.text.trim().isEmpty) return;
 
-                      final record = {
-                        'name': nameCtrl.text.trim(),
-                        'phone': phoneStr.trim(),
-                        'email': emailCtrl.text.trim(),
-                        'whatsapp': whatsappCtrl.text.trim(),
-                        'fatherName': fatherCtrl.text.trim(),
-                        'address': addressCtrl.text.trim(),
-                        'village': villageCtrl.text.trim(),
-                        'po': poCtrl.text.trim(),
-                        'ps': psCtrl.text.trim(),
-                        'dist': distCtrl.text.trim(),
-                        'pincode': pincodeCtrl.text.trim(),
-                        'udhaar': newUdhaar,
-                        'lastTx': existing != null ? 'Profile Updated' : 'Registered Today',
-                      };
+                    final phoneStr = phoneCtrl.text.isNotEmpty ? phoneCtrl.text.trim() : '+91 99000 00000';
+                    final newUdhaar = double.tryParse(udhaarCtrl.text) ?? 0.0;
 
+                    final record = {
+                      'name': nameCtrl.text.trim(),
+                      'phone': phoneStr,
+                      'email': emailCtrl.text.trim(),
+                      'whatsapp': whatsappCtrl.text.trim(),
+                      'fatherName': fatherCtrl.text.trim(),
+                      'address': addressCtrl.text.trim(),
+                      'village': villageCtrl.text.trim(),
+                      'po': poCtrl.text.trim(),
+                      'ps': psCtrl.text.trim(),
+                      'dist': distCtrl.text.trim(),
+                      'pincode': pincodeCtrl.text.trim(),
+                      'udhaar': newUdhaar,
+                      'lastTx': existing != null ? 'Profile Updated' : 'Registered Today',
+                    };
+
+                    // 1. Instantly update in-memory state
+                    if (mounted) {
+                      setState(() {
+                        if (existing != null) {
+                          existing['name'] = record['name'];
+                          existing['phone'] = record['phone'];
+                          existing['email'] = record['email'];
+                          existing['whatsapp'] = record['whatsapp'];
+                          existing['fatherName'] = record['fatherName'];
+                          existing['address'] = record['address'];
+                          existing['village'] = record['village'];
+                          existing['po'] = record['po'];
+                          existing['ps'] = record['ps'];
+                          existing['dist'] = record['dist'];
+                          existing['pincode'] = record['pincode'];
+                          existing['udhaar'] = record['udhaar'];
+                        } else {
+                          _customers.insert(0, Map<String, dynamic>.from(record));
+                        }
+                      });
+                    }
+
+                    // 2. Instantly pop modal sheet so UI never freezes
+                    if (ctx.mounted) {
+                      Navigator.of(ctx).pop();
+                    }
+
+                    // 3. Show feedback snackbar immediately
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            existing != null
+                                ? (isHindi ? 'ग्राहक मास्टर प्रोफाइल अपडेट हुई!' : 'Customer Master profile updated!')
+                                : (isHindi ? 'ग्राहक सफलतापूर्वक सहेजा गया!' : 'Customer saved successfully!'),
+                          ),
+                          backgroundColor: Colors.green.shade700,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+
+                    // 4. Perform background persistence (SQLite & HTTP API)
+                    try {
                       final sqlite = SQLiteHelper.instance;
                       if (existing != null) {
                         final oldName = existing['name']?.toString() ?? nameCtrl.text.trim();
@@ -712,63 +757,25 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       } else {
                         await sqlite.saveCustomer(record);
                       }
+                    } catch (_) {}
 
-                      try {
-                        final baseUrl = ApiConfig.baseUrl;
-                        final targetId = existing != null ? (existing['id']?.toString() ?? existing['name']) : '';
-                        if (existing != null && targetId != null && targetId.toString().isNotEmpty) {
-                          await http.put(
-                            Uri.parse('$baseUrl/customers/$targetId'),
-                            headers: {'Content-Type': 'application/json'},
-                            body: jsonEncode(record),
-                          ).timeout(const Duration(seconds: 10));
-                        } else {
-                          await http.post(
-                            Uri.parse('$baseUrl/customers'),
-                            headers: {'Content-Type': 'application/json'},
-                            body: jsonEncode(record),
-                          ).timeout(const Duration(seconds: 10));
-                        }
-                      } catch (_) {}
-
-                      final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-                      await syncProvider.saveOfflineCustomer(nameCtrl.text, phoneStr);
-
-                      if (mounted) {
-                        setState(() {
-                          if (existing != null) {
-                            existing['name'] = record['name'];
-                            existing['phone'] = record['phone'];
-                            existing['email'] = record['email'];
-                            existing['whatsapp'] = record['whatsapp'];
-                            existing['fatherName'] = record['fatherName'];
-                            existing['address'] = record['address'];
-                            existing['village'] = record['village'];
-                            existing['po'] = record['po'];
-                            existing['ps'] = record['ps'];
-                            existing['dist'] = record['dist'];
-                            existing['pincode'] = record['pincode'];
-                            existing['udhaar'] = record['udhaar'];
-                          } else {
-                            _customers.insert(0, Map<String, dynamic>.from(record));
-                          }
-                        });
+                    try {
+                      final baseUrl = ApiConfig.baseUrl;
+                      final targetId = existing != null ? (existing['id']?.toString() ?? existing['name']) : '';
+                      if (existing != null && targetId != null && targetId.toString().isNotEmpty) {
+                        await http.put(
+                          Uri.parse('$baseUrl/customers/$targetId'),
+                          headers: {'Content-Type': 'application/json'},
+                          body: jsonEncode(record),
+                        ).timeout(const Duration(seconds: 8));
+                      } else {
+                        await http.post(
+                          Uri.parse('$baseUrl/customers'),
+                          headers: {'Content-Type': 'application/json'},
+                          body: jsonEncode(record),
+                        ).timeout(const Duration(seconds: 8));
                       }
-
-                      if (mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              existing != null
-                                  ? (isHindi ? 'ग्राहक मास्टर प्रोफाइल अपडेट हुई!' : 'Customer Master profile updated!')
-                                  : (isHindi ? 'ग्राहक सफलतापूर्वक सहेजा गया!' : 'Customer saved successfully!'),
-                            ),
-                            backgroundColor: Colors.green.shade700,
-                          ),
-                        );
-                      }
-                    }
+                    } catch (_) {}
                   },
                   child: Text(
                     existing != null ? (isHindi ? 'अपडेट सेव करें' : 'Update Profile') : (isHindi ? 'ग्राहक सेव करें' : 'Save Customer Profile'),
