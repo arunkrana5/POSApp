@@ -215,9 +215,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // Summary Cards Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -335,8 +339,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildReportCard(BuildContext context, String title, String value, IconData icon, Color color, TenantThemeProvider themeProvider) {
     return Container(

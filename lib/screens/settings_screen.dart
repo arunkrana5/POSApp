@@ -39,9 +39,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             // Client Store Profile & Subscription Card
             Text(
               isHindi ? 'दुकान प्रोफ़ाइल एवं खाता (Client Profile)' : 'Client Profile & Store Info',
@@ -256,8 +260,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildProfileItem(String label, String value, TenantThemeProvider themeProvider) {
     return Column(

@@ -405,8 +405,12 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
         ],
       ),
       drawer: const AppDrawer(),
-      body: Column(
-        children: [
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            children: [
           // Stat Overview Banner
           Container(
             padding: const EdgeInsets.all(14),
@@ -592,8 +596,10 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 }
 
 extension ListFilterExt on List<Map<String, dynamic>> {

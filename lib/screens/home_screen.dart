@@ -175,11 +175,15 @@ class _HomeScreenState extends State<HomeScreen> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Welcome Banner & Quick Sync Pill
-              _buildGreetingHeader(context, username ?? tenantName, isHindi, syncProvider, themeProvider),
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Welcome Banner & Quick Sync Pill
+                  _buildGreetingHeader(context, username ?? tenantName, isHindi, syncProvider, themeProvider),
               const SizedBox(height: 20),
 
               // Metric Summary Cards (4 Grids)
@@ -247,6 +251,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    ),
+  ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: themeProvider.buttonBgColor,
         elevation: 4,
@@ -341,51 +347,56 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildStatsGrid(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
-    return GridView.count(
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
-      children: [
-        _buildStatCard(
-          context,
-          isHindi ? 'आज की बिक्री' : 'Today\'s Sales',
-          '₹ ${_todaySales.toStringAsFixed(2)}',
-          Icons.payments_rounded,
-          themeProvider.amountColor,
-          themeProvider.amountColor.withOpacity(0.1),
-          themeProvider,
-        ),
-        _buildStatCard(
-          context,
-          isHindi ? 'कुल उधार बकाया' : 'Total Udhaar',
-          '₹ ${_totalUdhaar.toStringAsFixed(2)}',
-          Icons.account_balance_wallet_rounded,
-          Colors.red.shade700,
-          Colors.red.shade50,
-          themeProvider,
-        ),
-        _buildStatCard(
-          context,
-          isHindi ? 'कम स्टॉक सामान' : 'Low Stock Alert',
-          '$_lowStockCount ${isHindi ? "सामान" : "Items"}',
-          Icons.warning_amber_rounded,
-          themeProvider.secondaryColor,
-          themeProvider.secondaryColor.withOpacity(0.1),
-          themeProvider,
-        ),
-        _buildStatCard(
-          context,
-          isHindi ? 'अनुमानित लाभ' : 'Estimated Profit',
-          '₹ ${_todayProfit.toStringAsFixed(2)}',
-          Icons.trending_up_rounded,
-          themeProvider.buttonBgColor,
-          themeProvider.buttonBgColor.withOpacity(0.1),
-          themeProvider,
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 700;
+        return GridView.count(
+          crossAxisCount: isDesktop ? 4 : 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: isDesktop ? 2.0 : 1.5,
+          children: [
+            _buildStatCard(
+              context,
+              isHindi ? 'आज की बिक्री' : 'Today\'s Sales',
+              '₹ ${_todaySales.toStringAsFixed(2)}',
+              Icons.payments_rounded,
+              themeProvider.amountColor,
+              themeProvider.amountColor.withOpacity(0.1),
+              themeProvider,
+            ),
+            _buildStatCard(
+              context,
+              isHindi ? 'कुल उधार बकाया' : 'Total Udhaar',
+              '₹ ${_totalUdhaar.toStringAsFixed(2)}',
+              Icons.account_balance_wallet_rounded,
+              Colors.red.shade700,
+              Colors.red.shade50,
+              themeProvider,
+            ),
+            _buildStatCard(
+              context,
+              isHindi ? 'कम स्टॉक सामान' : 'Low Stock Alert',
+              '$_lowStockCount ${isHindi ? "सामान" : "Items"}',
+              Icons.warning_amber_rounded,
+              themeProvider.secondaryColor,
+              themeProvider.secondaryColor.withOpacity(0.1),
+              themeProvider,
+            ),
+            _buildStatCard(
+              context,
+              isHindi ? 'अनुमानित लाभ' : 'Estimated Profit',
+              '₹ ${_todayProfit.toStringAsFixed(2)}',
+              Icons.trending_up_rounded,
+              themeProvider.buttonBgColor,
+              themeProvider.buttonBgColor.withOpacity(0.1),
+              themeProvider,
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -443,60 +454,114 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildQuickActionsGrid(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
-    return Column(
-      children: [
-        Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 700;
+        if (isDesktop) {
+          return Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  context,
+                  title: isHindi ? 'नया बिल (POS)' : 'New Bill (POS)',
+                  icon: Icons.point_of_sale_rounded,
+                  color: themeProvider.buttonBgColor,
+                  route: '/pos',
+                  themeProvider: themeProvider,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildActionButton(
+                  context,
+                  title: isHindi ? 'बिक्री इतिहास' : 'Sale History',
+                  icon: Icons.receipt_long_rounded,
+                  color: themeProvider.primaryColor,
+                  route: '/sales-history',
+                  themeProvider: themeProvider,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildActionButton(
+                  context,
+                  title: isHindi ? 'स्टॉक' : 'Stock',
+                  icon: Icons.add_box_rounded,
+                  color: themeProvider.secondaryColor,
+                  route: '/stock',
+                  themeProvider: themeProvider,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildActionButton(
+                  context,
+                  title: isHindi ? 'उधार खाता' : 'Udhaar Ledger',
+                  icon: Icons.people_alt_rounded,
+                  color: themeProvider.accentColor,
+                  route: '/customers',
+                  themeProvider: themeProvider,
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
           children: [
-            Expanded(
-              child: _buildActionButton(
-                context,
-                title: isHindi ? 'नया बिल (POS)' : 'New Bill (POS)',
-                icon: Icons.point_of_sale_rounded,
-                color: themeProvider.buttonBgColor,
-                route: '/pos',
-                themeProvider: themeProvider,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    title: isHindi ? 'नया बिल (POS)' : 'New Bill (POS)',
+                    icon: Icons.point_of_sale_rounded,
+                    color: themeProvider.buttonBgColor,
+                    route: '/pos',
+                    themeProvider: themeProvider,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    title: isHindi ? 'बिक्री इतिहास' : 'Sale History',
+                    icon: Icons.receipt_long_rounded,
+                    color: themeProvider.primaryColor,
+                    route: '/sales-history',
+                    themeProvider: themeProvider,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildActionButton(
-                context,
-                title: isHindi ? 'बिक्री इतिहास' : 'Sale History',
-                icon: Icons.receipt_long_rounded,
-                color: themeProvider.primaryColor,
-                route: '/sales-history',
-                themeProvider: themeProvider,
-              ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    title: isHindi ? 'स्टॉक' : 'Stock',
+                    icon: Icons.add_box_rounded,
+                    color: themeProvider.secondaryColor,
+                    route: '/stock',
+                    themeProvider: themeProvider,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildActionButton(
+                    context,
+                    title: isHindi ? 'उधार खाता' : 'Udhaar Ledger',
+                    icon: Icons.people_alt_rounded,
+                    color: themeProvider.accentColor,
+                    route: '/customers',
+                    themeProvider: themeProvider,
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _buildActionButton(
-                context,
-                title: isHindi ? 'स्टॉक' : 'Stock',
-                icon: Icons.add_box_rounded,
-                color: themeProvider.secondaryColor,
-                route: '/stock',
-                themeProvider: themeProvider,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildActionButton(
-                context,
-                title: isHindi ? 'उधार खाता' : 'Udhaar Ledger',
-                icon: Icons.people_alt_rounded,
-                color: themeProvider.accentColor,
-                route: '/customers',
-                themeProvider: themeProvider,
-              ),
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 

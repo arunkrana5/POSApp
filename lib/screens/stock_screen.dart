@@ -193,8 +193,12 @@ class _StockScreenState extends State<StockScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-      body: Column(
-        children: [
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            children: [
           // Search & Add Header
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -285,100 +289,125 @@ class _StockScreenState extends State<StockScreen> {
                           ),
                         ),
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        itemCount: filtered.length,
-                        separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                        itemBuilder: (ctx, index) {
-                          final item = filtered[index];
-                          final stock = (item['stock'] is num) ? (item['stock'] as num).toInt() : 0;
-                          final isLowStock = stock > 0 && stock <= 5;
-                          final isOutOfStock = stock <= 0;
-                          final imgUrl = item['imageUrl']?.toString() ?? '';
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isDesktop = constraints.maxWidth >= 750;
 
-                          return Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade200),
-                            ),
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: isOutOfStock
-                                        ? Colors.red.shade50
-                                        : (isLowStock ? Colors.orange.shade50 : Colors.blue.shade50),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.grey.shade300),
+                          Widget buildStockCard(Map<String, dynamic> item) {
+                            final stock = (item['stock'] is num) ? (item['stock'] as num).toInt() : 0;
+                            final isLowStock = stock > 0 && stock <= 5;
+                            final isOutOfStock = stock <= 0;
+                            final imgUrl = item['imageUrl']?.toString() ?? '';
+
+                            return Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: isOutOfStock
+                                          ? Colors.red.shade50
+                                          : (isLowStock ? Colors.orange.shade50 : Colors.blue.shade50),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: Colors.grey.shade300),
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: buildProductThumbnail(imgUrl, size: 48),
                                   ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: buildProductThumbnail(imgUrl, size: 48),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item['name'] ?? '',
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Category: ${item["category"]} • Rate: ₹${item["price"]}/${item["unit"] ?? "pcs"}',
-                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
-                                      ),
-                                      if (item['barcode'] != null && item['barcode'].toString().isNotEmpty)
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
                                         Text(
-                                          'Barcode: ${item['barcode']}',
-                                          style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.purple, fontWeight: FontWeight.bold),
+                                          item['name'] ?? '',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                                         ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Category: ${item["category"]} • Rate: ₹${item["price"]}/${item["unit"] ?? "pcs"}',
+                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                                        ),
+                                        if (item['barcode'] != null && item['barcode'].toString().isNotEmpty)
+                                          Text(
+                                            'Barcode: ${item['barcode']}',
+                                            style: const TextStyle(fontSize: 10, fontFamily: 'monospace', color: Colors.purple, fontWeight: FontWeight.bold),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: isOutOfStock
+                                              ? Colors.red.shade100
+                                              : (isLowStock ? Colors.orange.shade100 : Colors.green.shade100),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          isOutOfStock ? 'OUT OF STOCK' : 'Stock: $stock ${item["unit"] ?? ""}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: isOutOfStock
+                                                ? Colors.red.shade900
+                                                : (isLowStock ? Colors.orange.shade900 : Colors.green.shade900),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '₹ ${item["price"]}',
+                                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87),
+                                      ),
                                     ],
                                   ),
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: isOutOfStock
-                                            ? Colors.red.shade100
-                                            : (isLowStock ? Colors.orange.shade100 : Colors.green.shade100),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        isOutOfStock ? 'OUT OF STOCK' : 'Stock: $stock ${item["unit"] ?? ""}',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: isOutOfStock
-                                              ? Colors.red.shade900
-                                              : (isLowStock ? Colors.orange.shade900 : Colors.green.shade900),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '₹ ${item["price"]}',
-                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.black87),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          if (isDesktop) {
+                            return GridView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                                mainAxisExtent: 96,
+                              ),
+                              itemCount: filtered.length,
+                              itemBuilder: (ctx, index) => buildStockCard(filtered[index]),
+                            );
+                          }
+
+                          return ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            itemCount: filtered.length,
+                            separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                            itemBuilder: (ctx, index) => buildStockCard(filtered[index]),
                           );
                         },
                       ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   void _showAddProductModal(BuildContext context, bool isHindi) {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);

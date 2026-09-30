@@ -28,7 +28,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Column(
           children: [
             TextField(
               controller: _amountController,
@@ -111,7 +115,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     : const Text("बिक्री पक्की करें (COMPLETE SALE)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
             )
-          ],
+            ],
+          ),
         ),
       ),
     );

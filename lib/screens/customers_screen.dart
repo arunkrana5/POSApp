@@ -101,8 +101,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-      body: Column(
-        children: [
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            children: [
           // Total Udhaar Banner
           Container(
             padding: const EdgeInsets.all(16),
@@ -177,72 +181,95 @@ class _CustomersScreenState extends State<CustomersScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    itemCount: filteredCustomers.length,
-                    separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                    itemBuilder: (ctx, index) {
-                      final customer = filteredCustomers[index];
-                      final udhaarVal = (customer['udhaar'] as num?)?.toDouble() ?? 0.0;
-                      final hasBalance = udhaarVal > 0;
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isDesktop = constraints.maxWidth >= 750;
 
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: hasBalance ? Colors.red.shade100 : Colors.green.shade100,
-                            child: Icon(
-                              Icons.person_rounded,
-                              color: hasBalance ? Colors.red.shade800 : Colors.green.shade800,
-                            ),
+                      Widget buildCustomerCard(Map<String, dynamic> customer) {
+                        final udhaarVal = (customer['udhaar'] as num?)?.toDouble() ?? 0.0;
+                        final hasBalance = udhaarVal > 0;
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
                           ),
-                          title: Text(
-                            customer['name'],
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                          subtitle: Text('${customer["phone"]} • ${customer["lastTx"]}'),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '₹ ${udhaarVal.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: hasBalance ? Colors.red.shade700 : Colors.green.shade700,
-                                ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: hasBalance ? Colors.red.shade100 : Colors.green.shade100,
+                              child: Icon(
+                                Icons.person_rounded,
+                                color: hasBalance ? Colors.red.shade800 : Colors.green.shade800,
                               ),
-                              if (hasBalance)
-                                InkWell(
-                                  onTap: () => _showRecordPaymentDialog(context, customer, isHindi),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade700,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      isHindi ? 'जमा लें' : 'Pay Received',
-                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                    ),
+                            ),
+                            title: Text(
+                              customer['name'],
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            subtitle: Text('${customer["phone"]} • ${customer["lastTx"]}'),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '₹ ${udhaarVal.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: hasBalance ? Colors.red.shade700 : Colors.green.shade700,
                                   ),
                                 ),
-                            ],
+                                if (hasBalance)
+                                  InkWell(
+                                    onTap: () => _showRecordPaymentDialog(context, customer, isHindi),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.green.shade700,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        isHindi ? 'जमा लें' : 'Pay Received',
+                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
+                        );
+                      }
+
+                      if (isDesktop) {
+                        return GridView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            mainAxisExtent: 78,
+                          ),
+                          itemCount: filteredCustomers.length,
+                          itemBuilder: (ctx, index) => buildCustomerCard(filteredCustomers[index]),
+                        );
+                      }
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        itemCount: filteredCustomers.length,
+                        separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                        itemBuilder: (ctx, index) => buildCustomerCard(filteredCustomers[index]),
                       );
                     },
                   ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   void _showRecordPaymentDialog(BuildContext context, Map<String, dynamic> customer, bool isHindi) {
     final amountController = TextEditingController();

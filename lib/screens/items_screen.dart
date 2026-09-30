@@ -105,8 +105,12 @@ class _ItemsScreenState extends State<ItemsScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            children: [
           // Banner Notice Explaining Items Architecture
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -171,94 +175,117 @@ class _ItemsScreenState extends State<ItemsScreen> {
 
           // Master Items Catalog List
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              itemCount: filteredMaster.length,
-              separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-              itemBuilder: (ctx, index) {
-                final item = filteredMaster[index];
-                final isLoose = item['format'] == 'Loose';
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isDesktop = constraints.maxWidth >= 750;
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: isLoose ? Colors.orange.shade50 : themeProvider.primaryColor.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: isLoose ? Colors.orange.shade200 : themeProvider.primaryColor.withOpacity(0.2)),
+                Widget buildItemCard(Map<String, dynamic> item) {
+                  final isLoose = item['format'] == 'Loose';
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: isLoose ? Colors.orange.shade50 : themeProvider.primaryColor.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: isLoose ? Colors.orange.shade200 : themeProvider.primaryColor.withOpacity(0.2)),
+                          ),
+                          child: Icon(
+                            isLoose ? Icons.scale_rounded : Icons.inventory_2_rounded,
+                            color: isLoose ? Colors.orange.shade800 : themeProvider.primaryColor,
+                            size: 24,
+                          ),
                         ),
-                        child: Icon(
-                          isLoose ? Icons.scale_rounded : Icons.inventory_2_rounded,
-                          color: isLoose ? Colors.orange.shade800 : themeProvider.primaryColor,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  item['itemCode'] ?? 'ITM-000',
-                                  style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: isLoose ? Colors.orange.shade100 : themeProvider.primaryColor.withOpacity(0.12),
-                                    borderRadius: BorderRadius.circular(4),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    item['itemCode'] ?? 'ITM-000',
+                                    style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
                                   ),
-                                  child: Text(
-                                    isLoose ? 'Loose Bulk' : 'Packed',
-                                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isLoose ? Colors.orange.shade900 : themeProvider.primaryColor),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isLoose ? Colors.orange.shade100 : themeProvider.primaryColor.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      isLoose ? 'Loose Bulk' : 'Packed',
+                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isLoose ? Colors.orange.shade900 : themeProvider.primaryColor),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              item['name'] ?? '',
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Category: ${item['category']} | UOM: ${item['uom']}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                            ),
-                            if (item['description'] != null && item['description'].toString().isNotEmpty)
-                              Text(
-                                item['description'],
-                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                                ],
                               ),
-                          ],
+                              const SizedBox(height: 2),
+                              Text(
+                                item['name'] ?? '',
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Category: ${item['category']} | UOM: ${item['uom']}',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                              ),
+                              if (item['description'] != null && item['description'].toString().isNotEmpty)
+                                Text(
+                                  item['description'],
+                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.edit_note_rounded, color: themeProvider.primaryColor),
-                        onPressed: () => _showAddMasterItemModal(context, isHindi, item),
-                      ),
-                    ],
-                  ),
+                        IconButton(
+                          icon: Icon(Icons.edit_note_rounded, color: themeProvider.primaryColor),
+                          onPressed: () => _showAddMasterItemModal(context, isHindi, item),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (isDesktop) {
+                  return GridView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      mainAxisExtent: 96,
+                    ),
+                    itemCount: filteredMaster.length,
+                    itemBuilder: (ctx, index) => buildItemCard(filteredMaster[index]),
+                  );
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  itemCount: filteredMaster.length,
+                  separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                  itemBuilder: (ctx, index) => buildItemCard(filteredMaster[index]),
                 );
               },
             ),
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   void _showAddMasterItemModal(BuildContext context, bool isHindi, [Map<String, dynamic>? existing]) {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
