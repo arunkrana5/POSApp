@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadDashboardMetrics() async {
+    if (!mounted) return;
     setState(() => _isLoadingMetrics = true);
     try {
       final auth = Provider.of<AuthProvider>(context, listen: false);
@@ -62,50 +63,63 @@ class _HomeScreenState extends State<HomeScreen> {
       if (tCode.isNotEmpty) qParams.add('tenantCode=$tCode');
       final qStr = qParams.isNotEmpty ? '?${qParams.join('&')}' : '';
 
-      final responses = await Future.wait([
-        http.get(Uri.parse('${ApiConfig.baseUrl}/sales$qStr'), headers: headers),
-        http.get(Uri.parse('${ApiConfig.baseUrl}/customers$qStr'), headers: headers),
-        http.get(Uri.parse('${ApiConfig.baseUrl}/products$qStr'), headers: headers),
-      ]).timeout(const Duration(seconds: 10));
+      final baseUrl = ApiConfig.baseUrl.isNotEmpty ? ApiConfig.baseUrl : 'https://villageshop-api.onrender.com/api';
 
       double salesSum = 0.0;
       List<Map<String, dynamic>> salesList = [];
-      if (responses[0].statusCode == 200) {
-        final List<dynamic> sData = jsonDecode(responses[0].body);
-        salesList = sData.map((s) => Map<String, dynamic>.from(s)).toList();
-        for (var s in salesList) {
-          salesSum += (s['totalAmount'] as num?)?.toDouble() ?? 0.0;
-        }
-      }
 
+      // Fetch Sales Independently
+      try {
+        final resSales = await http.get(Uri.parse('$baseUrl/sales$qStr'), headers: headers).timeout(const Duration(seconds: 10));
+        if (resSales.statusCode == 200) {
+          final List<dynamic> sData = jsonDecode(resSales.body);
+          salesList = sData.map((s) => Map<String, dynamic>.from(s)).toList();
+          for (var s in salesList) {
+            salesSum += (s['totalAmount'] as num?)?.toDouble() ?? 0.0;
+          }
+        }
+      } catch (_) {}
+
+      // Fetch Customers / Udhaar Independently
       double udhaarSum = 0.0;
-      if (responses[1].statusCode == 200) {
-        final List<dynamic> cData = jsonDecode(responses[1].body);
-        for (var c in cData) {
-          udhaarSum += (c['udhaar'] as num?)?.toDouble() ?? 0.0;
+      try {
+        final resCust = await http.get(Uri.parse('$baseUrl/customers$qStr'), headers: headers).timeout(const Duration(seconds: 10));
+        if (resCust.statusCode == 200) {
+          final List<dynamic> cData = jsonDecode(resCust.body);
+          for (var c in cData) {
+            udhaarSum += (c['udhaar'] as num?)?.toDouble() ?? 0.0;
+          }
         }
-      }
+      } catch (_) {}
 
+      // Fetch Products / Low Stock Count Independently
       int lowStock = 0;
-      if (responses[2].statusCode == 200) {
-        final List<dynamic> pData = jsonDecode(responses[2].body);
-        for (var p in pData) {
-          final stock = (p['currentStock'] as num?)?.toInt() ?? 0;
-          final minStock = (p['minimumStock'] as num?)?.toInt() ?? 5;
-          if (stock <= minStock) lowStock++;
+      try {
+        final resProd = await http.get(Uri.parse('$baseUrl/products$qStr'), headers: headers).timeout(const Duration(seconds: 10));
+        if (resProd.statusCode == 200) {
+          final List<dynamic> pData = jsonDecode(resProd.body);
+          for (var p in pData) {
+            final stock = (p['currentStock'] as num?)?.toInt() ?? 0;
+            final minStock = (p['minimumStock'] as num?)?.toInt() ?? 5;
+            if (stock <= minStock) lowStock++;
+          }
         }
-      }
+      } catch (_) {}
 
-      setState(() {
-        _todaySales = salesSum;
-        _totalUdhaar = udhaarSum;
-        _lowStockCount = lowStock;
-        _todayProfit = salesSum * 0.15; // 15% estimated profit margin
-        _recentTransactions = salesList.take(6).toList();
-        _salesList = salesList;
-      });
+      if (mounted) {
+        setState(() {
+          _todaySales = salesSum;
+          _totalUdhaar = udhaarSum;
+          _lowStockCount = lowStock;
+          _todayProfit = salesSum * 0.15; // 15% estimated profit margin
+          _recentTransactions = salesList.take(6).toList();
+          _salesList = salesList;
+        });
+      }
     } catch (_) {}
-    setState(() => _isLoadingMetrics = false);
+    if (mounted) {
+      setState(() => _isLoadingMetrics = false);
+    }
   }
 
   @override
