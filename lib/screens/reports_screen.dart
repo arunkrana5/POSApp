@@ -46,7 +46,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         if (tCode.isNotEmpty) 'X-Tenant-Code': tCode,
       };
 
-      final qStr = '?tenantId=$tId&tenantCode=$tCode';
+      final qParams = <String>[];
+      if (tId > 0) qParams.add('tenantId=$tId');
+      if (tCode.isNotEmpty) qParams.add('tenantCode=$tCode');
+      final qStr = qParams.isNotEmpty ? '?${qParams.join('&')}' : '';
 
       final res = await http.get(
         Uri.parse('${ApiConfig.baseUrl}/sales$qStr'),
