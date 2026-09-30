@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../config/api_config.dart';
+import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/analytics_charts_widget.dart';
@@ -33,9 +34,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _fetchReportData() async {
     setState(() => _isLoading = true);
     try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final tCode = auth.tenantCode ?? '';
+      final tId = auth.tenantId ?? 0;
+      final token = auth.accessToken ?? '';
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (tId > 0) 'X-Tenant-Id': tId.toString(),
+        if (tCode.isNotEmpty) 'X-Tenant-Code': tCode,
+      };
+
+      final qStr = '?tenantId=$tId&tenantCode=$tCode';
+
       final res = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/sales'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('${ApiConfig.baseUrl}/sales$qStr'),
+        headers: headers,
       ).timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {

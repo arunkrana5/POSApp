@@ -70,65 +70,27 @@ class _HomeScreenState extends State<HomeScreen> {
       if (responses[0].statusCode == 200) {
         final List<dynamic> sData = jsonDecode(responses[0].body);
         salesList = sData.map((s) => Map<String, dynamic>.from(s)).toList();
-      }
-
-      if (salesList.isEmpty) {
-        try {
-          final fbRes = await http.get(
-            Uri.parse('${ApiConfig.baseUrl}/sales'),
-            headers: {'Content-Type': 'application/json'},
-          ).timeout(const Duration(seconds: 5));
-          if (fbRes.statusCode == 200) {
-            final List<dynamic> fbData = jsonDecode(fbRes.body);
-            salesList = fbData.map((s) => Map<String, dynamic>.from(s)).toList();
-          }
-        } catch (_) {}
-      }
-
-      for (var s in salesList) {
-        salesSum += (s['totalAmount'] as num?)?.toDouble() ?? 0.0;
+        for (var s in salesList) {
+          salesSum += (s['totalAmount'] as num?)?.toDouble() ?? 0.0;
+        }
       }
 
       double udhaarSum = 0.0;
-      List<dynamic> cData = [];
       if (responses[1].statusCode == 200) {
-        cData = jsonDecode(responses[1].body);
-      }
-      if (cData.isEmpty) {
-        try {
-          final fbCust = await http.get(
-            Uri.parse('${ApiConfig.baseUrl}/customers'),
-            headers: {'Content-Type': 'application/json'},
-          ).timeout(const Duration(seconds: 5));
-          if (fbCust.statusCode == 200) {
-            cData = jsonDecode(fbCust.body);
-          }
-        } catch (_) {}
-      }
-      for (var c in cData) {
-        udhaarSum += (c['udhaar'] as num?)?.toDouble() ?? 0.0;
+        final List<dynamic> cData = jsonDecode(responses[1].body);
+        for (var c in cData) {
+          udhaarSum += (c['udhaar'] as num?)?.toDouble() ?? 0.0;
+        }
       }
 
       int lowStock = 0;
-      List<dynamic> pData = [];
       if (responses[2].statusCode == 200) {
-        pData = jsonDecode(responses[2].body);
-      }
-      if (pData.isEmpty) {
-        try {
-          final fbProd = await http.get(
-            Uri.parse('${ApiConfig.baseUrl}/products'),
-            headers: {'Content-Type': 'application/json'},
-          ).timeout(const Duration(seconds: 5));
-          if (fbProd.statusCode == 200) {
-            pData = jsonDecode(fbProd.body);
-          }
-        } catch (_) {}
-      }
-      for (var p in pData) {
-        final stock = (p['currentStock'] as num?)?.toInt() ?? 0;
-        final minStock = (p['minimumStock'] as num?)?.toInt() ?? 5;
-        if (stock <= minStock) lowStock++;
+        final List<dynamic> pData = jsonDecode(responses[2].body);
+        for (var p in pData) {
+          final stock = (p['currentStock'] as num?)?.toInt() ?? 0;
+          final minStock = (p['minimumStock'] as num?)?.toInt() ?? 5;
+          if (stock <= minStock) lowStock++;
+        }
       }
 
       setState(() {
