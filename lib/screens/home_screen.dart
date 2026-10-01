@@ -225,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Metric Summary Cards (4 Grids)
               Text(
-                isHindi ? 'आज का व्यापार सारांश (Live DB)' : 'Today\'s Business Summary (Live DB)',
+                isHindi ? 'आज का व्यापार सारांश' : 'Today\'s Business Summary',
                 style: TextStyle(
                   fontFamily: themeProvider.fontFamily,
                   fontSize: 18 * themeProvider.fontSizeScale,
@@ -547,7 +547,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: _buildActionButton(
                   context,
-                  title: isHindi ? 'नया बिल (POS)' : 'New Bill (POS)',
+                  title: isHindi ? 'नया बिल' : 'New Bill',
                   icon: Icons.point_of_sale_rounded,
                   color: themeProvider.buttonBgColor,
                   route: '/pos',
@@ -597,7 +597,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: _buildActionButton(
                     context,
-                    title: isHindi ? 'नया बिल (POS)' : 'New Bill (POS)',
+                    title: isHindi ? 'नया बिल' : 'New Bill',
                     icon: Icons.point_of_sale_rounded,
                     color: themeProvider.buttonBgColor,
                     route: '/pos',

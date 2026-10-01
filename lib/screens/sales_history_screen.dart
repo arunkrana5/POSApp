@@ -296,7 +296,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
                       icon: const Icon(Icons.print_rounded, size: 20),
-                      label: Text(isHindi ? 'A4 इनवॉइस प्रिंट' : 'Print A4 Invoice'),
+                      label: Text(isHindi ? 'प्रिंट' : 'Print'),
                       onPressed: () {
                         InvoicePrinter.printA4Invoice(
                           tenantName: themeProvider.tenantName,
@@ -393,7 +393,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isHindi ? 'बिक्री इतिहास (Sale History)' : 'Sales & Invoices History'),
+        title: Text(isHindi ? 'बिक्री इतिहास' : 'Sales History'),
         backgroundColor: themeProvider.primaryColor,
         foregroundColor: Colors.white,
         actions: [
@@ -582,7 +582,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                           ),
                                           icon: Icon(Icons.print_rounded, size: 18, color: themeProvider.primaryColor),
                                           label: Text(
-                                            isHindi ? 'इनवॉइस देखें / प्रिंट' : 'View / Print Invoice',
+                                            isHindi ? 'देखें / प्रिंट' : 'View / Print',
                                             style: TextStyle(color: themeProvider.primaryColor, fontWeight: FontWeight.bold),
                                           ),
                                           onPressed: () => _showProfessionalInvoiceModal(sale),
@@ -640,7 +640,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          isHindi ? 'बिक्री इनवॉइस एडिट करें' : 'Edit Invoice Record',
+                          isHindi ? 'एडिट करें' : 'Edit',
                           style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
                         ),
                         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(modalCtx)),
@@ -676,7 +676,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                             controller: amtCtrl,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              labelText: isHindi ? 'कुल राशि (₹ Total)' : 'Total Bill (₹)',
+                              labelText: isHindi ? 'कुल राशि' : 'Total Bill (₹)',
                               border: const OutlineInputBorder(),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             ),
@@ -688,7 +688,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                             controller: paidCtrl,
                             keyboardType: TextInputType.number,
                             decoration: InputDecoration(
-                              labelText: isHindi ? 'प्राप्त नगद (₹ Paid)' : 'Paid Amount (₹)',
+                              labelText: isHindi ? 'प्राप्त नगद' : 'Paid Amount (₹)',
                               border: const OutlineInputBorder(),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             ),

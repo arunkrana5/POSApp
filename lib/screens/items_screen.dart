@@ -95,7 +95,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(
-          isHindi ? 'सामान (Items)' : 'Items Catalog',
+          isHindi ? 'सामान' : 'Items',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -111,26 +111,6 @@ class _ItemsScreenState extends State<ItemsScreen> {
           constraints: const BoxConstraints(maxWidth: 1100),
           child: Column(
             children: [
-          // Banner Notice Explaining Items Architecture
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: themeProvider.primaryColor.withOpacity(0.08),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline_rounded, color: themeProvider.primaryColor, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    isHindi
-                        ? 'नोट: सामान (Items) में केवल मूल विवरण (नाम, कोड, UOM, कैटेगरी) सुरक्षित होते हैं। रेट, टैक्स और स्टॉक जानकारी Stock In मेनू में दर्ज होती है।'
-                        : 'Note: Items hold core definitions (Code, Name, UOM, Category). Pricing, Tax, Barcode & Stock entry are managed under Stock In.',
-                    style: TextStyle(fontSize: 11.5, color: themeProvider.textColor, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           // Search & Add Header
           Padding(
             padding: const EdgeInsets.all(12.0),
@@ -224,7 +204,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      isLoose ? 'Loose Bulk' : 'Packed',
+                                      isLoose ? 'Loose' : 'Packed',
                                       style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: isLoose ? Colors.orange.shade900 : themeProvider.primaryColor),
                                     ),
                                   ),
@@ -324,7 +304,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                         Text(
                           existing != null
                               ? (isHindi ? 'सामान अपडेट करें' : 'Edit Item')
-                              : (isHindi ? 'नया सामान जोड़ें' : 'Define New Item'),
+                              : (isHindi ? 'नया सामान जोड़ें' : 'Add Item'),
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         IconButton(
@@ -338,7 +318,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
 
                     // Format Toggle (Packed vs Loose Bulk)
                     Text(
-                      isHindi ? 'सामान का प्रकार (Type/Format)' : 'Item Packaging Format',
+                      isHindi ? 'सामान का प्रकार' : 'Item Type',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                     ),
                     const SizedBox(height: 6),
@@ -347,7 +327,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                         Expanded(
                           child: ChoiceChip(
                             avatar: const Icon(Icons.inventory_2_rounded, size: 16),
-                            label: Text(isHindi ? 'पैक्ड सामान (Packed)' : 'Packed Item'),
+                            label: Text(isHindi ? 'पैक्ड सामान' : 'Packed Item'),
                             selected: formatVal == 'Packed',
                             selectedColor: Colors.blue.shade100,
                             onSelected: (sel) {
@@ -359,7 +339,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                         Expanded(
                           child: ChoiceChip(
                             avatar: const Icon(Icons.scale_rounded, size: 16),
-                            label: Text(isHindi ? 'खुला सामान (Loose)' : 'Loose Bulk'),
+                            label: Text(isHindi ? 'खुला सामान' : 'Loose'),
                             selected: formatVal == 'Loose',
                             selectedColor: Colors.orange.shade100,
                             onSelected: (sel) {
@@ -422,7 +402,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
                           child: DropdownButtonFormField<String>(
                             value: uomVal,
                             decoration: InputDecoration(
-                              labelText: isHindi ? 'UOM (इकाई)' : 'UOM (Unit)',
+                              labelText: isHindi ? 'इकाई' : 'UOM',
                               border: const OutlineInputBorder(),
                             ),
                             items: ['pkt', 'bottle', 'kg', 'gm', 'ltr', 'pcs', 'box']

@@ -189,7 +189,7 @@ class _PosScreenState extends State<PosScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Select / Enter Loose Quantity (Weight/Volume):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const Text('Enter Qty:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 6,
@@ -230,7 +230,7 @@ class _PosScreenState extends State<PosScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Total Item Amount:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       Text('₹ ${calcTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.green.shade800)),
                     ],
                   ),
@@ -304,7 +304,7 @@ class _PosScreenState extends State<PosScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Out of stock! (${product['name']}). Negative stock disabled by Tenant Admin.',
+            'Out of stock! (${product['name']}).',
           ),
           backgroundColor: Colors.red.shade800,
           duration: const Duration(seconds: 2),
@@ -485,7 +485,7 @@ class _PosScreenState extends State<PosScreen> {
                 const SizedBox(height: 16),
                 const Divider(),
                 Text(
-                  isHindi ? 'व्हाट्सएप रसीद भेजें (WhatsApp Share):' : 'Send WhatsApp Invoice Receipt:',
+                  isHindi ? 'व्हाट्सएप रसीद भेजें:' : 'Send WhatsApp Invoice Receipt:',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
                 const SizedBox(height: 6),
@@ -493,7 +493,7 @@ class _PosScreenState extends State<PosScreen> {
                   controller: phoneCtrl,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    labelText: isHindi ? 'मोबाइल नंबर' : 'Customer Mobile Number',
+                    labelText: isHindi ? 'मोबाइल नंबर' : 'Mobile Number',
                     prefixIcon: const Icon(Icons.phone, color: Colors.green),
                     border: const OutlineInputBorder(),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -586,7 +586,7 @@ class _PosScreenState extends State<PosScreen> {
                 Navigator.pop(ctx);
               },
               child: Text(
-                isHindi ? '+ नया बिल बनाएँ (Next Bill)' : '+ Create Next Bill',
+                isHindi ? '+ नया बिल बनाएँ' : '+ New Bill',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -624,7 +624,7 @@ class _PosScreenState extends State<PosScreen> {
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(
-          isHindi ? 'नया बिल / POS' : 'Point of Sale (POS)',
+          isHindi ? 'नया बिल' : 'New Bill)',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -970,7 +970,7 @@ class _PosScreenState extends State<PosScreen> {
                           )
                         else
                           Text(
-                            isHindi ? 'कुल योग / Total' : 'Grand Total',
+                            isHindi ? 'कुल योग' : 'Grand Total',
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                           ),
                         Text(
@@ -1115,8 +1115,8 @@ class _PosScreenState extends State<PosScreen> {
                             controller: discountCtrl,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
-                              labelText: isHindi ? 'छूट / राउंड ऑफ (₹ Discount)' : 'Discount / Round Off (₹)',
-                              hintText: 'e.g. 1 for ₹41 -> ₹40',
+                              labelText: isHindi ? 'छूट / राउंड ऑफ' : 'Discount / Round Off (₹)',
+                              hintText: '',
                               border: const OutlineInputBorder(),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             ),
@@ -1150,7 +1150,7 @@ class _PosScreenState extends State<PosScreen> {
                       controller: paidCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
-                        labelText: isHindi ? 'प्राप्त राशि (₹ Paid Amount)' : 'Amount Paid by Customer (₹)',
+                        labelText: isHindi ? 'प्राप्त राशि' : 'Amount Paid by Customer (₹)',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.payments_rounded, color: Colors.green),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -1172,7 +1172,7 @@ class _PosScreenState extends State<PosScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(isHindi ? 'नेट देय राशि (Net Payable):' : 'Net Payable Total:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                              Text(isHindi ? 'नेट देय राशि:' : 'Net Payable Total:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                               Text('₹ ${netPayable.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: themeProvider.primaryColor)),
                             ],
                           ),
@@ -1280,7 +1280,7 @@ class _PosScreenState extends State<PosScreen> {
                           }
                         },
                         child: Text(
-                          isHindi ? 'बिल पक्का करें (Complete & Print)' : 'Settle Bill & Print Receipt',
+                          isHindi ? 'बिल पक्का करें' : 'Settle Bill & Print Receipt',
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                       ),
@@ -1302,7 +1302,7 @@ class _PosScreenState extends State<PosScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isHindi ? 'नया ग्राहक जोड़ें' : 'Add New Customer'),
+        title: Text(isHindi ? 'ग्राहक जोड़ें' : 'Add Customer'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

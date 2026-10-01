@@ -190,7 +190,7 @@ class _StockScreenState extends State<StockScreen> {
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(
-          isHindi ? 'स्टॉक इन (Stock In)' : 'Stock In & Inventory',
+          isHindi ? 'स्टॉक इन' : 'Stock In',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -256,7 +256,7 @@ class _StockScreenState extends State<StockScreen> {
                                 Icon(Icons.inventory_2_outlined, size: 64, color: themeProvider.primaryColor.withOpacity(0.5)),
                                 const SizedBox(height: 16),
                                 Text(
-                                  isHindi ? 'स्टॉक लिस्ट खाली है' : 'No Active Inventory / Stock Items Found',
+                                  isHindi ? 'स्टॉक लिस्ट खाली है' : 'No Inventory',
                                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                 ),
                                 const SizedBox(height: 8),
@@ -264,7 +264,7 @@ class _StockScreenState extends State<StockScreen> {
                                   _availableItems.isNotEmpty
                                       ? (isHindi
                                           ? 'आपके पास Catalog में ${_availableItems.length} सामान मौजूद हैं! ऊपर "+ स्टॉक इन" बटन दबाकर नया स्टॉक जोड़ें।'
-                                          : 'You have ${_availableItems.length} item(s) in your Catalog! Click "+ Stock In" to add stock & prices for them.')
+                                          : 'You have ${_availableItems.length} item(s), add stock')
                                       : (isHindi
                                           ? 'सामान जोड़ने के लिए ऊपर "+ स्टॉक इन" दबाएं।'
                                           : 'Click "+ Stock In" above to add item stock.'),
@@ -280,7 +280,7 @@ class _StockScreenState extends State<StockScreen> {
                                   ),
                                   icon: Icon(Icons.add_box_rounded, color: themeProvider.buttonTextColor),
                                   label: Text(
-                                    isHindi ? '+ पहला स्टॉक इन करें' : '+ Perform Stock In Now',
+                                    isHindi ? '+ पहला स्टॉक इन करें' : '+ Stock In',
                                     style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.buttonTextColor),
                                   ),
                                   onPressed: () => _showAddProductModal(context, isHindi),
@@ -381,7 +381,7 @@ class _StockScreenState extends State<StockScreen> {
                                             icon: Icon(Icons.edit_note_rounded, color: themeProvider.primaryColor, size: 20),
                                             padding: EdgeInsets.zero,
                                             constraints: const BoxConstraints(),
-                                            tooltip: 'Edit Stock Item',
+                                            tooltip: 'Edit Stock',
                                             onPressed: () => _showAddProductModal(context, isHindi, item),
                                           ),
                                         ],
@@ -469,7 +469,7 @@ class _StockScreenState extends State<StockScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          isHindi ? 'स्टॉक इन एंट्री (Stock In)' : 'Stock In Inventory Entry',
+                          isHindi ? 'स्टॉक एंट्री' : 'Stock Entry',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                         IconButton(
@@ -486,7 +486,7 @@ class _StockScreenState extends State<StockScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          isHindi ? '1. Catalog सामान चुनें *' : '1. Select Catalog Item *',
+                          isHindi ? 'सामान चुनें *' : 'Select Item *',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
                         ),
                         InkWell(
@@ -506,7 +506,7 @@ class _StockScreenState extends State<StockScreen> {
                                 const Icon(Icons.add_circle_outline, color: Colors.white, size: 14),
                                 const SizedBox(width: 4),
                                 Text(
-                                  isHindi ? '+ Catalog में सामान जोड़ें' : '+ Add Item in Catalog',
+                                  isHindi ? 'सामान जोड़ें' : '+ Add Item',
                                   style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                                 ),
                               ],
@@ -533,8 +533,8 @@ class _StockScreenState extends State<StockScreen> {
                             Expanded(
                               child: Text(
                                 isHindi
-                                    ? 'Catalog में अभी कोई सामान मौजूद नहीं है। ऊपर "+ Catalog में सामान जोड़ें" दबाकर नया सामान बनाएं!'
-                                    : 'No items in catalog yet. Click "+ Add Item in Catalog" above to define an item first!',
+                                    ? 'अभी कोई सामान मौजूद नहीं है। नया सामान बनाएं!'
+                                    : 'No items add an item first!',
                                 style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
                               ),
                             ),
@@ -547,7 +547,7 @@ class _StockScreenState extends State<StockScreen> {
                         value: (selectedCatalogItem != null && _availableItems.any((i) => i['id'].toString() == selectedCatalogItem!['id'].toString()))
                             ? selectedCatalogItem!['id'].toString()
                             : null,
-                        hint: Text(isHindi ? '-- Catalog से सामान चुनें --' : '-- Select Item from Catalog --'),
+                        hint: Text(isHindi ? '--  सामान चुनें --' : '-- Select Item --'),
                         decoration: InputDecoration(
                           filled: true,
                           fillColor: Colors.white,
@@ -593,8 +593,8 @@ class _StockScreenState extends State<StockScreen> {
                             Expanded(
                               child: Text(
                                 isHindi
-                                    ? 'स्टॉक दर्ज करने के लिए कृपया ऊपर दिए गए ड्रॉपडाउन से सामान चुनें।'
-                                    : 'Please select a Catalog Item from the dropdown above to enter stock & prices.',
+                                    ? 'ड्रॉपडाउन से सामान चुनें।'
+                                    : 'Please select Item from the dropdown',
                                 style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.blueGrey),
                               ),
                             ),
@@ -622,7 +622,7 @@ class _StockScreenState extends State<StockScreen> {
                                 ),
                                 Chip(
                                   label: Text(
-                                    selectedCatalogItem!['format'] == 'Loose' ? 'LOOSE BULK' : 'PACKED',
+                                    selectedCatalogItem!['format'] == 'Loose' ? 'LOOSE' : 'PACKED',
                                     style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
                                   ),
                                   backgroundColor: selectedCatalogItem!['format'] == 'Loose' ? Colors.orange.shade100 : Colors.blue.shade100,
@@ -761,7 +761,7 @@ class _StockScreenState extends State<StockScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Product Photo Upload (Auto-Compressed < 20 KB)',
+                              'Photo Upload',
                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey),
                             ),
                             const SizedBox(height: 8),

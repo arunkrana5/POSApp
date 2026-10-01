@@ -105,7 +105,7 @@ class AuthProvider with ChangeNotifier {
       viewAsString: '',
       status: false,
       statusCode: 500,
-      message: 'Connection Error: Unable to reach Cloud backend. Please check internet connection or Server API URL.',
+      message: 'Error: Please try again',
       redirectURL: '',
       id: 0,
       additionalMessage: '',

@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text("Shop Portal",
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
-                  const Text("दुकानदार लॉगिन (Shopkeeper Login)", style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+                  const Text("दुकानदार लॉगिन", style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
                   const SizedBox(height: 24),
                   if (_errorMessage != null) ...[
                     Container(
@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                       child: auth.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("लॉगिन करें (LOGIN)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                          : const Text("लॉगिन करें", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ],

@@ -126,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // 2. Personal Profile & Account Details Grid
                 _buildSectionTitle(
-                  isHindi ? 'खाता विवरण' : 'Profile & Store Details',
+                  isHindi ? 'खाता विवरण' : 'Profile Details',
                   Icons.person_outline_rounded,
                   themeProvider,
                 ),
@@ -367,27 +367,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             border: Border.all(color: Colors.white.withOpacity(0.3)),
                           ),
                           child: Text(
-                            'Owner / Admin',
+                            'Owner',
                             style: TextStyle(
                               fontFamily: themeProvider.fontFamily,
                               color: Colors.white,
-                              fontSize: 11 * themeProvider.fontSizeScale,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: Colors.greenAccent.shade700.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.greenAccent.shade200.withOpacity(0.5)),
-                          ),
-                          child: Text(
-                            'ACTIVE SAAS',
-                            style: TextStyle(
-                              fontFamily: themeProvider.fontFamily,
-                              color: Colors.greenAccent.shade100,
                               fontSize: 11 * themeProvider.fontSizeScale,
                               fontWeight: FontWeight.bold,
                             ),
@@ -459,7 +442,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _buildDetailTile(
                     context,
-                    isHindi ? 'यूजरनाम (Username)' : 'Username',
+                    isHindi ? 'यूजरनाम' : 'Username',
                     username,
                     Icons.account_circle_rounded,
                     Colors.blue.shade700,
@@ -475,7 +458,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   _buildDetailTile(
                     context,
-                    isHindi ? 'टेनेंट आईडी (Tenant ID)' : 'Tenant ID',
+                    isHindi ? 'टेनेंट आईडी' : 'Tenant ID',
                     '# $tenantId',
                     Icons.fingerprint_rounded,
                     Colors.purple.shade700,
@@ -483,7 +466,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   _buildDetailTile(
                     context,
-                    isHindi ? 'टेनेंट कोड (Tenant Code)' : 'Tenant Code',
+                    isHindi ? 'टेनेंट कोड' : 'Tenant Code',
                     tenantCode,
                     Icons.qr_code_rounded,
                     Colors.orange.shade800,
@@ -642,7 +625,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             title: Text(
-              isHindi ? 'इंटरफ़ेस भाषा (Language)' : 'App Language',
+              isHindi ? 'इंटरफ़ेस भाषा' : 'App Language',
               style: TextStyle(
                 fontFamily: themeProvider.fontFamily,
                 fontWeight: FontWeight.bold,

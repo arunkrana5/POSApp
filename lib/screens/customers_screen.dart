@@ -101,7 +101,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(
-          isHindi ? 'ग्राहक उधार खाता' : 'Customer Udhaar Ledger',
+          isHindi ? 'ग्राहक खाता' : 'Customer Ledger',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -125,7 +125,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isHindi ? 'कुल मार्केट उधार' : 'Total Outstanding Udhaar',
+                      isHindi ? 'कुल उधार' : 'Total Outstanding',
                       style: TextStyle(
                         fontFamily: themeProvider.fontFamily,
                         color: themeProvider.textColor.withOpacity(0.7),
@@ -257,7 +257,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 const SizedBox(width: 4),
                                 IconButton(
                                   icon: Icon(Icons.edit_outlined, color: themeProvider.primaryColor, size: 20),
-                                  tooltip: 'Edit Customer Master',
+                                  tooltip: 'Edit Customer',
                                   onPressed: () => _showAddCustomerModal(context, isHindi, customer),
                                 ),
                               ],
@@ -349,8 +349,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     SnackBar(
                       content: Text(
                         isHindi
-                            ? 'भुगतान सफलतापूर्‍वक दर्ज किया गया! (Saved & Synced)'
-                            : 'Payment recorded & synced successfully!',
+                            ? 'भुगतान सफलतापूर्‍वक दर्ज किया गया!'
+                            : 'Payment recorded successfully!',
                       ),
                       backgroundColor: Colors.green.shade700,
                     ),
@@ -384,7 +384,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isHindi ? 'ग्राहक मास्टर प्रोफ़ाइल' : 'Customer Master Profile',
+                    isHindi ? 'ग्राहक प्रोफ़ाइल' : 'Customer Profile',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
                   ),
                   IconButton(
@@ -508,8 +508,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 children: [
                   Text(
                     existing != null
-                        ? (isHindi ? 'ग्राहक अपडेट करें (Edit Master)' : 'Edit Customer Master Profile')
-                        : (isHindi ? 'नया ग्राहक जोड़ें' : 'Add New Customer Master'),
+                        ? (isHindi ? 'ग्राहक अपडेट करें' : 'Edit Customer')
+                        : (isHindi ? 'नया ग्राहक जोड़ें' : 'Add Customer'),
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                   IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
@@ -577,7 +577,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 controller: emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: isHindi ? 'ईमेल (Optional)' : 'Email Address',
+                  labelText: isHindi ? 'ईमेल' : 'Email',
                   border: const OutlineInputBorder(),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
@@ -589,7 +589,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
               TextField(
                 controller: addressCtrl,
                 decoration: InputDecoration(
-                  labelText: isHindi ? 'पता / मकान / गली (Street/Address)' : 'House No, Street, Landmark',
+                  labelText: isHindi ? 'पता / मकान / गली' : 'House No, Street, Landmark',
                   border: const OutlineInputBorder(),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 ),
@@ -601,7 +601,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     child: TextField(
                       controller: villageCtrl,
                       decoration: InputDecoration(
-                        labelText: isHindi ? 'गाँव / कस्बा (Village)' : 'Village / Town',
+                        labelText: isHindi ? 'गाँव / कस्बा' : 'Village / Town',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
@@ -612,7 +612,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     child: TextField(
                       controller: poCtrl,
                       decoration: InputDecoration(
-                        labelText: isHindi ? 'डाकघर (Post Office / P.O.)' : 'Post Office (P.O.)',
+                        labelText: isHindi ? 'डाकघर' : 'Post Office (P.O.)',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
@@ -627,7 +627,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     child: TextField(
                       controller: psCtrl,
                       decoration: InputDecoration(
-                        labelText: isHindi ? 'थाना (Police Station / P.S.)' : 'Police Station (P.S.)',
+                        labelText: isHindi ? 'थाना' : 'Police Station (P.S.)',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
@@ -638,7 +638,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     child: TextField(
                       controller: distCtrl,
                       decoration: InputDecoration(
-                        labelText: isHindi ? 'जिला (District / Dist)' : 'District (Dist)',
+                        labelText: isHindi ? 'जिला' : 'District (Dist)',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
@@ -654,7 +654,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       controller: pincodeCtrl,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: isHindi ? 'पिन कोड (PIN Code)' : 'PIN Code',
+                        labelText: isHindi ? 'पिन कोड' : 'PIN Code',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
@@ -666,7 +666,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       controller: udhaarCtrl,
                       keyboardType: TextInputType.number,
                       decoration: InputDecoration(
-                        labelText: isHindi ? 'उधार बकाया (₹ Udhaar Balance)' : 'Udhaar Balance (₹)',
+                        labelText: isHindi ? 'उधार बकाया' : 'Udhaar Balance (₹)',
                         border: const OutlineInputBorder(),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       ),
@@ -739,7 +739,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         SnackBar(
                           content: Text(
                             existing != null
-                                ? (isHindi ? 'ग्राहक मास्टर प्रोफाइल अपडेट हुई!' : 'Customer Master profile updated!')
+                                ? (isHindi ? 'ग्राहक प्रोफाइल अपडेट हुई!' : 'Customer profile updated!')
                                 : (isHindi ? 'ग्राहक सफलतापूर्वक सहेजा गया!' : 'Customer saved successfully!'),
                           ),
                           backgroundColor: Colors.green.shade700,
