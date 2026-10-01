@@ -472,15 +472,45 @@ class _PosScreenState extends State<PosScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(isHindi ? 'कुल राशि:' : 'Grand Total:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(
-                      '₹ ${grandTotal.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green),
-                    ),
-                  ],
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(isHindi ? 'उप-योग:' : 'Subtotal:', style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                          Text('₹ ${subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      if (discountAmount > 0.001 || (subtotal - grandTotal) > 0.001) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(isHindi ? 'छूट / डिस्काउंट:' : 'Discount / Off:', style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+                            Text('- ₹ ${(discountAmount > 0.001 ? discountAmount : (subtotal - grandTotal)).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                          ],
+                        ),
+                      ],
+                      const Divider(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(isHindi ? 'कुल देय राशि:' : 'Net Grand Total:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                          Text(
+                            '₹ ${grandTotal.toStringAsFixed(2)}',
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Colors.green.shade800),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Divider(),
@@ -524,7 +554,7 @@ class _PosScreenState extends State<PosScreen> {
                       createdAt: DateTime.now().toString().split('.')[0],
                       subtotal: subtotal,
                       taxAmount: taxAmount,
-                      discountAmount: discountAmount,
+                      discountAmount: discountAmount > 0.001 ? discountAmount : (subtotal - grandTotal),
                       grandTotal: grandTotal,
                       items: items,
                     );
@@ -546,6 +576,7 @@ class _PosScreenState extends State<PosScreen> {
                       return;
                     }
                     final targetPhone = cleanPhone.startsWith('91') ? cleanPhone : '91$cleanPhone';
+                    final calcDisc = discountAmount > 0.001 ? discountAmount : (subtotal - grandTotal);
 
                     final StringBuffer sb = StringBuffer();
                     sb.writeln('🛒 *VILLAGE SHOP - INVOICE RECEIPT*');
@@ -555,13 +586,17 @@ class _PosScreenState extends State<PosScreen> {
                     sb.writeln('💳 Mode: $paymentMode');
                     sb.writeln('---------------------------');
                     for (var it in items) {
-                      final name = it['name'];
-                      final qty = it['qty'];
-                      final price = it['price'];
+                      final name = it['name'] ?? it['productName'];
+                      final qty = it['qty'] ?? it['quantity'];
+                      final price = it['price'] ?? it['unitPrice'];
                       sb.writeln('• ${qty}x $name @ ₹$price = ₹${(qty * price).toStringAsFixed(2)}');
                     }
                     sb.writeln('---------------------------');
-                    sb.writeln('*GRAND TOTAL: ₹${grandTotal.toStringAsFixed(2)}*');
+                    sb.writeln('Subtotal: ₹${subtotal.toStringAsFixed(2)}');
+                    if (calcDisc > 0.001) {
+                      sb.writeln('Discount / Off: - ₹${calcDisc.toStringAsFixed(2)}');
+                    }
+                    sb.writeln('*NET GRAND TOTAL: ₹${grandTotal.toStringAsFixed(2)}*');
                     sb.writeln('===========================');
                     sb.writeln('Thank you for shopping with us! 🙏');
 
