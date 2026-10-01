@@ -378,6 +378,7 @@ class _PosScreenState extends State<PosScreen> {
     required List<Map<String, dynamic>> items,
     required double subtotal,
     required double taxAmount,
+    double discountAmount = 0.0,
     required double grandTotal,
     required String paymentMode,
   }) {
@@ -523,7 +524,7 @@ class _PosScreenState extends State<PosScreen> {
                       createdAt: DateTime.now().toString().split('.')[0],
                       subtotal: subtotal,
                       taxAmount: taxAmount,
-                      discountAmount: 0.0,
+                      discountAmount: discountAmount,
                       grandTotal: grandTotal,
                       items: items,
                     );
@@ -1272,6 +1273,7 @@ class _PosScreenState extends State<PosScreen> {
                               items: cartSnapshot,
                               subtotal: subtotalSnapshot,
                               taxAmount: taxSnapshot,
+                              discountAmount: discount,
                               grandTotal: netPayableSnapshot,
                               paymentMode: modeSnapshot,
                             );

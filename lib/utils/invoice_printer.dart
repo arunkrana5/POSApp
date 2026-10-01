@@ -23,6 +23,7 @@ class InvoicePrinter {
     double discountAmount = 0.0,
     required double grandTotal,
     required List<dynamic> items,
+    Color? primaryColor,
   }) {
     showModalBottomSheet(
       context: context,
@@ -43,6 +44,7 @@ class InvoicePrinter {
         discountAmount: discountAmount,
         grandTotal: grandTotal,
         items: items,
+        primaryColor: primaryColor ?? Theme.of(context).primaryColor,
       ),
     );
   }
@@ -137,6 +139,10 @@ class InvoicePrinter {
       ''');
       srNo++;
     }
+
+    final double effectiveDiscount = discountAmount > 0
+        ? discountAmount
+        : (((subtotal + taxAmount) - grandTotal) > 0.01 ? ((subtotal + taxAmount) - grandTotal) : 0.0);
 
     final isUdhaar = paymentMode.toLowerCase() == 'udhaar';
     final storeTitle = tenantName.isNotEmpty ? tenantName : "VILLAGE POS STORE";
@@ -359,7 +365,7 @@ class InvoicePrinter {
             <td style="color: #475569;">Subtotal:</td>
             <td style="text-align: right; font-weight: 700;">₹ ${subtotal.toStringAsFixed(2)}</td>
           </tr>
-          ${discountAmount > 0 ? '<tr><td style="color: #16A34A;">Discount:</td><td style="text-align: right; font-weight: 700; color: #16A34A;">- ₹ ' + discountAmount.toStringAsFixed(2) + '</td></tr>' : ''}
+          ${effectiveDiscount > 0 ? '<tr><td style="color: #16A34A; font-weight: 600;">Discount / Off:</td><td style="text-align: right; font-weight: 800; color: #16A34A;">- ₹ ' + effectiveDiscount.toStringAsFixed(2) + '</td></tr>' : ''}
           ${taxAmount > 0 ? '<tr><td style="color: #475569;">GST Tax:</td><td style="text-align: right; font-weight: 700;">₹ ' + taxAmount.toStringAsFixed(2) + '</td></tr>' : ''}
           <tr class="total-row">
             <td style="color: #FFFFFF;">NET GRAND TOTAL:</td>
@@ -424,6 +430,10 @@ class InvoicePrinter {
         </div>
       ''');
     }
+
+    final double effectiveDiscount = discountAmount > 0
+        ? discountAmount
+        : (((subtotal + taxAmount) - grandTotal) > 0.01 ? ((subtotal + taxAmount) - grandTotal) : 0.0);
 
     final isUdhaar = paymentMode.toLowerCase() == 'udhaar';
     final storeTitle = tenantName.isNotEmpty ? tenantName : "VILLAGE POS STORE";
@@ -494,7 +504,7 @@ class InvoicePrinter {
       <span>Subtotal:</span>
       <span>₹${subtotal.toStringAsFixed(2)}</span>
     </div>
-    ${discountAmount > 0 ? '<div style="display: flex; justify-content: space-between;"><span>Discount:</span><span>- ₹' + discountAmount.toStringAsFixed(2) + '</span></div>' : ''}
+    ${effectiveDiscount > 0 ? '<div style="display: flex; justify-content: space-between;"><span>Discount:</span><span style="font-weight: bold;">- ₹' + effectiveDiscount.toStringAsFixed(2) + '</span></div>' : ''}
     ${taxAmount > 0 ? '<div style="display: flex; justify-content: space-between;"><span>GST Tax:</span><span>₹' + taxAmount.toStringAsFixed(2) + '</span></div>' : ''}
   </div>
 
@@ -532,6 +542,7 @@ class _InvoicePreviewSheet extends StatefulWidget {
   final double discountAmount;
   final double grandTotal;
   final List<dynamic> items;
+  final Color primaryColor;
 
   const _InvoicePreviewSheet({
     required this.tenantName,
@@ -548,6 +559,7 @@ class _InvoicePreviewSheet extends StatefulWidget {
     required this.discountAmount,
     required this.grandTotal,
     required this.items,
+    required this.primaryColor,
   });
 
   @override
@@ -561,30 +573,52 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
   Widget build(BuildContext context) {
     final isUdhaar = widget.paymentMode.toLowerCase() == 'udhaar';
     final storeTitle = widget.tenantName.isNotEmpty ? widget.tenantName : "VILLAGE POS STORE";
+    final themeColor = widget.primaryColor;
+
+    final double effectiveDiscount = widget.discountAmount > 0
+        ? widget.discountAmount
+        : (((widget.subtotal + widget.taxAmount) - widget.grandTotal) > 0.01
+            ? ((widget.subtotal + widget.taxAmount) - widget.grandTotal)
+            : 0.0);
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.88,
+      height: MediaQuery.of(context).size.height * 0.90,
       decoration: const BoxDecoration(
-        color: Color(0xFF0F172A),
+        color: Color(0xFFF8FAFC),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
-          // Header Drag Handle & Title Bar
+          // Drag Handle
+          const SizedBox(height: 8),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+
+          // Header Title Bar with Theme Primary Color Accent
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2563EB).withOpacity(0.2),
+                    color: themeColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.print_rounded, color: Color(0xFF60A5FA), size: 22),
+                  child: Icon(Icons.print_rounded, color: themeColor, size: 22),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -593,30 +627,30 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                     children: [
                       Text(
                         'Print & Receipt Preview',
-                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Professional Standard Invoice Print',
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                        'Official POS Invoice & Receipt',
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                  icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
           ),
 
-          // Format Selection Toggle Segment
+          // Format Selection Toggle Segment (Clean, Professional Theme Color Tabs)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFFE2E8F0),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -627,18 +661,21 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
-                          color: _selectedFormat == PrintFormat.a4 ? const Color(0xFF2563EB) : Colors.transparent,
+                          color: _selectedFormat == PrintFormat.a4 ? themeColor : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
+                          boxShadow: _selectedFormat == PrintFormat.a4
+                              ? [BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2))]
+                              : [],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.description_rounded, size: 16, color: _selectedFormat == PrintFormat.a4 ? Colors.white : Colors.grey),
+                            Icon(Icons.description_rounded, size: 16, color: _selectedFormat == PrintFormat.a4 ? Colors.white : const Color(0xFF64748B)),
                             const SizedBox(width: 6),
                             Text(
                               'A4 Tax Invoice',
                               style: TextStyle(
-                                color: _selectedFormat == PrintFormat.a4 ? Colors.white : Colors.grey,
+                                color: _selectedFormat == PrintFormat.a4 ? Colors.white : const Color(0xFF334155),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
@@ -654,18 +691,21 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
-                          color: _selectedFormat == PrintFormat.thermal ? const Color(0xFF2563EB) : Colors.transparent,
+                          color: _selectedFormat == PrintFormat.thermal ? themeColor : Colors.transparent,
                           borderRadius: BorderRadius.circular(8),
+                          boxShadow: _selectedFormat == PrintFormat.thermal
+                              ? [BoxShadow(color: themeColor.withOpacity(0.3), blurRadius: 6, offset: const Offset(0, 2))]
+                              : [],
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.receipt_long_rounded, size: 16, color: _selectedFormat == PrintFormat.thermal ? Colors.white : Colors.grey),
+                            Icon(Icons.receipt_long_rounded, size: 16, color: _selectedFormat == PrintFormat.thermal ? Colors.white : const Color(0xFF64748B)),
                             const SizedBox(width: 6),
                             Text(
                               'Thermal Slip (80mm)',
                               style: TextStyle(
-                                color: _selectedFormat == PrintFormat.thermal ? Colors.white : Colors.grey,
+                                color: _selectedFormat == PrintFormat.thermal ? Colors.white : const Color(0xFF334155),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
@@ -680,7 +720,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
             ),
           ),
 
-          // Live Interactive Receipt Preview Box
+          // Live Interactive Receipt Preview Canvas
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -690,40 +730,42 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
                     boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 6)),
+                      BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 18, offset: const Offset(0, 6)),
                     ],
                   ),
                   padding: EdgeInsets.all(_selectedFormat == PrintFormat.a4 ? 20 : 14),
                   child: _selectedFormat == PrintFormat.a4
-                      ? _buildA4FlutterPreview(storeTitle, isUdhaar)
-                      : _buildThermalFlutterPreview(storeTitle, isUdhaar),
+                      ? _buildA4FlutterPreview(storeTitle, isUdhaar, effectiveDiscount, themeColor)
+                      : _buildThermalFlutterPreview(storeTitle, isUdhaar, effectiveDiscount),
                 ),
               ),
             ),
           ),
 
-          // Bottom Action Buttons: Print Now & WhatsApp
+          // Bottom Action Bar: Print & Close
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
-              color: Color(0xFF1E293B),
-              border: Border(top: BorderSide(color: Color(0xFF334155))),
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
+                      backgroundColor: themeColor,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 2,
                     ),
                     icon: const Icon(Icons.print_rounded, size: 20),
                     label: Text(
                       _selectedFormat == PrintFormat.a4 ? 'PRINT A4 INVOICE' : 'PRINT THERMAL RECEIPT',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
                     ),
                     onPressed: () {
                       InvoicePrinter.printInvoice(
@@ -739,7 +781,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                         createdAt: widget.createdAt,
                         subtotal: widget.subtotal,
                         taxAmount: widget.taxAmount,
-                        discountAmount: widget.discountAmount,
+                        discountAmount: effectiveDiscount,
                         grandTotal: widget.grandTotal,
                         items: widget.items,
                       );
@@ -754,10 +796,19 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
     );
   }
 
-  Widget _buildA4FlutterPreview(String storeTitle, bool isUdhaar) {
+  Widget _buildA4FlutterPreview(String storeTitle, bool isUdhaar, double effectiveDiscount, Color themeColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Accent Bar
+        Container(
+          height: 4,
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: themeColor,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -765,7 +816,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(storeTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0F172A))),
-                Text(widget.appTitle.isNotEmpty ? widget.appTitle : "Retail POS Store", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(widget.appTitle.isNotEmpty ? widget.appTitle : "Retail POS Store", style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
               ],
             ),
             Container(
@@ -775,15 +826,15 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
             ),
           ],
         ),
-        const Divider(height: 24, thickness: 1),
+        const Divider(height: 20, thickness: 1),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Ref: ${widget.invoiceNo}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-            Text('Date: ${widget.createdAt.split(' ')[0]}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Text('Date: ${widget.createdAt.split('T')[0].split(' ')[0]}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
@@ -793,7 +844,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('BILL TO:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey)),
+                  const Text('BILL TO:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                   Text(widget.customerName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                 ],
               ),
@@ -811,7 +862,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Container(
           color: const Color(0xFF0F172A),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -840,7 +891,46 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
             ),
           );
         }),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+
+        // Financial Breakdown Table
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(6), border: Border.all(color: const Color(0xFFE2E8F0))),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Subtotal:', style: TextStyle(fontSize: 11, color: Color(0xFF475569))),
+                  Text('₹${widget.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              if (effectiveDiscount > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Discount / Off:', style: TextStyle(fontSize: 11, color: Color(0xFF16A34A), fontWeight: FontWeight.bold)),
+                    Text('- ₹${effectiveDiscount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF16A34A))),
+                  ],
+                ),
+              ],
+              if (widget.taxAmount > 0) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('GST Tax:', style: TextStyle(fontSize: 11, color: Color(0xFF475569))),
+                    Text('₹${widget.taxAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(color: const Color(0xFF0F172A), borderRadius: BorderRadius.circular(6)),
@@ -853,12 +943,12 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
           ),
         ),
         const SizedBox(height: 12),
-        const Center(child: Text('Thank you for your business! 🙏', style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic))),
+        const Center(child: Text('Thank you for your business! 🙏', style: TextStyle(fontSize: 10, color: Color(0xFF64748B), fontStyle: FontStyle.italic))),
       ],
     );
   }
 
-  Widget _buildThermalFlutterPreview(String storeTitle, bool isUdhaar) {
+  Widget _buildThermalFlutterPreview(String storeTitle, bool isUdhaar, double effectiveDiscount) {
     return Column(
       children: [
         Text(storeTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
@@ -888,6 +978,22 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
             ),
           );
         }),
+        const Text('--------------------------------', style: TextStyle(fontFamily: 'monospace')),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Subtotal:', style: TextStyle(fontSize: 10, fontFamily: 'monospace')),
+            Text('₹${widget.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+          ],
+        ),
+        if (effectiveDiscount > 0)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Discount:', style: TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+              Text('- ₹${effectiveDiscount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 10, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+            ],
+          ),
         const Text('================================', style: TextStyle(fontFamily: 'monospace')),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

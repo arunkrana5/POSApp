@@ -157,29 +157,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                const SizedBox(height: 12),
-                _buildFcmCredentialsCard(
-                  context,
-                  isHindi: isHindi,
-                  themeProvider: themeProvider,
-                ),
-                const SizedBox(height: 24),
-
-                // 5. Offline Data Sync Engine
-                _buildSectionTitle(
-                  isHindi ? 'डेटा सिंक' : 'Data Sync Engine',
-                  Icons.cloud_sync_rounded,
-                  themeProvider,
-                ),
-                const SizedBox(height: 12),
-                _buildSyncEngineCard(
-                  context,
-                  isHindi: isHindi,
-                  syncProvider: syncProvider,
-                  themeProvider: themeProvider,
-                ),
-                const SizedBox(height: 32),
-
                 // 5. Version Footer
                 Center(
                   child: Column(

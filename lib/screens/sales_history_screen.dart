@@ -295,6 +295,10 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       icon: const Icon(Icons.print_rounded, size: 20),
                       label: Text(isHindi ? 'प्रिंट' : 'Print'),
                       onPressed: () {
+                        final saleSubtotal = (sale['subtotal'] as num?)?.toDouble() ?? 0.0;
+                        final saleDiscount = (sale['discountAmount'] ?? sale['discount'] as num?)?.toDouble() ?? 0.0;
+                        final saleTax = (sale['taxAmount'] as num?)?.toDouble() ?? 0.0;
+
                         InvoicePrinter.showPrintPreviewModal(
                           context,
                           tenantName: themeProvider.tenantName,
@@ -306,9 +310,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           customerPhone: phoneCtrl.text.trim(),
                           paymentMode: paymentMode,
                           createdAt: createdAt,
-                          subtotal: grandTotal,
-                          taxAmount: 0.0,
-                          discountAmount: 0.0,
+                          subtotal: saleSubtotal > 0 ? saleSubtotal : grandTotal,
+                          taxAmount: saleTax,
+                          discountAmount: saleDiscount,
                           grandTotal: grandTotal,
                           items: itemsList,
                         );
