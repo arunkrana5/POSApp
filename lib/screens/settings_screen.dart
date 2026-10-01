@@ -157,6 +157,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                // 4. WhatsApp Cloud API Gateway Credentials Card
+                _buildSectionTitle(
+                  isHindi ? 'व्हाट्सएप API सर्वर गेटवे' : 'WhatsApp API Gateway',
+                  Icons.send_rounded,
+                  themeProvider,
+                ),
+                const SizedBox(height: 12),
+                _buildWhatsAppConfigCard(
+                  context,
+                  isHindi: isHindi,
+                  themeProvider: themeProvider,
+                ),
+                const SizedBox(height: 24),
+
                 // 5. Version Footer
                 Center(
                   child: Column(
@@ -915,6 +929,139 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWhatsAppConfigCard(
+    BuildContext context, {
+    required bool isHindi,
+    required TenantThemeProvider themeProvider,
+  }) {
+    final urlCtrl = TextEditingController(text: themeProvider.whatsappGatewayUrl);
+    final instanceCtrl = TextEditingController(text: themeProvider.whatsappInstanceId);
+    final apiKeyCtrl = TextEditingController(text: themeProvider.whatsappApiKey);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: themeProvider.cardBgColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.green.shade200, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.send_rounded, color: Color(0xFF25D366), size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    isHindi ? 'व्हाट्सएप गेटवे API कंफ़िग' : 'WhatsApp Server Gateway API Settings',
+                    style: TextStyle(
+                      fontFamily: themeProvider.fontFamily,
+                      fontSize: 14 * themeProvider.fontSizeScale,
+                      fontWeight: FontWeight.bold,
+                      color: themeProvider.textColor,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'SQL DB GATEWAY',
+                  style: TextStyle(color: Color(0xFF25D366), fontWeight: FontWeight.bold, fontSize: 10),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            isHindi
+                ? 'एडमिन पैनल से सीधे SQL डेटाबेस टेबल (V_TenantConfigurations) में WhatsApp API Key और URL सेट करें:'
+                : 'Configure WhatsApp Cloud / Green-API credentials saved directly in SQL database table:',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: urlCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Gateway API URL (Green-API / Meta Cloud API)',
+              border: OutlineInputBorder(),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: instanceCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Instance ID (waInstance)',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: apiKeyCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'API Token / Key',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: const Icon(Icons.save_rounded, size: 18),
+              label: Text(isHindi ? 'डेटाबेस में API Key सेव करें' : 'Save WhatsApp API Keys to DB Table'),
+              onPressed: () async {
+                await themeProvider.updateWhatsAppGatewayConfig(
+                  gatewayUrl: urlCtrl.text.trim(),
+                  instanceId: instanceCtrl.text.trim(),
+                  apiKey: apiKeyCtrl.text.trim(),
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(isHindi ? 'WhatsApp API गेटवे सेटिंग्स SQL डेटाबेस में सेव हुईं!' : 'WhatsApp API Gateway settings saved to SQL database!'),
+                      backgroundColor: Colors.green.shade700,
+                    ),
+                  );
+                }
+              },
             ),
           ),
         ],

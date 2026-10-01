@@ -43,6 +43,10 @@ class TenantThemeProvider with ChangeNotifier {
   String supportHours = "9:00 AM - 9:00 PM";
   String currencySymbol = "₹";
 
+  String whatsappGatewayUrl = "https://api.green-api.com/waInstance{idInstance}/sendMessage/{apiTokenInstance}";
+  String whatsappInstanceId = "";
+  String whatsappApiKey = "";
+
   TenantThemeProvider() {
     _loadFromLocal();
   }
@@ -141,6 +145,10 @@ class TenantThemeProvider with ChangeNotifier {
             final suppEmail = config['SupportEmail'] ?? config['supportEmail'];
             final suppWhatsapp = config['SupportWhatsapp'] ?? config['supportWhatsapp'];
             final suppHoursVal = config['SupportHours'] ?? config['supportHours'];
+
+            whatsappGatewayUrl = config['WhatsappGatewayUrl'] ?? config['whatsappGatewayUrl'] ?? whatsappGatewayUrl;
+            whatsappInstanceId = config['WhatsappInstanceId'] ?? config['whatsappInstanceId'] ?? whatsappInstanceId;
+            whatsappApiKey = config['WhatsappApiKey'] ?? config['whatsappApiKey'] ?? whatsappApiKey;
 
             final enUdhaar = config['EnableUdhaar'] ?? config['enableUdhaar'];
             final enScanner = config['EnableBarcodeScanner'] ?? config['enableBarcodeScanner'];
@@ -412,6 +420,52 @@ class TenantThemeProvider with ChangeNotifier {
         ),
       ),
     );
+  }
+
+  Future<void> updateWhatsAppGatewayConfig({
+    required String gatewayUrl,
+    required String instanceId,
+    required String apiKey,
+  }) async {
+    whatsappGatewayUrl = gatewayUrl;
+    whatsappInstanceId = instanceId;
+    whatsappApiKey = apiKey;
+
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token') ?? '';
+      final tId = prefs.getInt('tenant_id');
+      final tCode = prefs.getString('tenant_code');
+
+      final payload = {
+        'tenantName': tenantName,
+        'supportPhone': supportPhone,
+        'whatsappGatewayUrl': gatewayUrl,
+        'whatsappInstanceId': instanceId,
+        'whatsappApiKey': apiKey,
+      };
+
+      for (String base in ApiConfig.candidateUrls) {
+        try {
+          final queryParams = <String>[];
+          if (tId != null && tId > 0) queryParams.add('tenantId=$tId');
+          if (tCode != null && tCode.isNotEmpty) queryParams.add('tenantCode=$tCode');
+          final qStr = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
+
+          await http.post(
+            Uri.parse('$base/settings/publish$qStr'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+              if (tId != null && tId > 0) 'X-Tenant-Id': tId.toString(),
+            },
+            body: jsonEncode(payload),
+          ).timeout(const Duration(seconds: 4));
+        } catch (_) {}
+      }
+    } catch (_) {}
   }
 }
 
