@@ -157,12 +157,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // 4. Firebase Cloud Messaging (FCM) Push Notification Config
-                _buildSectionTitle(
-                  isHindi ? 'पुश सूचना (FCM Config)' : 'Notification Config',
-                  Icons.notifications_active_rounded,
-                  themeProvider,
-                ),
                 const SizedBox(height: 12),
                 _buildFcmCredentialsCard(
                   context,
@@ -197,7 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          '${themeProvider.appTitle.isNotEmpty ? themeProvider.appTitle : "POS App"} Enterprise v2.5.0 • Live Cloud DB',
+                          '${themeProvider.appTitle.isNotEmpty ? themeProvider.appTitle : "POS App"} v2.5.0',
                           style: TextStyle(
                             fontFamily: themeProvider.fontFamily,
                             color: themeProvider.primaryColor,
@@ -208,7 +202,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '© 2026 POSApp Inc. All rights reserved. Multi-Tenant Enterprise POS.',
+                        '© 2026 Ekargar All rights reserved.',
                         style: TextStyle(
                           fontFamily: themeProvider.fontFamily,
                           color: Colors.grey.shade500,

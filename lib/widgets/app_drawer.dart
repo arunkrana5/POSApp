@@ -449,32 +449,34 @@ class _AppDrawerState extends State<AppDrawer> {
     );
   }
 
-  IconData _getIconData(String iconName) {
-    switch (iconName) {
-      case 'point_of_sale_rounded':
-        return Icons.point_of_sale_rounded;
-      case 'inventory_2_rounded':
-        return Icons.inventory_2_rounded;
-      case 'people_alt_rounded':
-        return Icons.people_alt_rounded;
-      case 'analytics_rounded':
-        return Icons.analytics_rounded;
-      case 'receipt':
-      case 'receipt_long':
-      case 'receipt_long_rounded':
-        return Icons.receipt_long_rounded;
-      case 'settings_rounded':
-        return Icons.settings_rounded;
-      case 'local_offer':
-        return Icons.local_offer_rounded;
-      case 'qr_code':
-        return Icons.qr_code_rounded;
-      case 'support':
-        return Icons.support_agent_rounded;
-      case 'dashboard_rounded':
-      default:
-        return Icons.dashboard_rounded;
+  IconData _getIconData(String rawName) {
+    final name = rawName.trim().toLowerCase();
+    if (name.contains('pos') || name.contains('sale') || name.contains('cart') || name.contains('bill')) {
+      return Icons.point_of_sale_rounded;
+    } else if (name.contains('stock') || name.contains('inventory') || name.contains('warehouse')) {
+      return Icons.inventory_2_rounded;
+    } else if (name.contains('item') || name.contains('product') || name.contains('goods') || name.contains('assign')) {
+      return Icons.assignment_rounded;
+    } else if (name.contains('customer') || name.contains('udhaar') || name.contains('people') || name.contains('user') || name.contains('person')) {
+      return Icons.people_alt_rounded;
+    } else if (name.contains('report') || name.contains('analytic') || name.contains('chart') || name.contains('stat')) {
+      return Icons.analytics_rounded;
+    } else if (name.contains('history') || name.contains('receipt') || name.contains('invoice')) {
+      return Icons.receipt_long_rounded;
+    } else if (name.contains('setting') || name.contains('config') || name.contains('tune') || name.contains('pref')) {
+      return Icons.settings_rounded;
+    } else if (name.contains('offer') || name.contains('discount') || name.contains('tag')) {
+      return Icons.local_offer_rounded;
+    } else if (name.contains('qr') || name.contains('scan') || name.contains('code')) {
+      return Icons.qr_code_rounded;
+    } else if (name.contains('support') || name.contains('help') || name.contains('agent')) {
+      return Icons.support_agent_rounded;
+    } else if (name.contains('sync') || name.contains('cloud')) {
+      return Icons.cloud_sync_rounded;
+    } else if (name.contains('home') || name.contains('dash')) {
+      return Icons.dashboard_rounded;
     }
+    return Icons.widgets_rounded;
   }
 }
 
