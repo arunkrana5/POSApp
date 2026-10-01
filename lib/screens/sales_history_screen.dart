@@ -382,7 +382,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       ),
                       icon: const Icon(Icons.send_rounded, size: 20),
                       label: const Text('WhatsApp Share'),
-                      onPressed: () {
+                      onPressed: () async {
                         final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
                         if (cleanPhone.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -404,14 +404,39 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           items: itemsList,
                         );
 
-                        WhatsAppHelper.openWhatsApp(
-                          phone: cleanPhone,
-                          message: messageText,
-                        );
+                        try {
+                          final prefs = await SharedPreferences.getInstance();
+                          final tId = prefs.getInt('tenant_id') ?? 1;
+                          final token = prefs.getString('auth_token') ?? '';
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('WhatsApp receipt launched for $cleanPhone'), backgroundColor: const Color(0xFF25D366)),
-                        );
+                          final headers = <String, String>{'Content-Type': 'application/json'};
+                          if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+
+                          final response = await http.post(
+                            Uri.parse('${ApiConfig.baseUrl}/sales/send-whatsapp'),
+                            headers: headers,
+                            body: jsonEncode({
+                              'tenantId': tId,
+                              'phone': cleanPhone,
+                              'message': messageText,
+                            }),
+                          ).timeout(const Duration(seconds: 12));
+
+                          if (response.statusCode == 200) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('✅ Cloud Server WhatsApp message sent directly to +91 $cleanPhone!'),
+                                  backgroundColor: const Color(0xFF25D366),
+                                ),
+                              );
+                            }
+                          } else {
+                            WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
+                          }
+                        } catch (_) {
+                          WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
+                        }
                       },
                     ),
                   ),
