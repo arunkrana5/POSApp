@@ -144,14 +144,6 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: themeProvider.primaryColor,
         title: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                color: themeProvider.secondaryColor,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.storefront_rounded, size: 18, color: Colors.white),
-            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -212,11 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Welcome Banner & Quick Sync Pill
-                  _buildGreetingHeader(context, username ?? tenantName, isHindi, syncProvider, themeProvider),
-              const SizedBox(height: 20),
-
-              // Interactive Real-time Analytics & Charts (Top Priority Position)
+                  // Interactive Real-time Analytics & Charts (Top Priority Position)
               AnalyticsChartsWidget(
                 salesList: _salesList,
                 isHindi: isHindi,
