@@ -510,7 +510,8 @@ class _PosScreenState extends State<PosScreen> {
                   icon: const Icon(Icons.print_rounded, size: 18),
                   label: Text(isHindi ? 'प्रिंट रसीद' : 'Print Receipt'),
                   onPressed: () {
-                    InvoicePrinter.printA4Invoice(
+                    InvoicePrinter.showPrintPreviewModal(
+                      context,
                       tenantName: themeProvider.tenantName,
                       appTitle: themeProvider.appTitle,
                       logoUrl: themeProvider.logoUrl,
@@ -522,6 +523,7 @@ class _PosScreenState extends State<PosScreen> {
                       createdAt: DateTime.now().toString().split('.')[0],
                       subtotal: subtotal,
                       taxAmount: taxAmount,
+                      discountAmount: 0.0,
                       grandTotal: grandTotal,
                       items: items,
                     );

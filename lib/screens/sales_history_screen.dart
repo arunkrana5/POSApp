@@ -295,7 +295,8 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       icon: const Icon(Icons.print_rounded, size: 20),
                       label: Text(isHindi ? 'प्रिंट' : 'Print'),
                       onPressed: () {
-                        InvoicePrinter.printA4Invoice(
+                        InvoicePrinter.showPrintPreviewModal(
+                          context,
                           tenantName: themeProvider.tenantName,
                           appTitle: themeProvider.appTitle,
                           logoUrl: themeProvider.logoUrl,
@@ -307,6 +308,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           createdAt: createdAt,
                           subtotal: grandTotal,
                           taxAmount: 0.0,
+                          discountAmount: 0.0,
                           grandTotal: grandTotal,
                           items: itemsList,
                         );
