@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:html' as html;
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -147,30 +146,6 @@ class _StockScreenState extends State<StockScreen> {
   }
 
   Future<String?> _pickAndCompressProductImage() async {
-    if (kIsWeb) {
-      final uploadInput = html.FileUploadInputElement();
-      uploadInput.accept = 'image/*';
-      uploadInput.click();
-
-      await uploadInput.onChange.first;
-      if (uploadInput.files?.isNotEmpty == true) {
-        final file = uploadInput.files!.first;
-        final reader = html.FileReader();
-        reader.readAsDataUrl(file);
-        await reader.onLoadEnd.first;
-        final String dataUrl = reader.result as String;
-
-        final img = html.ImageElement();
-        img.src = dataUrl;
-        await img.onLoad.first;
-
-        final canvas = html.CanvasElement(width: 160, height: 160);
-        final ctx = canvas.context2D;
-        ctx.drawImageScaled(img, 0, 0, 160, 160);
-        final compressedDataUrl = canvas.toDataUrl('image/jpeg', 0.6);
-        return compressedDataUrl;
-      }
-    }
     return null;
   }
 

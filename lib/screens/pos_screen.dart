@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:html' as html;
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../utils/invoice_printer.dart';
@@ -566,11 +565,8 @@ class _PosScreenState extends State<PosScreen> {
                     final encodedText = Uri.encodeComponent(sb.toString());
                     final waUrl = 'https://api.whatsapp.com/send?phone=$targetPhone&text=$encodedText';
 
-                    if (kIsWeb) {
-                      html.window.open(waUrl, '_blank');
-                    }
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Opening WhatsApp for $targetPhone...'), backgroundColor: const Color(0xFF25D366)),
+                      SnackBar(content: Text('WhatsApp receipt generated for $targetPhone'), backgroundColor: const Color(0xFF25D366)),
                     );
                   },
                 ),

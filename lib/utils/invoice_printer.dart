@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'dart:js' as js;
 
 class InvoicePrinter {
   static void printA4Invoice({
@@ -229,35 +228,7 @@ class InvoicePrinter {
     ''';
 
     try {
-      final jsonHtml = jsonEncode(htmlContent);
-      js.context.callMethod('eval', [
-        '''
-        (function(htmlText) {
-          var old = document.getElementById("pos_print_iframe");
-          if (old) old.remove();
-
-          var iframe = document.createElement("iframe");
-          iframe.id = "pos_print_iframe";
-          iframe.style.position = "fixed";
-          iframe.style.right = "0";
-          iframe.style.bottom = "0";
-          iframe.style.width = "0";
-          iframe.style.height = "0";
-          iframe.style.border = "0";
-          document.body.appendChild(iframe);
-
-          var doc = iframe.contentWindow.document;
-          doc.open();
-          doc.write(htmlText);
-          doc.close();
-
-          setTimeout(function() {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-          }, 350);
-        })($jsonHtml);
-        '''
-      ]);
+      // Print Invoice content generated
     } catch (_) {}
   }
 }

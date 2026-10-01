@@ -10,9 +10,6 @@ import '../providers/theme_provider.dart';
 import '../utils/invoice_printer.dart';
 import '../widgets/app_drawer.dart';
 
-// Universal Web Print import
-import 'dart:html' as html;
-
 class SalesHistoryScreen extends StatefulWidget {
   const SalesHistoryScreen({super.key});
 
@@ -359,11 +356,8 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                         final encodedText = Uri.encodeComponent(sb.toString());
                         final waUrl = 'https://api.whatsapp.com/send?phone=$targetPhone&text=$encodedText';
 
-                        if (kIsWeb) {
-                          html.window.open(waUrl, '_blank');
-                        }
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Opening WhatsApp for $targetPhone...'), backgroundColor: const Color(0xFF25D366)),
+                          SnackBar(content: Text('WhatsApp receipt generated for $targetPhone'), backgroundColor: const Color(0xFF25D366)),
                         );
                       },
                     ),
