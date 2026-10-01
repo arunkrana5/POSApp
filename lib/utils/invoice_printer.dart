@@ -27,7 +27,7 @@ class InvoicePrinter {
 
     final double baseSubtotal = subtotal > 0 ? subtotal : (itemsSum > 0 ? itemsSum : grandTotal);
     final double diff = (baseSubtotal + taxAmount) - grandTotal;
-    return diff > 0.01 ? diff : 0.0;
+    return diff > 0.001 ? diff : 0.0;
   }
 
   /// Helper method to compute base subtotal
@@ -417,7 +417,7 @@ class InvoicePrinter {
             <td style="color: #475569;">Subtotal:</td>
             <td style="text-align: right; font-weight: 700;">₹ ${effectiveSubtotal.toStringAsFixed(2)}</td>
           </tr>
-          ${effectiveDiscount > 0 ? '<tr><td style="color: #16A34A; font-weight: 600;">Discount / Off:</td><td style="text-align: right; font-weight: 800; color: #16A34A;">- ₹ ' + effectiveDiscount.toStringAsFixed(2) + '</td></tr>' : ''}
+          ${effectiveDiscount > 0.001 ? '<tr><td style="color: #16A34A; font-weight: 600;">Discount / Off:</td><td style="text-align: right; font-weight: 800; color: #16A34A;">- ₹ ' + effectiveDiscount.toStringAsFixed(2) + '</td></tr>' : ''}
           ${taxAmount > 0 ? '<tr><td style="color: #475569;">GST Tax:</td><td style="text-align: right; font-weight: 700;">₹ ' + taxAmount.toStringAsFixed(2) + '</td></tr>' : ''}
           <tr class="total-row">
             <td style="color: #FFFFFF;">NET GRAND TOTAL:</td>
@@ -566,7 +566,7 @@ class InvoicePrinter {
       <span>Subtotal:</span>
       <span>₹${effectiveSubtotal.toStringAsFixed(2)}</span>
     </div>
-    ${effectiveDiscount > 0 ? '<div style="display: flex; justify-content: space-between;"><span>Discount:</span><span style="font-weight: bold;">- ₹' + effectiveDiscount.toStringAsFixed(2) + '</span></div>' : ''}
+    ${effectiveDiscount > 0.001 ? '<div style="display: flex; justify-content: space-between;"><span>Discount:</span><span style="font-weight: bold;">- ₹' + effectiveDiscount.toStringAsFixed(2) + '</span></div>' : ''}
     ${taxAmount > 0 ? '<div style="display: flex; justify-content: space-between;"><span>GST Tax:</span><span>₹' + taxAmount.toStringAsFixed(2) + '</span></div>' : ''}
   </div>
 
@@ -976,7 +976,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                   Text('₹${effectiveSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 ],
               ),
-              if (effectiveDiscount > 0) ...[
+              if (effectiveDiscount > 0.001) ...[
                 const SizedBox(height: 4),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1056,7 +1056,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
             Text('₹${effectiveSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
           ],
         ),
-        if (effectiveDiscount > 0)
+        if (effectiveDiscount > 0.001)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
