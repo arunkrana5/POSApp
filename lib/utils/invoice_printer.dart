@@ -6,6 +6,48 @@ import 'printer_helper.dart';
 enum PrintFormat { a4, thermal }
 
 class InvoicePrinter {
+  /// Helper method to compute robust discount amount
+  static double _calculateEffectiveDiscount({
+    required double subtotal,
+    required double taxAmount,
+    required double discountAmount,
+    required double grandTotal,
+    required List<dynamic> items,
+  }) {
+    if (discountAmount > 0) return discountAmount;
+
+    double itemsSum = 0.0;
+    for (var it in items) {
+      if (it is Map) {
+        final qty = (it['quantity'] ?? it['qty'] ?? 1) as num;
+        final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
+        itemsSum += (it['totalPrice'] as num?)?.toDouble() ?? (qty * price).toDouble();
+      }
+    }
+
+    final double baseSubtotal = subtotal > 0 ? subtotal : (itemsSum > 0 ? itemsSum : grandTotal);
+    final double diff = (baseSubtotal + taxAmount) - grandTotal;
+    return diff > 0.01 ? diff : 0.0;
+  }
+
+  /// Helper method to compute base subtotal
+  static double _calculateBaseSubtotal({
+    required double subtotal,
+    required double grandTotal,
+    required List<dynamic> items,
+  }) {
+    if (subtotal > 0) return subtotal;
+    double itemsSum = 0.0;
+    for (var it in items) {
+      if (it is Map) {
+        final qty = (it['quantity'] ?? it['qty'] ?? 1) as num;
+        final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
+        itemsSum += (it['totalPrice'] as num?)?.toDouble() ?? (qty * price).toDouble();
+      }
+    }
+    return itemsSum > 0 ? itemsSum : grandTotal;
+  }
+
   /// Entry point to show modern print & receipt preview dialog with format selection
   static void showPrintPreviewModal(
     BuildContext context, {
@@ -140,9 +182,19 @@ class InvoicePrinter {
       srNo++;
     }
 
-    final double effectiveDiscount = discountAmount > 0
-        ? discountAmount
-        : (((subtotal + taxAmount) - grandTotal) > 0.01 ? ((subtotal + taxAmount) - grandTotal) : 0.0);
+    final double effectiveSubtotal = _calculateBaseSubtotal(
+      subtotal: subtotal,
+      grandTotal: grandTotal,
+      items: items,
+    );
+
+    final double effectiveDiscount = _calculateEffectiveDiscount(
+      subtotal: subtotal,
+      taxAmount: taxAmount,
+      discountAmount: discountAmount,
+      grandTotal: grandTotal,
+      items: items,
+    );
 
     final isUdhaar = paymentMode.toLowerCase() == 'udhaar';
     final storeTitle = tenantName.isNotEmpty ? tenantName : "VILLAGE POS STORE";
@@ -363,7 +415,7 @@ class InvoicePrinter {
         <table class="summary-table">
           <tr>
             <td style="color: #475569;">Subtotal:</td>
-            <td style="text-align: right; font-weight: 700;">₹ ${subtotal.toStringAsFixed(2)}</td>
+            <td style="text-align: right; font-weight: 700;">₹ ${effectiveSubtotal.toStringAsFixed(2)}</td>
           </tr>
           ${effectiveDiscount > 0 ? '<tr><td style="color: #16A34A; font-weight: 600;">Discount / Off:</td><td style="text-align: right; font-weight: 800; color: #16A34A;">- ₹ ' + effectiveDiscount.toStringAsFixed(2) + '</td></tr>' : ''}
           ${taxAmount > 0 ? '<tr><td style="color: #475569;">GST Tax:</td><td style="text-align: right; font-weight: 700;">₹ ' + taxAmount.toStringAsFixed(2) + '</td></tr>' : ''}
@@ -431,9 +483,19 @@ class InvoicePrinter {
       ''');
     }
 
-    final double effectiveDiscount = discountAmount > 0
-        ? discountAmount
-        : (((subtotal + taxAmount) - grandTotal) > 0.01 ? ((subtotal + taxAmount) - grandTotal) : 0.0);
+    final double effectiveSubtotal = _calculateBaseSubtotal(
+      subtotal: subtotal,
+      grandTotal: grandTotal,
+      items: items,
+    );
+
+    final double effectiveDiscount = _calculateEffectiveDiscount(
+      subtotal: subtotal,
+      taxAmount: taxAmount,
+      discountAmount: discountAmount,
+      grandTotal: grandTotal,
+      items: items,
+    );
 
     final isUdhaar = paymentMode.toLowerCase() == 'udhaar';
     final storeTitle = tenantName.isNotEmpty ? tenantName : "VILLAGE POS STORE";
@@ -502,7 +564,7 @@ class InvoicePrinter {
   <div style="font-size: 11px;">
     <div style="display: flex; justify-content: space-between;">
       <span>Subtotal:</span>
-      <span>₹${subtotal.toStringAsFixed(2)}</span>
+      <span>₹${effectiveSubtotal.toStringAsFixed(2)}</span>
     </div>
     ${effectiveDiscount > 0 ? '<div style="display: flex; justify-content: space-between;"><span>Discount:</span><span style="font-weight: bold;">- ₹' + effectiveDiscount.toStringAsFixed(2) + '</span></div>' : ''}
     ${taxAmount > 0 ? '<div style="display: flex; justify-content: space-between;"><span>GST Tax:</span><span>₹' + taxAmount.toStringAsFixed(2) + '</span></div>' : ''}
@@ -575,11 +637,19 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
     final storeTitle = widget.tenantName.isNotEmpty ? widget.tenantName : "VILLAGE POS STORE";
     final themeColor = widget.primaryColor;
 
-    final double effectiveDiscount = widget.discountAmount > 0
-        ? widget.discountAmount
-        : (((widget.subtotal + widget.taxAmount) - widget.grandTotal) > 0.01
-            ? ((widget.subtotal + widget.taxAmount) - widget.grandTotal)
-            : 0.0);
+    final double effectiveSubtotal = InvoicePrinter._calculateBaseSubtotal(
+      subtotal: widget.subtotal,
+      grandTotal: widget.grandTotal,
+      items: widget.items,
+    );
+
+    final double effectiveDiscount = InvoicePrinter._calculateEffectiveDiscount(
+      subtotal: widget.subtotal,
+      taxAmount: widget.taxAmount,
+      discountAmount: widget.discountAmount,
+      grandTotal: widget.grandTotal,
+      items: widget.items,
+    );
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.90,
@@ -737,8 +807,8 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                   ),
                   padding: EdgeInsets.all(_selectedFormat == PrintFormat.a4 ? 20 : 14),
                   child: _selectedFormat == PrintFormat.a4
-                      ? _buildA4FlutterPreview(storeTitle, isUdhaar, effectiveDiscount, themeColor)
-                      : _buildThermalFlutterPreview(storeTitle, isUdhaar, effectiveDiscount),
+                      ? _buildA4FlutterPreview(storeTitle, isUdhaar, effectiveSubtotal, effectiveDiscount, themeColor)
+                      : _buildThermalFlutterPreview(storeTitle, isUdhaar, effectiveSubtotal, effectiveDiscount),
                 ),
               ),
             ),
@@ -779,7 +849,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                         customerPhone: widget.customerPhone,
                         paymentMode: widget.paymentMode,
                         createdAt: widget.createdAt,
-                        subtotal: widget.subtotal,
+                        subtotal: effectiveSubtotal,
                         taxAmount: widget.taxAmount,
                         discountAmount: effectiveDiscount,
                         grandTotal: widget.grandTotal,
@@ -796,7 +866,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
     );
   }
 
-  Widget _buildA4FlutterPreview(String storeTitle, bool isUdhaar, double effectiveDiscount, Color themeColor) {
+  Widget _buildA4FlutterPreview(String storeTitle, bool isUdhaar, double effectiveSubtotal, double effectiveDiscount, Color themeColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -903,7 +973,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Subtotal:', style: TextStyle(fontSize: 11, color: Color(0xFF475569))),
-                  Text('₹${widget.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  Text('₹${effectiveSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 ],
               ),
               if (effectiveDiscount > 0) ...[
@@ -948,7 +1018,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
     );
   }
 
-  Widget _buildThermalFlutterPreview(String storeTitle, bool isUdhaar, double effectiveDiscount) {
+  Widget _buildThermalFlutterPreview(String storeTitle, bool isUdhaar, double effectiveSubtotal, double effectiveDiscount) {
     return Column(
       children: [
         Text(storeTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
@@ -983,7 +1053,7 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Subtotal:', style: TextStyle(fontSize: 10, fontFamily: 'monospace')),
-            Text('₹${widget.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+            Text('₹${effectiveSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
           ],
         ),
         if (effectiveDiscount > 0)

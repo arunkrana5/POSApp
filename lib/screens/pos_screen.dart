@@ -1211,6 +1211,7 @@ class _PosScreenState extends State<PosScreen> {
                           final subtotalSnapshot = subtotal;
                           final taxSnapshot = taxAmount;
                           final netPayableSnapshot = netPayable;
+                          final discountSnapshot = (subtotal + taxAmount - netPayable).clamp(0.0, double.infinity);
                           final modeSnapshot = mode;
                           final customerSnapshot = _selectedCustomer;
                           final phoneSnapshot = _customerPhoneController.text;
@@ -1226,6 +1227,8 @@ class _PosScreenState extends State<PosScreen> {
                             'customerPhone': phoneSnapshot,
                             'subtotal': subtotalSnapshot,
                             'taxAmount': taxSnapshot,
+                            'discountAmount': discountSnapshot,
+                            'discount': discountSnapshot,
                             'amount': netPayableSnapshot,
                             'totalAmount': netPayableSnapshot,
                             'paidAmount': paidAmount,
@@ -1273,7 +1276,7 @@ class _PosScreenState extends State<PosScreen> {
                               items: cartSnapshot,
                               subtotal: subtotalSnapshot,
                               taxAmount: taxSnapshot,
-                              discountAmount: discount,
+                              discountAmount: discountSnapshot,
                               grandTotal: netPayableSnapshot,
                               paymentMode: modeSnapshot,
                             );
