@@ -275,7 +275,7 @@ class _AnalyticsChartsWidgetState extends State<AnalyticsChartsWidget> with Sing
                       children: const [
                         Icon(Icons.trending_up_rounded, size: 16, color: Colors.green),
                         SizedBox(width: 4),
-                        Text('Live DB Feed', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text('Sales', style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
