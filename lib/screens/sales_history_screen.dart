@@ -8,6 +8,7 @@ import '../config/api_config.dart';
 import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/invoice_printer.dart';
+import '../utils/whatsapp_helper.dart';
 import '../widgets/app_drawer.dart';
 
 class SalesHistoryScreen extends StatefulWidget {
@@ -389,40 +390,27 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           );
                           return;
                         }
-                        final targetPhone = cleanPhone.startsWith('91') ? cleanPhone : '91$cleanPhone';
 
-                        final StringBuffer sb = StringBuffer();
-                        sb.writeln('🛒 *${themeProvider.tenantName.toUpperCase()} - TAX INVOICE*');
-                        sb.writeln('===================================');
-                        sb.writeln('📄 Invoice No: $invoiceNo');
-                        sb.writeln('👤 Customer: $customerName');
-                        sb.writeln('💳 Mode: $paymentMode');
-                        sb.writeln('📅 Date: $createdAt');
-                        sb.writeln('-----------------------------------');
-                        for (var it in itemsList) {
-                          final name = it['productName'] ?? it['name'] ?? 'Item';
-                          final qty = it['quantity'] ?? it['qty'] ?? 1;
-                          final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
-                          final tot = (it['totalPrice'] ?? (qty * price)) as num;
-                          sb.writeln('• ${qty}x $name @ ₹$price = ₹${tot.toStringAsFixed(2)}');
-                        }
-                        sb.writeln('-----------------------------------');
-                        sb.writeln('Gross Amount (Subtotal): ₹${effectiveGross.toStringAsFixed(2)}');
-                        if (effectiveDiscount > 0.001) {
-                          sb.writeln('Discount / Off: - ₹${effectiveDiscount.toStringAsFixed(2)}');
-                        }
-                        if (rawTax > 0.001) {
-                          sb.writeln('Tax Amount: + ₹${rawTax.toStringAsFixed(2)}');
-                        }
-                        sb.writeln('*NET AMOUNT (Grand Total): ₹${grandTotal.toStringAsFixed(2)}*');
-                        sb.writeln('===================================');
-                        sb.writeln('Thank you for shopping with us! 🙏');
+                        final messageText = WhatsAppHelper.formatInvoiceMessage(
+                          tenantName: themeProvider.tenantName,
+                          invoiceNo: invoiceNo,
+                          customerName: customerName,
+                          paymentMode: paymentMode,
+                          createdAt: createdAt,
+                          subtotal: effectiveGross,
+                          discountAmount: effectiveDiscount,
+                          taxAmount: rawTax,
+                          grandTotal: grandTotal,
+                          items: itemsList,
+                        );
 
-                        final encodedText = Uri.encodeComponent(sb.toString());
-                        final waUrl = 'https://api.whatsapp.com/send?phone=$targetPhone&text=$encodedText';
+                        WhatsAppHelper.openWhatsApp(
+                          phone: cleanPhone,
+                          message: messageText,
+                        );
 
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('WhatsApp receipt generated for $targetPhone'), backgroundColor: const Color(0xFF25D366)),
+                          SnackBar(content: Text('WhatsApp receipt launched for $cleanPhone'), backgroundColor: const Color(0xFF25D366)),
                         );
                       },
                     ),

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../utils/invoice_printer.dart';
+import '../utils/whatsapp_helper.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../database/sqlite_helper.dart';
@@ -575,36 +576,27 @@ class _PosScreenState extends State<PosScreen> {
                       );
                       return;
                     }
-                    final targetPhone = cleanPhone.startsWith('91') ? cleanPhone : '91$cleanPhone';
                     final calcDisc = discountAmount > 0.001 ? discountAmount : (subtotal - grandTotal);
+                    final messageText = WhatsAppHelper.formatInvoiceMessage(
+                      tenantName: themeProvider.tenantName,
+                      invoiceNo: invoiceNo,
+                      customerName: customerName,
+                      paymentMode: paymentMode,
+                      createdAt: DateTime.now().toString().split('.')[0],
+                      subtotal: subtotal > 0 ? subtotal : grandTotal,
+                      discountAmount: calcDisc > 0.001 ? calcDisc : 0.0,
+                      taxAmount: taxAmount,
+                      grandTotal: grandTotal,
+                      items: items,
+                    );
 
-                    final StringBuffer sb = StringBuffer();
-                    sb.writeln('🛒 *VILLAGE SHOP - INVOICE RECEIPT*');
-                    sb.writeln('===========================');
-                    sb.writeln('📄 Invoice No: $invoiceNo');
-                    sb.writeln('👤 Customer: $customerName');
-                    sb.writeln('💳 Mode: $paymentMode');
-                    sb.writeln('---------------------------');
-                    for (var it in items) {
-                      final name = it['name'] ?? it['productName'];
-                      final qty = it['qty'] ?? it['quantity'];
-                      final price = it['price'] ?? it['unitPrice'];
-                      sb.writeln('• ${qty}x $name @ ₹$price = ₹${(qty * price).toStringAsFixed(2)}');
-                    }
-                    sb.writeln('---------------------------');
-                    sb.writeln('Subtotal: ₹${subtotal.toStringAsFixed(2)}');
-                    if (calcDisc > 0.001) {
-                      sb.writeln('Discount / Off: - ₹${calcDisc.toStringAsFixed(2)}');
-                    }
-                    sb.writeln('*NET GRAND TOTAL: ₹${grandTotal.toStringAsFixed(2)}*');
-                    sb.writeln('===========================');
-                    sb.writeln('Thank you for shopping with us! 🙏');
-
-                    final encodedText = Uri.encodeComponent(sb.toString());
-                    final waUrl = 'https://api.whatsapp.com/send?phone=$targetPhone&text=$encodedText';
+                    WhatsAppHelper.openWhatsApp(
+                      phone: cleanPhone,
+                      message: messageText,
+                    );
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('WhatsApp receipt generated for $targetPhone'), backgroundColor: const Color(0xFF25D366)),
+                      SnackBar(content: Text('WhatsApp receipt launched for $cleanPhone'), backgroundColor: const Color(0xFF25D366)),
                     );
                   },
                 ),
