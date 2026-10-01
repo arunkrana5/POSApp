@@ -95,6 +95,28 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     final createdAt = sale['createdAt']?.toString() ?? DateTime.now().toString().split('.')[0];
     final itemsList = (sale['items'] as List<dynamic>?) ?? [];
 
+    double calculatedItemsGross = 0.0;
+    for (var it in itemsList) {
+      final qty = (it['quantity'] ?? it['qty'] ?? 1) as num;
+      final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
+      final total = (it['totalPrice'] ?? (qty.toDouble() * price.toDouble())) as num;
+      calculatedItemsGross += total.toDouble();
+    }
+
+    final double rawGross = (sale['grossAmount'] ?? sale['subtotal'] ?? sale['subTotal'] as num?)?.toDouble() ?? calculatedItemsGross;
+    final double rawDiscount = (sale['discountAmount'] ?? sale['discount'] as num?)?.toDouble() ?? 0.0;
+    final double rawTax = (sale['taxAmount'] as num?)?.toDouble() ?? 0.0;
+
+    double effectiveGross = rawGross;
+    double effectiveDiscount = rawDiscount;
+
+    if (effectiveDiscount <= 0.001 && rawGross > grandTotal) {
+      effectiveDiscount = rawGross - grandTotal;
+    }
+    if (effectiveGross < grandTotal + effectiveDiscount) {
+      effectiveGross = grandTotal + effectiveDiscount;
+    }
+
     final phoneCtrl = TextEditingController(text: (sale['customerPhone'] != null && sale['customerPhone'].toString() != '9876543210') ? sale['customerPhone'].toString() : '');
 
     showDialog(
@@ -246,25 +268,59 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Bill Summary Total
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                "GRAND TOTAL: ₹ ${grandTotal.toStringAsFixed(2)}",
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
-                              ),
+                      // Bill Financial Breakdown Card (Gross Amount, Discount, Net Amount)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.shade200),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text("Gross Amount (Subtotal):", style: TextStyle(fontSize: 13, color: Colors.black87)),
+                                Text("₹${effectiveGross.toStringAsFixed(2)}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                            if (effectiveDiscount > 0.001) ...[
                               const SizedBox(height: 4),
-                              Text(
-                                "Included GST Taxes & POS Savings",
-                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text("Discount / Off:", style: TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.bold)),
+                                  Text("- ₹${effectiveDiscount.toStringAsFixed(2)}", style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.bold)),
+                                ],
                               ),
                             ],
-                          ),
-                        ],
+                            if (rawTax > 0.001) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text("Tax Amount:", style: TextStyle(fontSize: 13, color: Colors.black87)),
+                                  Text("+ ₹${rawTax.toStringAsFixed(2)}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ],
+                            const Divider(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  "NET AMOUNT (Grand Total):",
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                                ),
+                                Text(
+                                  "₹${grandTotal.toStringAsFixed(2)}",
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       const Divider(),
@@ -295,10 +351,6 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       icon: const Icon(Icons.print_rounded, size: 20),
                       label: Text(isHindi ? 'प्रिंट' : 'Print'),
                       onPressed: () {
-                        final saleSubtotal = (sale['subtotal'] as num?)?.toDouble() ?? 0.0;
-                        final saleDiscount = (sale['discountAmount'] ?? sale['discount'] as num?)?.toDouble() ?? 0.0;
-                        final saleTax = (sale['taxAmount'] as num?)?.toDouble() ?? 0.0;
-
                         InvoicePrinter.showPrintPreviewModal(
                           context,
                           tenantName: themeProvider.tenantName,
@@ -310,9 +362,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           customerPhone: phoneCtrl.text.trim(),
                           paymentMode: paymentMode,
                           createdAt: createdAt,
-                          subtotal: saleSubtotal > 0 ? saleSubtotal : grandTotal,
-                          taxAmount: saleTax,
-                          discountAmount: saleDiscount,
+                          subtotal: effectiveGross,
+                          taxAmount: rawTax,
+                          discountAmount: effectiveDiscount,
                           grandTotal: grandTotal,
                           items: itemsList,
                         );
@@ -355,7 +407,14 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           sb.writeln('• ${qty}x $name @ ₹$price = ₹${tot.toStringAsFixed(2)}');
                         }
                         sb.writeln('-----------------------------------');
-                        sb.writeln('*GRAND TOTAL: ₹${grandTotal.toStringAsFixed(2)}*');
+                        sb.writeln('Gross Amount (Subtotal): ₹${effectiveGross.toStringAsFixed(2)}');
+                        if (effectiveDiscount > 0.001) {
+                          sb.writeln('Discount / Off: - ₹${effectiveDiscount.toStringAsFixed(2)}');
+                        }
+                        if (rawTax > 0.001) {
+                          sb.writeln('Tax Amount: + ₹${rawTax.toStringAsFixed(2)}');
+                        }
+                        sb.writeln('*NET AMOUNT (Grand Total): ₹${grandTotal.toStringAsFixed(2)}*');
                         sb.writeln('===================================');
                         sb.writeln('Thank you for shopping with us! 🙏');
 
