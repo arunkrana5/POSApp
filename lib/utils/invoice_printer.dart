@@ -1,11 +1,28 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'printer_helper.dart';
 
 enum PrintFormat { a4, thermal }
 
 class InvoicePrinter {
+  /// Helper method to compute base subtotal
+  static double _calculateBaseSubtotal({
+    required double subtotal,
+    required double grandTotal,
+    required List<dynamic> items,
+  }) {
+    double itemsSum = 0.0;
+    for (var it in items) {
+      if (it is Map) {
+        final qty = (it['quantity'] ?? it['qty'] ?? 1) as num;
+        final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
+        itemsSum += (it['totalPrice'] as num?)?.toDouble() ?? (qty * price).toDouble();
+      }
+    }
+    if (itemsSum > 0) return itemsSum;
+    if (subtotal > grandTotal) return subtotal;
+    return grandTotal;
+  }
+
   /// Helper method to compute robust discount amount
   static double _calculateEffectiveDiscount({
     required double subtotal,
@@ -14,38 +31,15 @@ class InvoicePrinter {
     required double grandTotal,
     required List<dynamic> items,
   }) {
-    if (discountAmount > 0) return discountAmount;
+    if (discountAmount > 0.001) return discountAmount;
 
-    double itemsSum = 0.0;
-    for (var it in items) {
-      if (it is Map) {
-        final qty = (it['quantity'] ?? it['qty'] ?? 1) as num;
-        final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
-        itemsSum += (it['totalPrice'] as num?)?.toDouble() ?? (qty * price).toDouble();
-      }
-    }
-
-    final double baseSubtotal = subtotal > 0 ? subtotal : (itemsSum > 0 ? itemsSum : grandTotal);
-    final double diff = (baseSubtotal + taxAmount) - grandTotal;
+    final double baseGross = _calculateBaseSubtotal(
+      subtotal: subtotal,
+      grandTotal: grandTotal,
+      items: items,
+    );
+    final double diff = (baseGross + taxAmount) - grandTotal;
     return diff > 0.001 ? diff : 0.0;
-  }
-
-  /// Helper method to compute base subtotal
-  static double _calculateBaseSubtotal({
-    required double subtotal,
-    required double grandTotal,
-    required List<dynamic> items,
-  }) {
-    if (subtotal > 0) return subtotal;
-    double itemsSum = 0.0;
-    for (var it in items) {
-      if (it is Map) {
-        final qty = (it['quantity'] ?? it['qty'] ?? 1) as num;
-        final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
-        itemsSum += (it['totalPrice'] as num?)?.toDouble() ?? (qty * price).toDouble();
-      }
-    }
-    return itemsSum > 0 ? itemsSum : grandTotal;
   }
 
   /// Entry point to show modern print & receipt preview dialog with format selection

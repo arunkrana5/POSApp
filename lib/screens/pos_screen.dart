@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
@@ -1119,6 +1118,8 @@ class _PosScreenState extends State<PosScreen> {
     final discountCtrl = TextEditingController(text: '0');
     final paidCtrl = TextEditingController(text: grandTotal.toStringAsFixed(0));
     String mode = _selectedPaymentMode;
+    String? modalErrorMessage;
+    bool isProcessingSale = false;
 
     showModalBottomSheet(
       context: context,
@@ -1157,7 +1158,31 @@ class _PosScreenState extends State<PosScreen> {
                       ],
                     ),
                     const Divider(),
-                    const SizedBox(height: 8),
+                    if (modalErrorMessage != null) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade100,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.red.shade400),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: Colors.red, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                modalErrorMessage!,
+                                style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
 
                     // Customer & Mode Info Header
                     Container(
@@ -1292,87 +1317,122 @@ class _PosScreenState extends State<PosScreen> {
                           foregroundColor: themeProvider.buttonTextColor,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        onPressed: () async {
-                          final invoiceNo = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
-                          final cartSnapshot = List<Map<String, dynamic>>.from(_cartItems);
-                          final subtotalSnapshot = subtotal;
-                          final taxSnapshot = taxAmount;
-                          final netPayableSnapshot = netPayable;
-                          final discountSnapshot = (subtotal + taxAmount - netPayable).clamp(0.0, double.infinity);
-                          final modeSnapshot = mode;
-                          final customerSnapshot = _selectedCustomer;
-                          final phoneSnapshot = _customerPhoneController.text;
+                        onPressed: isProcessingSale
+                            ? null
+                            : () async {
+                                setModalState(() {
+                                  isProcessingSale = true;
+                                  modalErrorMessage = null;
+                                });
 
-                          final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                          final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-                          await syncProvider.saveOfflineSale({
-                            'clientTransactionId': invoiceNo,
-                            'tenantId': authProvider.tenantId,
-                            'tenantCode': authProvider.tenantCode,
-                            'customer': customerSnapshot,
-                            'customerName': customerSnapshot,
-                            'customerPhone': phoneSnapshot,
-                            'subtotal': subtotalSnapshot,
-                            'taxAmount': taxSnapshot,
-                            'discountAmount': discountSnapshot,
-                            'discount': discountSnapshot,
-                            'amount': netPayableSnapshot,
-                            'totalAmount': netPayableSnapshot,
-                            'paidAmount': paidAmount,
-                            'paymentMode': modeSnapshot,
-                            'items': cartSnapshot,
-                            'createdAt': DateTime.now().toIso8601String(),
-                          });
+                                try {
+                                  final invoiceNo = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+                                  final cartSnapshot = _cartItems.map((item) {
+                                    final rawId = item['id'];
+                                    final parsedId = rawId is num ? rawId.toInt() : (int.tryParse(rawId?.toString() ?? '') ?? 0);
+                                    final qtyVal = (item['qty'] as num?)?.toDouble() ?? 1.0;
+                                    final priceVal = (item['price'] as num?)?.toDouble() ?? 0.0;
+                                    return {
+                                      'id': parsedId > 0 ? parsedId : rawId,
+                                      'productId': parsedId,
+                                      'name': item['name'] ?? '',
+                                      'productName': item['name'] ?? '',
+                                      'price': priceVal,
+                                      'unitPrice': priceVal,
+                                      'qty': qtyVal,
+                                      'quantity': qtyVal,
+                                      'unit': item['unit'] ?? 'pcs',
+                                      'isLoose': item['isLoose'] ?? false,
+                                    };
+                                  }).toList();
 
-                          // Update Customer Udhaar Ledger balance if remainingUdhaar > 0
-                          if (remainingUdhaar > 0 && customerSnapshot != 'Walk-in Customer') {
-                            final customersList = await SQLiteHelper.instance.getCustomers();
-                            final cust = customersList.firstWhere((c) => c['name'] == customerSnapshot, orElse: () => {});
-                            final currentBalance = (cust['udhaar'] as num?)?.toDouble() ?? 0.0;
-                            final newBalance = currentBalance + remainingUdhaar;
-                            await SQLiteHelper.instance.updateCustomerUdhaar(customerSnapshot, newBalance);
-                          }
+                                  final subtotalSnapshot = subtotal;
+                                  final taxSnapshot = taxAmount;
+                                  final netPayableSnapshot = netPayable;
+                                  final discountSnapshot = (subtotal + taxAmount - netPayable).clamp(0.0, double.infinity);
+                                  final modeSnapshot = mode;
+                                  final customerSnapshot = _selectedCustomer;
+                                  final phoneSnapshot = _customerPhoneController.text;
 
-                          if (context.mounted) {
-                            setState(() {
-                              for (var cartItem in cartSnapshot) {
-                                final idx = _availableProducts.indexWhere((p) => p['id'] == cartItem['id'] || p['name'] == cartItem['name']);
-                                if (idx >= 0) {
-                                  final current = (_availableProducts[idx]['stock'] as num).toDouble();
-                                  final qty = (cartItem['qty'] as num).toDouble();
-                                  _availableProducts[idx]['stock'] = (current - qty) < 0 ? 0 : (current - qty);
-                                  // Update SQLite stock
-                                  SQLiteHelper.instance.deductProductStock(_availableProducts[idx]['name'], qty);
+                                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                  final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                                  
+                                  await syncProvider.saveOfflineSale({
+                                    'clientTransactionId': invoiceNo,
+                                    'tenantId': authProvider.tenantId,
+                                    'tenantCode': authProvider.tenantCode,
+                                    'customer': customerSnapshot,
+                                    'customerName': customerSnapshot,
+                                    'customerPhone': phoneSnapshot,
+                                    'subtotal': subtotalSnapshot,
+                                    'taxAmount': taxSnapshot,
+                                    'discountAmount': discountSnapshot,
+                                    'discount': discountSnapshot,
+                                    'amount': netPayableSnapshot,
+                                    'totalAmount': netPayableSnapshot,
+                                    'paidAmount': paidAmount,
+                                    'paymentMode': modeSnapshot,
+                                    'items': cartSnapshot,
+                                    'createdAt': DateTime.now().toIso8601String(),
+                                  });
+
+                                  // Update Customer Udhaar Ledger balance if remainingUdhaar > 0
+                                  if (remainingUdhaar > 0 && customerSnapshot != 'Walk-in Customer') {
+                                    final customersList = await SQLiteHelper.instance.getCustomers();
+                                    final cust = customersList.firstWhere((c) => c['name'] == customerSnapshot, orElse: () => {});
+                                    final currentBalance = (cust['udhaar'] as num?)?.toDouble() ?? 0.0;
+                                    final newBalance = currentBalance + remainingUdhaar;
+                                    await SQLiteHelper.instance.updateCustomerUdhaar(customerSnapshot, newBalance);
+                                  }
+
+                                  if (context.mounted) {
+                                    setState(() {
+                                      for (var cartItem in cartSnapshot) {
+                                        final idx = _availableProducts.indexWhere((p) => p['id'] == cartItem['id'] || p['name'] == cartItem['name']);
+                                        if (idx >= 0) {
+                                          final current = (_availableProducts[idx]['stock'] as num).toDouble();
+                                          final qty = (cartItem['qty'] as num).toDouble();
+                                          _availableProducts[idx]['stock'] = (current - qty) < 0 ? 0 : (current - qty);
+                                          // Update SQLite stock
+                                          SQLiteHelper.instance.deductProductStock(_availableProducts[idx]['name'], qty);
+                                        }
+                                      }
+                                      _cartItems.clear();
+                                      _selectedCustomer = 'Walk-in Customer';
+                                      _customerPhoneController.clear();
+                                      _selectedPaymentMode = 'Cash';
+                                    });
+
+                                    Navigator.pop(modalCtx);
+
+                                    _showInvoiceReceiptModal(
+                                      context: context,
+                                      isHindi: isHindi,
+                                      themeProvider: themeProvider,
+                                      invoiceNo: invoiceNo,
+                                      customerName: customerSnapshot,
+                                      customerPhone: phoneSnapshot,
+                                      items: cartSnapshot,
+                                      subtotal: subtotalSnapshot,
+                                      taxAmount: taxSnapshot,
+                                      discountAmount: discountSnapshot,
+                                      grandTotal: netPayableSnapshot,
+                                      paymentMode: modeSnapshot,
+                                    );
+                                  }
+                                } catch (e) {
+                                  setModalState(() {
+                                    isProcessingSale = false;
+                                    modalErrorMessage = 'Failed to process sale: ${e.toString()}';
+                                  });
                                 }
-                              }
-                              _cartItems.clear();
-                              _selectedCustomer = 'Walk-in Customer';
-                              _customerPhoneController.clear();
-                              _selectedPaymentMode = 'Cash';
-                            });
-
-                            Navigator.pop(modalCtx);
-
-                            _showInvoiceReceiptModal(
-                              context: context,
-                              isHindi: isHindi,
-                              themeProvider: themeProvider,
-                              invoiceNo: invoiceNo,
-                              customerName: customerSnapshot,
-                              customerPhone: phoneSnapshot,
-                              items: cartSnapshot,
-                              subtotal: subtotalSnapshot,
-                              taxAmount: taxSnapshot,
-                              discountAmount: discountSnapshot,
-                              grandTotal: netPayableSnapshot,
-                              paymentMode: modeSnapshot,
-                            );
-                          }
-                        },
-                        child: Text(
-                          isHindi ? 'बिल पक्का करें' : 'Settle Bill & Print Receipt',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
+                              },
+                        child: isProcessingSale
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : Text(
+                                isHindi ? 'बिल पक्का करें' : 'Settle Bill & Print Receipt',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
                       ),
                     ),
                   ],

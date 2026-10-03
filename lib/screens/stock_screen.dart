@@ -12,6 +12,7 @@ import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../database/sqlite_helper.dart';
+import '../utils/image_picker_helper.dart';
 
 Widget buildProductThumbnail(String imgUrl, {double size = 40}) {
   if (imgUrl.startsWith('data:image/')) {
@@ -146,7 +147,7 @@ class _StockScreenState extends State<StockScreen> {
   }
 
   Future<String?> _pickAndCompressProductImage() async {
-    return null;
+    return await ImagePickerHelper.pickProductImage();
   }
 
   @override
@@ -863,12 +864,25 @@ class _StockScreenState extends State<StockScreen> {
                               };
 
                               if (existingProduct != null) {
+                                final targetId = existingProduct['id'] ?? existingProduct['ID'] ?? '0';
                                 final pName = existingProduct['name']?.toString() ?? selectedCatalogItem?['name']?.toString() ?? 'Item';
+                                final updatePayload = Map<String, dynamic>.from(stockPayload);
+                                updatePayload['id'] = int.tryParse(targetId.toString()) ?? 0;
+
+                                try {
+                                  await http.put(
+                                    Uri.parse('${ApiConfig.baseUrl}/stock/$targetId'),
+                                    headers: headers,
+                                    body: jsonEncode(updatePayload),
+                                  ).timeout(const Duration(seconds: 10));
+                                } catch (_) {}
+
                                 final updatedItem = {
                                   'name': pName,
                                   'price': price,
                                   'stock': stock,
                                   'barcode': barcodeCtrl.text.trim(),
+                                  'imageUrl': uploadedCompressedPhotoUrl ?? '',
                                   'category': selectedCatalogItem?['category'] ?? existingProduct['category'] ?? 'Groceries',
                                 };
                                 await SQLiteHelper.instance.updateProductRecord(pName, updatedItem);
@@ -877,6 +891,7 @@ class _StockScreenState extends State<StockScreen> {
                                     existingProduct['price'] = price;
                                     existingProduct['stock'] = stock;
                                     existingProduct['barcode'] = barcodeCtrl.text.trim();
+                                    existingProduct['imageUrl'] = uploadedCompressedPhotoUrl ?? '';
                                   });
                                 }
                                 if (ctx.mounted) Navigator.pop(ctx);
