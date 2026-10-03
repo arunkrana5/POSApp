@@ -5,7 +5,16 @@ Future<String?> pickProductImageWeb() async {
   final Completer<String?> completer = Completer<String?>();
   final html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
   uploadInput.accept = 'image/*';
-  uploadInput.click();
+  uploadInput.style.display = 'none';
+
+  // Must append to document body for cross-browser DOM file dialog permission
+  html.document.body?.children.add(uploadInput);
+
+  void cleanup() {
+    try {
+      uploadInput.remove();
+    } catch (_) {}
+  }
 
   uploadInput.onChange.listen((e) {
     final files = uploadInput.files;
@@ -18,7 +27,6 @@ Future<String?> pickProductImageWeb() async {
         if (result is String) {
           try {
             final img = html.ImageElement();
-            // Attach listeners BEFORE setting img.src to avoid race condition
             img.onLoad.listen((_) {
               try {
                 final canvas = html.CanvasElement();
@@ -41,36 +49,46 @@ Future<String?> pickProductImageWeb() async {
                 final ctx = canvas.context2D;
                 ctx.drawImageScaled(img, 0, 0, w, h);
                 final compressedBase64 = canvas.toDataUrl('image/jpeg', 0.6);
+                cleanup();
                 if (!completer.isCompleted) completer.complete(compressedBase64);
               } catch (_) {
+                cleanup();
                 if (!completer.isCompleted) completer.complete(result);
               }
             });
             img.onError.listen((_) {
+              cleanup();
               if (!completer.isCompleted) completer.complete(result);
             });
             img.src = result;
 
-            // Fallback: if img.onLoad doesn't fire within 800ms, complete with result
             Future.delayed(const Duration(milliseconds: 800), () {
+              cleanup();
               if (!completer.isCompleted) {
                 completer.complete(result);
               }
             });
           } catch (_) {
+            cleanup();
             if (!completer.isCompleted) completer.complete(result);
           }
         } else {
+          cleanup();
           if (!completer.isCompleted) completer.complete(null);
         }
       });
       reader.onError.listen((_) {
+        cleanup();
         if (!completer.isCompleted) completer.complete(null);
       });
     } else {
+      cleanup();
       if (!completer.isCompleted) completer.complete(null);
     }
   });
+
+  // Trigger file picker dialog
+  uploadInput.click();
 
   return completer.future;
 }
