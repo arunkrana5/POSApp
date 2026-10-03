@@ -388,6 +388,10 @@ class _PosScreenState extends State<PosScreen> {
 
     bool isSendingWhatsApp = false;
 
+    final calcDisc = discountAmount > 0.001
+        ? discountAmount
+        : (((subtotal + taxAmount) - grandTotal) > 0.001 ? ((subtotal + taxAmount) - grandTotal) : 0.0);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -490,16 +494,16 @@ class _PosScreenState extends State<PosScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(isHindi ? 'सकल योग (Gross Subtotal):' : 'Gross Subtotal:', style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
-                            Text('₹ ${(subtotal > 0 ? subtotal : grandTotal).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            Text('₹ ${(subtotal > 0 ? subtotal : (grandTotal + calcDisc)).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                           ],
                         ),
-                        if (discountAmount > 0.001 || (subtotal > grandTotal && (subtotal - grandTotal) > 0.001)) ...[
+                        if (calcDisc > 0.001) ...[
                           const SizedBox(height: 4),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(isHindi ? 'छूट / डिस्काउंट:' : 'Discount / Off:', style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
-                              Text('- ₹ ${(discountAmount > 0.001 ? discountAmount : (subtotal - grandTotal)).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                              Text('- ₹ ${calcDisc.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
                             ],
                           ),
                         ],
@@ -570,9 +574,9 @@ class _PosScreenState extends State<PosScreen> {
                             customerPhone: phoneCtrl.text.trim(),
                             paymentMode: paymentMode,
                             createdAt: DateTime.now().toString().split('.')[0],
-                            subtotal: subtotal,
+                            subtotal: subtotal > 0 ? subtotal : (grandTotal + calcDisc),
                             taxAmount: taxAmount,
-                            discountAmount: discountAmount > 0.001 ? discountAmount : (subtotal - grandTotal),
+                            discountAmount: calcDisc,
                             grandTotal: grandTotal,
                             items: items,
                           );

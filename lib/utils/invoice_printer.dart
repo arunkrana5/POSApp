@@ -18,6 +18,7 @@ class InvoicePrinter {
         itemsSum += (it['totalPrice'] as num?)?.toDouble() ?? (qty * price).toDouble();
       }
     }
+    if (subtotal > 0 && subtotal >= itemsSum) return subtotal;
     if (itemsSum > 0) return itemsSum;
     if (subtotal > grandTotal) return subtotal;
     return grandTotal;
@@ -39,7 +40,9 @@ class InvoicePrinter {
       items: items,
     );
     final double diff = (baseGross + taxAmount) - grandTotal;
-    return diff > 0.001 ? diff : 0.0;
+    if (diff > 0.001) return diff;
+    if (subtotal > grandTotal + 0.001) return subtotal - grandTotal;
+    return 0.0;
   }
 
   /// Entry point to show modern print & receipt preview dialog with format selection
