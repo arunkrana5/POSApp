@@ -13,6 +13,7 @@ import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../database/sqlite_helper.dart';
 import '../utils/image_picker_helper.dart';
+import '../utils/toast_helper.dart';
 
 Widget buildProductThumbnail(String imgUrl, {double size = 40}) {
   if (imgUrl.startsWith('data:image/')) {
@@ -403,13 +404,16 @@ class _StockScreenState extends State<StockScreen> {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
 
     Map<String, dynamic>? selectedCatalogItem = existingProduct != null ? {
-      'name': existingProduct['name'],
-      'category': existingProduct['category'],
-      'uom': existingProduct['unit'],
+      'id': existingProduct['itemId'] ?? existingProduct['id'] ?? '0',
+      'itemCode': existingProduct['productCode'] ?? existingProduct['barcode'] ?? '',
+      'name': existingProduct['name'] ?? '',
+      'category': existingProduct['category'] ?? 'Groceries',
+      'uom': existingProduct['unit'] ?? 'pcs',
       'format': existingProduct['unit'] == 'kg' ? 'Loose' : 'Packed',
     } : null;
 
     String? uploadedCompressedPhotoUrl = existingProduct?['imageUrl'];
+    String? modalErrorMsg;
 
     final priceCtrl = TextEditingController(text: (existingProduct?['price'] ?? '').toString());
     final costCtrl = TextEditingController(text: (existingProduct?['purchasePrice'] ?? existingProduct?['costPrice'] ?? '').toString());
@@ -441,6 +445,8 @@ class _StockScreenState extends State<StockScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (modalErrorMsg != null && modalErrorMsg!.isNotEmpty)
+                      ToastHelper.buildInlineAlert(modalErrorMsg!, isError: true),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -802,24 +808,18 @@ class _StockScreenState extends State<StockScreen> {
                           ),
                           onPressed: () async {
                             if (selectedCatalogItem == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(isHindi ? 'कृपया ड्रॉपडाउन से सामान चुनें!' : 'Please select an item from the dropdown!'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
+                              final msg = isHindi ? 'कृपया ड्रॉपडाउन से सामान चुनें!' : 'Please select an item from the dropdown!';
+                              setModalState(() => modalErrorMsg = msg);
+                              ToastHelper.showError(context, msg);
                               return;
                             }
 
                             final double price = double.tryParse(priceCtrl.text) ?? 0.0;
                             final double stock = double.tryParse(stockCtrl.text) ?? 0.0;
                             if (price <= 0) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(isHindi ? 'कृपया मान्य बिक्री मूल्य (₹) दर्ज करें!' : 'Please enter a valid Selling Price (₹)!'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
+                              final msg = isHindi ? 'कृपया मान्य बिक्री मूल्य (₹) दर्ज करें!' : 'Please enter a valid Selling Price (₹)!';
+                              setModalState(() => modalErrorMsg = msg);
+                              ToastHelper.showError(context, msg);
                               return;
                             }
 
@@ -843,10 +843,11 @@ class _StockScreenState extends State<StockScreen> {
                                 if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
                               };
 
+                              final itemIdVal = int.tryParse(selectedCatalogItem!['id']?.toString() ?? '0') ?? 0;
                               final stockPayload = {
                                 'tenantId': tenantId > 0 ? tenantId : 1,
                                 'tenantCode': tenantCode,
-                                'itemId': int.tryParse(selectedCatalogItem!['id'].toString()) ?? 0,
+                                'itemId': itemIdVal,
                                 'productCode': selectedCatalogItem!['itemCode'] ?? '',
                                 'name': selectedCatalogItem!['name'] ?? '',
                                 'category': selectedCatalogItem!['category'] ?? 'Groceries',
@@ -868,7 +869,7 @@ class _StockScreenState extends State<StockScreen> {
                                 final pName = existingProduct['name']?.toString() ?? selectedCatalogItem?['name']?.toString() ?? 'Item';
                                 final updatePayload = Map<String, dynamic>.from(stockPayload);
                                 updatePayload['id'] = int.tryParse(targetId.toString()) ?? 0;
-                                updatePayload['itemId'] = int.tryParse(existingProduct['itemId']?.toString() ?? selectedCatalogItem?['id']?.toString() ?? '0') ?? 0;
+                                updatePayload['itemId'] = itemIdVal > 0 ? itemIdVal : (int.tryParse(existingProduct['itemId']?.toString() ?? '0') ?? 0);
 
                                 final resPut = await http.put(
                                   Uri.parse('${ApiConfig.baseUrl}/stock/$targetId'),
@@ -895,22 +896,12 @@ class _StockScreenState extends State<StockScreen> {
                                     });
                                   }
                                   if (ctx.mounted) Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(isHindi ? 'स्टॉक आइटम अपडेट किया गया!' : 'Stock item updated successfully!'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
+                                  ToastHelper.showSuccess(context, isHindi ? 'स्टॉक आइटम अपडेट किया गया!' : 'Stock item updated successfully!');
                                   _loadProducts();
                                 } else {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Failed to update stock: Status ${resPut.statusCode}'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
+                                  final err = 'Failed to update stock: Status ${resPut.statusCode} ${resPut.body}';
+                                  setModalState(() => modalErrorMsg = err);
+                                  ToastHelper.showError(context, err);
                                 }
                                 return;
                               }
@@ -926,7 +917,7 @@ class _StockScreenState extends State<StockScreen> {
                                   setState(() {
                                     _products.insert(0, {
                                       'id': DateTime.now().millisecondsSinceEpoch.toString(),
-                                      'itemId': selectedCatalogItem!['id'].toString(),
+                                      'itemId': itemIdVal.toString(),
                                       'productCode': selectedCatalogItem!['itemCode'],
                                       'name': selectedCatalogItem!['name'],
                                       'category': selectedCatalogItem!['category'],
@@ -940,32 +931,17 @@ class _StockScreenState extends State<StockScreen> {
                                 }
 
                                 if (ctx.mounted) Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(isHindi ? 'स्टॉक इन सफलतापूर्वक दर्ज हो गया!' : 'Stock in entry saved successfully!'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
+                                ToastHelper.showSuccess(context, isHindi ? 'स्टॉक इन सफलतापूर्वक दर्ज हो गया!' : 'Stock in entry saved successfully!');
                                 _loadProducts();
                               } else {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Failed to save stock: Status ${res.statusCode}'),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
+                                final err = 'Failed to save stock: Status ${res.statusCode} ${res.body}';
+                                setModalState(() => modalErrorMsg = err);
+                                ToastHelper.showError(context, err);
                               }
                             } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Save error: ${e.toString()}'),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
+                              final err = 'Save error: ${e.toString()}';
+                              setModalState(() => modalErrorMsg = err);
+                              ToastHelper.showError(context, err);
                             }
                           },
                           child: Text(
