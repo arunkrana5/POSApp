@@ -272,6 +272,25 @@ class TenantThemeProvider with ChangeNotifier {
                   'isEnabled': true,
                 });
               }
+
+              final hasCustomers = list.any((m) {
+                final r = (m['Route'] ?? m['route'] ?? '').toString();
+                return r == '/customers' || r == '/ledger';
+              });
+              if (!hasCustomers) {
+                final salesIdx = list.indexWhere((m) {
+                  final r = (m['Route'] ?? m['route'] ?? '').toString();
+                  return r == '/sales-history' || r == '/sales';
+                });
+                final insertAt = salesIdx >= 0 ? salesIdx + 1 : list.length;
+                list.insert(insertAt <= list.length ? insertAt : list.length, {
+                  'titleEn': 'Customer Udhaar & Ledger',
+                  'titleHi': 'ग्राहक उधार खाता (Ledger)',
+                  'route': '/customers',
+                  'icon': 'people',
+                  'isEnabled': true,
+                });
+              }
               dynamicMenuItems = list;
             }
             notifyListeners();
