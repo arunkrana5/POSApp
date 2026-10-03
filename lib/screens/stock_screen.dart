@@ -868,40 +868,50 @@ class _StockScreenState extends State<StockScreen> {
                                 final pName = existingProduct['name']?.toString() ?? selectedCatalogItem?['name']?.toString() ?? 'Item';
                                 final updatePayload = Map<String, dynamic>.from(stockPayload);
                                 updatePayload['id'] = int.tryParse(targetId.toString()) ?? 0;
+                                updatePayload['itemId'] = int.tryParse(existingProduct['itemId']?.toString() ?? selectedCatalogItem?['id']?.toString() ?? '0') ?? 0;
 
-                                try {
-                                  await http.put(
-                                    Uri.parse('${ApiConfig.baseUrl}/stock/$targetId'),
-                                    headers: headers,
-                                    body: jsonEncode(updatePayload),
-                                  ).timeout(const Duration(seconds: 10));
-                                } catch (_) {}
+                                final resPut = await http.put(
+                                  Uri.parse('${ApiConfig.baseUrl}/stock/$targetId'),
+                                  headers: headers,
+                                  body: jsonEncode(updatePayload),
+                                ).timeout(const Duration(seconds: 12));
 
-                                final updatedItem = {
-                                  'name': pName,
-                                  'price': price,
-                                  'stock': stock,
-                                  'barcode': barcodeCtrl.text.trim(),
-                                  'imageUrl': uploadedCompressedPhotoUrl ?? '',
-                                  'category': selectedCatalogItem?['category'] ?? existingProduct['category'] ?? 'Groceries',
-                                };
-                                await SQLiteHelper.instance.updateProductRecord(pName, updatedItem);
-                                if (mounted) {
-                                  setState(() {
-                                    existingProduct['price'] = price;
-                                    existingProduct['stock'] = stock;
-                                    existingProduct['barcode'] = barcodeCtrl.text.trim();
-                                    existingProduct['imageUrl'] = uploadedCompressedPhotoUrl ?? '';
-                                  });
+                                if (resPut.statusCode == 200 || resPut.statusCode == 201) {
+                                  final updatedItem = {
+                                    'name': pName,
+                                    'price': price,
+                                    'stock': stock,
+                                    'barcode': barcodeCtrl.text.trim(),
+                                    'imageUrl': uploadedCompressedPhotoUrl ?? '',
+                                    'category': selectedCatalogItem?['category'] ?? existingProduct['category'] ?? 'Groceries',
+                                  };
+                                  await SQLiteHelper.instance.updateProductRecord(pName, updatedItem);
+                                  if (mounted) {
+                                    setState(() {
+                                      existingProduct['price'] = price;
+                                      existingProduct['stock'] = stock;
+                                      existingProduct['barcode'] = barcodeCtrl.text.trim();
+                                      existingProduct['imageUrl'] = uploadedCompressedPhotoUrl ?? '';
+                                    });
+                                  }
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(isHindi ? 'स्टॉक आइटम अपडेट किया गया!' : 'Stock item updated successfully!'),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  _loadProducts();
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed to update stock: Status ${resPut.statusCode}'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
                                 }
-                                if (ctx.mounted) Navigator.pop(ctx);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(isHindi ? 'स्टॉक आइटम अपडेट किया गया!' : 'Stock item updated successfully!'),
-                                    backgroundColor: Colors.green,
-                                  ),
-                                );
-                                _loadProducts();
                                 return;
                               }
 
