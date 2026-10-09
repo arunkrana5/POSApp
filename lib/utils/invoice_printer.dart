@@ -584,6 +584,116 @@ class InvoicePrinter {
 </html>
     ''';
   }
+
+  /// Generates Customer Ledger Statement Printable HTML
+  static String generateCustomerLedgerHtml({
+    required String tenantName,
+    required String customerName,
+    required String customerPhone,
+    required double currentBalance,
+    required List<dynamic> transactions,
+  }) {
+    final storeTitle = tenantName.isNotEmpty ? tenantName : "VILLAGE POS STORE";
+    final StringBuffer rows = StringBuffer();
+    int idx = 1;
+
+    for (var tx in transactions) {
+      if (tx is Map) {
+        final date = (tx['date'] ?? '').toString();
+        final desc = (tx['description'] ?? 'Tx').toString();
+        final debit = ((tx['debit'] ?? 0.0) as num).toDouble();
+        final credit = ((tx['credit'] ?? 0.0) as num).toDouble();
+        final bal = ((tx['balance'] ?? 0.0) as num).toDouble();
+
+        rows.write('''
+          <tr>
+            <td style="text-align: center; font-size: 11px; padding: 8px; border: 1px solid #CBD5E1;">$idx</td>
+            <td style="font-size: 11px; padding: 8px; border: 1px solid #CBD5E1;">$date</td>
+            <td style="font-size: 11px; font-weight: 600; padding: 8px; border: 1px solid #CBD5E1;">$desc</td>
+            <td style="text-align: right; font-size: 11px; font-weight: bold; color: ${debit > 0 ? '#DC2626' : '#475569'}; padding: 8px; border: 1px solid #CBD5E1;">${debit > 0 ? '₹ ' + debit.toStringAsFixed(2) : '-'}</td>
+            <td style="text-align: right; font-size: 11px; font-weight: bold; color: ${credit > 0 ? '#16A34A' : '#475569'}; padding: 8px; border: 1px solid #CBD5E1;">${credit > 0 ? '₹ ' + credit.toStringAsFixed(2) : '-'}</td>
+            <td style="text-align: right; font-size: 11px; font-weight: 900; padding: 8px; border: 1px solid #CBD5E1;">₹ ${bal.toStringAsFixed(2)}</td>
+          </tr>
+        ''');
+        idx++;
+      }
+    }
+
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Customer Ledger Statement - $customerName</title>
+  <style>
+    @page { size: A4 portrait; margin: 10mm; }
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; color: #0F172A; }
+    .wrapper { max-width: 800px; margin: 0 auto; border: 1px solid #CBD5E1; border-radius: 8px; padding: 24px; }
+    .header { text-align: center; border-bottom: 2px solid #0F172A; padding-bottom: 12px; margin-bottom: 16px; }
+    .title { font-size: 22px; font-weight: 900; text-transform: uppercase; }
+    .sub { font-size: 12px; color: #475569; }
+    .cust-card { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { background: #0F172A; color: white; font-size: 11px; text-transform: uppercase; padding: 8px; border: 1px solid #0F172A; }
+    .total-box { text-align: right; font-size: 16px; font-weight: 900; background: #FEF2F2; color: #991B1B; padding: 12px 16px; border-radius: 6px; border: 1px solid #FCA5A5; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <div class="title">$storeTitle</div>
+      <div class="sub">CUSTOMER UDHAAR & LEDGER STATEMENT</div>
+    </div>
+    <div class="cust-card">
+      <div>
+        <div style="font-size: 15px; font-weight: 800;">Customer: $customerName</div>
+        <div style="font-size: 12px; color: #475569;">Phone: $customerPhone</div>
+      </div>
+      <div style="text-align: right;">
+        <div style="font-size: 11px; color: #64748B;">STATEMENT DATE</div>
+        <div style="font-size: 13px; font-weight: bold;">${DateTime.now().toString().substring(0, 10)}</div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Debit (+)</th>
+          <th>Credit (-)</th>
+          <th>Running Balance</th>
+        </tr>
+      </thead>
+      <tbody>
+        $rows
+      </tbody>
+    </table>
+    <div class="total-box">
+      NET OUTSTANDING BALANCE DUE: ₹ ${currentBalance.toStringAsFixed(2)}
+    </div>
+  </div>
+</body>
+</html>
+    ''';
+  }
+
+  static void printCustomerLedger({
+    required String tenantName,
+    required String customerName,
+    required String customerPhone,
+    required double currentBalance,
+    required List<dynamic> transactions,
+  }) {
+    final html = generateCustomerLedgerHtml(
+      tenantName: tenantName,
+      customerName: customerName,
+      customerPhone: customerPhone,
+      currentBalance: currentBalance,
+      transactions: transactions,
+    );
+    PrinterHelper.printHtml(html);
+  }
 }
 
 class _InvoicePreviewSheet extends StatefulWidget {

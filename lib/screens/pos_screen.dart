@@ -1125,13 +1125,10 @@ class _PosScreenState extends State<PosScreen> {
     required double discountSnapshot,
     required double netPayableSnapshot,
     required String modeSnapshot,
-    required VoidCallback onPaymentConfirmed,
+    required Function(String selectedUpiId) onPaymentConfirmed,
   }) {
-    final cleanPhone = themeProvider.supportPhone.replaceAll(RegExp(r'\D'), '');
-    final upiPa = cleanPhone.isNotEmpty ? '$cleanPhone@upi' : 'store@upi';
-    final storeTitle = themeProvider.tenantName.isNotEmpty ? themeProvider.tenantName : 'VillageShop POS';
-    final upiPayload = 'upi://pay?pa=$upiPa&pn=${Uri.encodeComponent(storeTitle)}&am=${netPayableSnapshot.toStringAsFixed(2)}&cu=INR&tn=Bill_$invoiceNo';
-    final qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(upiPayload)}';
+    final upiList = themeProvider.upiAccounts;
+    String selectedUpiId = themeProvider.getDefaultUpiId();
 
     bool isConfirming = false;
 
@@ -1139,107 +1136,145 @@ class _PosScreenState extends State<PosScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (modalCtx, setModalState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.qr_code_scanner_rounded, color: Colors.indigo, size: 26),
-                  const SizedBox(width: 8),
-                  Text(
-                    isHindi ? 'UPI भुगतान (Scan QR)' : 'UPI Scan & Pay',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.grey),
-                onPressed: () => Navigator.pop(ctx),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                isHindi ? 'कृपया ग्राहक से QR कोड स्कैन करवा कर भुगतान लें:' : 'Ask customer to scan QR code to complete payment:',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.indigo.shade200, width: 1.5),
-                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
-                ),
-                child: Column(
+        builder: (modalCtx, setModalState) {
+          final upiPayload = 'upi://pay?pa=$selectedUpiId&pn=${Uri.encodeComponent(themeProvider.tenantName)}&am=${netPayableSnapshot.toStringAsFixed(2)}&cu=INR&tn=Bill_$invoiceNo';
+          final qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(upiPayload)}';
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
                   children: [
-                    Image.network(
-                      qrUrl,
-                      width: 200,
-                      height: 200,
-                      fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 200,
-                        height: 200,
-                        color: Colors.grey.shade100,
-                        child: const Icon(Icons.qr_code_2_rounded, size: 80, color: Colors.indigo),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
+                    const Icon(Icons.qr_code_scanner_rounded, color: Colors.indigo, size: 26),
+                    const SizedBox(width: 8),
                     Text(
-                      '₹ ${netPayableSnapshot.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'UPI ID: $upiPa',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey, fontFamily: 'monospace'),
+                      isHindi ? 'UPI भुगतान (Scan QR)' : 'UPI Scan & Pay',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.account_balance_wallet_rounded, size: 16, color: Colors.indigo),
-                  SizedBox(width: 4),
-                  Text('GPay • PhonePe • Paytm • BHIM', style: TextStyle(fontSize: 11, color: Colors.indigo, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Select Shop UPI ID Dropdown
+                  if (upiList.length > 1) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.purple.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.purple.shade200),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: upiList.any((a) => a['upiId'] == selectedUpiId) ? selectedUpiId : upiList.first['upiId'].toString(),
+                          isExpanded: true,
+                          items: upiList.map((a) {
+                            final uid = (a['upiId'] ?? '').toString();
+                            final lbl = (a['label'] ?? 'UPI Account').toString();
+                            return DropdownMenuItem<String>(
+                              value: uid,
+                              child: Text('$lbl ($uid)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setModalState(() => selectedUpiId = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  Text(
+                    isHindi ? 'कृपया ग्राहक से QR कोड स्कैन करवा कर भुगतान लें:' : 'Ask customer to scan QR code to complete payment:',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.indigo.shade200, width: 1.5),
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+                    ),
+                    child: Column(
+                      children: [
+                        Image.network(
+                          qrUrl,
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 200,
+                            height: 200,
+                            color: Colors.grey.shade100,
+                            child: const Icon(Icons.qr_code_2_rounded, size: 80, color: Colors.indigo),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '₹ ${netPayableSnapshot.toStringAsFixed(2)}',
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'UPI ID: $selectedUpiId',
+                          style: const TextStyle(fontSize: 11, color: Colors.purple, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.account_balance_wallet_rounded, size: 16, color: Colors.indigo),
+                      SizedBox(width: 4),
+                      Text('GPay • PhonePe • Paytm • BHIM', style: TextStyle(fontSize: 11, color: Colors.indigo, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(isHindi ? 'रद्द करें' : 'Cancel'),
             ),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            actions: [
+              OutlinedButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(isHindi ? 'रद्द करें' : 'Cancel'),
               ),
-              icon: isConfirming
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.check_circle_rounded, size: 20),
-              label: Text(isConfirming ? 'Processing...' : (isHindi ? 'भुगतान प्राप्त हुआ (बिल बनाएं)' : 'Payment Done (Create Invoice)')),
-              onPressed: isConfirming
-                  ? null
-                  : () {
-                      setModalState(() => isConfirming = true);
-                      Navigator.pop(ctx);
-                      onPaymentConfirmed();
-                    },
-            ),
-          ],
-        ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                icon: isConfirming
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.check_circle_rounded, size: 20),
+                label: Text(isConfirming ? 'Processing...' : (isHindi ? 'भुगतान प्राप्त हुआ (बिल बनाएं)' : 'Payment Done (Create Invoice)')),
+                onPressed: isConfirming
+                    ? null
+                    : () {
+                        setModalState(() => isConfirming = true);
+                        Navigator.pop(ctx);
+                        onPaymentConfirmed(selectedUpiId);
+                      },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1473,7 +1508,7 @@ class _PosScreenState extends State<PosScreen> {
                                   return;
                                 }
 
-                                Future<void> executeSaleInsertion() async {
+                                Future<void> executeSaleInsertion([String? upiIdUsed]) async {
                                   setModalState(() {
                                     isProcessingSale = true;
                                     modalErrorMessage = null;
@@ -1510,6 +1545,23 @@ class _PosScreenState extends State<PosScreen> {
 
                                   final authProvider = Provider.of<AuthProvider>(context, listen: false);
                                   final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+
+                                  final paymentsList = <Map<String, dynamic>>[];
+                                  if (paidAmount > 0) {
+                                    paymentsList.add({
+                                      'paymentMode': modeSnapshot,
+                                      'amount': paidAmount,
+                                      'upiIdUsed': modeSnapshot.toUpperCase().contains('UPI') ? upiIdUsed : null,
+                                      'isReceived': true,
+                                    });
+                                  }
+                                  if (remainingUdhaar > 0) {
+                                    paymentsList.add({
+                                      'paymentMode': 'Udhaar',
+                                      'amount': remainingUdhaar,
+                                      'isReceived': false,
+                                    });
+                                  }
                                   
                                   await syncProvider.saveOfflineSale({
                                     'clientTransactionId': invoiceNo,
@@ -1526,6 +1578,7 @@ class _PosScreenState extends State<PosScreen> {
                                     'totalAmount': netPayableSnapshot,
                                     'paidAmount': paidAmount,
                                     'paymentMode': modeSnapshot,
+                                    'payments': paymentsList,
                                     'items': cartSnapshot,
                                     'createdAt': DateTime.now().toIso8601String(),
                                   });
@@ -1605,8 +1658,8 @@ class _PosScreenState extends State<PosScreen> {
                                     discountSnapshot: discountSnapshot,
                                     netPayableSnapshot: netPayableSnapshot,
                                     modeSnapshot: modeSnapshot,
-                                    onPaymentConfirmed: () {
-                                      executeSaleInsertion();
+                                    onPaymentConfirmed: (chosenUpiId) {
+                                      executeSaleInsertion(chosenUpiId);
                                     },
                                   );
                                   return;

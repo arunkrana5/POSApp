@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 class ToastHelper {
+  static String? _lastMessage;
+  static DateTime? _lastTime;
+
   static void showSuccess(BuildContext context, String message) {
     _showToast(
       context: context,
@@ -20,6 +23,15 @@ class ToastHelper {
     );
   }
 
+  static void showInfo(BuildContext context, String message) {
+    _showToast(
+      context: context,
+      message: message,
+      icon: Icons.info_rounded,
+      bgColor: const Color(0xFF3B82F6),
+    );
+  }
+
   static void _showToast({
     required BuildContext context,
     required String message,
@@ -27,6 +39,12 @@ class ToastHelper {
     required Color bgColor,
     Duration duration = const Duration(seconds: 3),
   }) {
+    final now = DateTime.now();
+    if (_lastMessage == message && _lastTime != null && now.difference(_lastTime!) < const Duration(seconds: 2)) {
+      return; // Skip duplicate toast within 2 seconds
+    }
+    _lastMessage = message;
+    _lastTime = now;
     OverlayState? overlayState;
     try {
       overlayState = Overlay.of(context, rootOverlay: true);

@@ -159,12 +159,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 // 4. WhatsApp Cloud API Gateway Credentials Card
                 _buildSectionTitle(
-                  isHindi ? 'व्हाट्सएप API सर्वर गेटवे' : 'WhatsApp API Gateway',
+                  isHindi ? 'व्हाट्सएप API सर्ver गेटवे' : 'WhatsApp API Gateway',
                   Icons.send_rounded,
                   themeProvider,
                 ),
                 const SizedBox(height: 12),
                 _buildWhatsAppConfigCard(
+                  context,
+                  isHindi: isHindi,
+                  themeProvider: themeProvider,
+                ),
+                const SizedBox(height: 24),
+
+                // 5. Multiple Shopkeeper UPI Accounts Management
+                _buildSectionTitle(
+                  isHindi ? 'दुकानदार UPI ID प्रबंधन (Multiple UPI)' : 'Shopkeeper UPI IDs Settings',
+                  Icons.qr_code_2_rounded,
+                  themeProvider,
+                ),
+                const SizedBox(height: 12),
+                _buildMultiUpiCard(
                   context,
                   isHindi: isHindi,
                   themeProvider: themeProvider,
@@ -1065,6 +1079,255 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMultiUpiCard(
+    BuildContext context, {
+    required bool isHindi,
+    required TenantThemeProvider themeProvider,
+  }) {
+    final upiList = themeProvider.upiAccounts;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: themeProvider.cardBgColor,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.purple.shade200, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.qr_code_2_rounded, color: Colors.purple, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    isHindi ? 'दुकानदार UPI IDs' : 'Shopkeeper UPI IDs (Multiple)',
+                    style: TextStyle(
+                      fontFamily: themeProvider.fontFamily,
+                      fontSize: 14 * themeProvider.fontSizeScale,
+                      fontWeight: FontWeight.bold,
+                      color: themeProvider.textColor,
+                    ),
+                  ),
+                ],
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple.shade700,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: Text(isHindi ? 'UPI जोड़ें' : 'Add UPI'),
+                onPressed: () => _showAddEditUpiDialog(context, null, isHindi, themeProvider),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isHindi
+                ? 'यहाँ अपनी multiple UPI IDs जोड़ें। POS बिलिंग के दौरान आप चुन सकते हैं कि किस UPI ID पर पेमेंट लेना है।'
+                : 'Configure multiple shop UPI IDs here. During POS checkout, select which active UPI ID should receive customer payment.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+          const SizedBox(height: 12),
+          if (upiList.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.center,
+              child: Text(
+                isHindi ? 'कोई UPI ID जोड़ी नहीं गई है।' : 'No UPI IDs configured yet.',
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: upiList.length,
+              separatorBuilder: (ctx, i) => const Divider(height: 12),
+              itemBuilder: (ctx, i) {
+                final item = upiList[i];
+                final upiId = (item['upiId'] ?? '').toString();
+                final label = (item['label'] ?? 'UPI Account').toString();
+                final isDef = item['isDefault'] == true;
+
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDef ? Colors.purple.shade100 : Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.account_balance_wallet_rounded,
+                      color: isDef ? Colors.purple.shade800 : Colors.grey.shade700,
+                      size: 20,
+                    ),
+                  ),
+                  title: Row(
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      if (isDef) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade700,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'DEFAULT',
+                            style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  subtitle: Text(
+                    upiId,
+                    style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600, color: Colors.purple),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!isDef)
+                        TextButton(
+                          onPressed: () {
+                            final updated = upiList.map((a) {
+                              final copy = Map<String, dynamic>.from(a);
+                              copy['isDefault'] = (copy['id'] == item['id']);
+                              return copy;
+                            }).toList();
+                            themeProvider.saveUpiAccounts(updated);
+                          },
+                          child: Text(isHindi ? 'डिफ़ॉल्ट बनाएँ' : 'Set Default', style: const TextStyle(fontSize: 12)),
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.blue),
+                        onPressed: () => _showAddEditUpiDialog(context, item, isHindi, themeProvider),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                        onPressed: () {
+                          final updated = upiList.where((a) => a['id'] != item['id']).toList();
+                          themeProvider.saveUpiAccounts(updated);
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddEditUpiDialog(BuildContext context, Map<String, dynamic>? item, bool isHindi, TenantThemeProvider themeProvider) {
+    final upiCtrl = TextEditingController(text: item != null ? item['upiId'] : '');
+    final labelCtrl = TextEditingController(text: item != null ? item['label'] : '');
+    bool isDefault = item != null ? (item['isDefault'] == true) : themeProvider.upiAccounts.isEmpty;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(item == null ? (isHindi ? 'नई UPI ID जोड़ें' : 'Add New UPI ID') : (isHindi ? 'UPI ID एडिट करें' : 'Edit UPI ID')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: labelCtrl,
+                decoration: InputDecoration(
+                  labelText: isHindi ? 'UPI लेबल / नाम (e.g. GPay Main)' : 'Label / App Name (e.g. GPay Main)',
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: upiCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'UPI ID (e.g. 9876543210@paytm)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(isHindi ? 'इसे डिफ़ॉल्ट UPI बनाएँ' : 'Set as default UPI ID'),
+                value: isDefault,
+                onChanged: (val) {
+                  setDlgState(() => isDefault = val ?? false);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(isHindi ? 'रद्द करें' : 'Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.purple.shade700, foregroundColor: Colors.white),
+              onPressed: () {
+                final uId = upiCtrl.text.trim();
+                final lbl = labelCtrl.text.trim().isNotEmpty ? labelCtrl.text.trim() : 'Shop UPI';
+                if (uId.isEmpty) return;
+
+                final currentList = List<Map<String, dynamic>>.from(themeProvider.upiAccounts);
+                if (isDefault) {
+                  for (var a in currentList) {
+                    a['isDefault'] = false;
+                  }
+                }
+
+                if (item == null) {
+                  currentList.add({
+                    'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                    'upiId': uId,
+                    'label': lbl,
+                    'isDefault': isDefault || currentList.isEmpty,
+                  });
+                } else {
+                  final idx = currentList.indexWhere((a) => a['id'] == item['id']);
+                  if (idx >= 0) {
+                    currentList[idx] = {
+                      'id': item['id'],
+                      'upiId': uId,
+                      'label': lbl,
+                      'isDefault': isDefault,
+                    };
+                  }
+                }
+
+                themeProvider.saveUpiAccounts(currentList);
+                Navigator.pop(ctx);
+              },
+              child: Text(isHindi ? 'सेव करें' : 'Save'),
+            ),
+          ],
+        ),
       ),
     );
   }

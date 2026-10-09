@@ -80,4 +80,48 @@ class WhatsAppHelper {
 
     return sb.toString();
   }
+
+  static String formatLedgerReminderMessage({
+    required String tenantName,
+    required String customerName,
+    required double currentBalance,
+    required List<dynamic> transactions,
+  }) {
+    final storeName = tenantName.isNotEmpty ? tenantName.toUpperCase() : 'VILLAGE POS STORE';
+    final StringBuffer sb = StringBuffer();
+
+    sb.writeln('📜 *CUSTOMER LEDGER STATEMENT & OUTSTANDING REMINDER*');
+    sb.writeln('🏪 *$storeName*');
+    sb.writeln('--------------------------------------------------');
+    sb.writeln('👤 *Customer Name:* $customerName');
+    sb.writeln('📅 *Statement Date:* ${DateTime.now().toString().substring(0, 10)}');
+    sb.writeln('⚠️ *Net Outstanding Balance:* *₹${currentBalance.toStringAsFixed(2)}*');
+    sb.writeln('--------------------------------------------------');
+    sb.writeln('📋 *RECENT TRANSACTIONS:*');
+    sb.writeln('');
+
+    int idx = 1;
+    for (var tx in transactions.take(5)) {
+      if (tx is Map) {
+        final date = (tx['date'] ?? '').toString();
+        final desc = (tx['description'] ?? 'Tx').toString();
+        final debit = ((tx['debit'] ?? 0.0) as num).toDouble();
+        final credit = ((tx['credit'] ?? 0.0) as num).toDouble();
+        final bal = ((tx['balance'] ?? 0.0) as num).toDouble();
+
+        sb.writeln('$idx. *$date* - $desc');
+        if (debit > 0) sb.writeln('    Debit (+): ₹${debit.toStringAsFixed(2)}');
+        if (credit > 0) sb.writeln('    Credit (-): ₹${credit.toStringAsFixed(2)}');
+        sb.writeln('    Running Balance: ₹${bal.toStringAsFixed(2)}');
+        sb.writeln('');
+        idx++;
+      }
+    }
+
+    sb.writeln('--------------------------------------------------');
+    sb.writeln('👉 *Kindly clear the outstanding dues of ₹${currentBalance.toStringAsFixed(2)} at your earliest convenience.*');
+    sb.writeln('🙏 *Thank you for your continued business!*');
+
+    return sb.toString();
+  }
 }

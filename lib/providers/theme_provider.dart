@@ -47,6 +47,10 @@ class TenantThemeProvider with ChangeNotifier {
   String whatsappInstanceId = "";
   String whatsappApiKey = "";
 
+  List<Map<String, dynamic>> upiAccounts = [
+    {'id': 'default-1', 'upiId': 'shopkeeper@okaxis', 'label': 'Primary GPay / PhonePe', 'isDefault': true},
+  ];
+
   TenantThemeProvider() {
     _loadFromLocal();
   }
@@ -71,6 +75,11 @@ class TenantThemeProvider with ChangeNotifier {
       if (savedTenantName != null && savedTenantName.isNotEmpty) {
         tenantName = savedTenantName;
         appTitle = savedTenantName;
+      }
+      final savedUpiAccounts = prefs.getString('tenant_upi_accounts');
+      if (savedUpiAccounts != null && savedUpiAccounts.isNotEmpty) {
+        final List raw = jsonDecode(savedUpiAccounts);
+        upiAccounts = List<Map<String, dynamic>>.from(raw.map((e) => Map<String, dynamic>.from(e)));
       }
     } catch (_) {
       primaryColor = const Color(0xFF93387A);
@@ -485,6 +494,37 @@ class TenantThemeProvider with ChangeNotifier {
         } catch (_) {}
       }
     } catch (_) {}
+  }
+
+  Future<void> saveUpiAccounts(List<Map<String, dynamic>> accounts) async {
+    upiAccounts = List.from(accounts);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('tenant_upi_accounts', jsonEncode(upiAccounts));
+      
+      final token = prefs.getString('auth_token') ?? '';
+      final tId = prefs.getInt('tenant_id');
+
+      for (String base in ApiConfig.candidateUrls) {
+        try {
+          await http.post(
+            Uri.parse('$base/settings/upi-accounts${tId != null ? "?tenantId=$tId" : ""}'),
+            headers: {
+              'Content-Type': 'application/json',
+              if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode(upiAccounts),
+          ).timeout(const Duration(seconds: 4));
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  String getDefaultUpiId() {
+    if (upiAccounts.isEmpty) return 'shopkeeper@okaxis';
+    final def = upiAccounts.firstWhere((a) => a['isDefault'] == true, orElse: () => upiAccounts.first);
+    return (def['upiId'] ?? 'shopkeeper@okaxis').toString();
   }
 }
 

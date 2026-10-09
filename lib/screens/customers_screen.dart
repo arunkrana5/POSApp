@@ -8,6 +8,8 @@ import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../database/sqlite_helper.dart';
 import '../widgets/app_drawer.dart';
+import '../utils/invoice_printer.dart';
+import '../utils/whatsapp_helper.dart';
 
 class CustomersScreen extends StatefulWidget {
   const CustomersScreen({super.key});
@@ -491,27 +493,80 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           isHindi ? 'दिनांक-वार लेन-देन इतिहास' : 'Date-wise Transaction Ledger',
                           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade700,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          ),
-                          icon: const Icon(Icons.add_card, size: 16, color: Colors.white),
-                          label: Text(
-                            isHindi ? 'भुगतान जोड़ें' : 'Add Payment',
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _showRecordPaymentDialog(context, c, isHindi);
-                          },
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF25D366),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              ),
+                              icon: const Icon(Icons.send_rounded, size: 16, color: Colors.white),
+                              label: Text(
+                                isHindi ? 'व्हाट्सएप रिमाइंडर' : 'WhatsApp Reminder',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: () async {
+                                final data = await fetchLedgerData();
+                                final txs = (data['transactions'] as List?) ?? [];
+                                final msg = WhatsAppHelper.formatLedgerReminderMessage(
+                                  tenantName: themeProvider.tenantName,
+                                  customerName: (c['name'] ?? '').toString(),
+                                  currentBalance: udhaarVal,
+                                  transactions: txs,
+                                );
+                                final phone = (c['whatsapp'] ?? c['phone'] ?? '').toString();
+                                WhatsAppHelper.openWhatsApp(phone: phone, message: msg);
+                              },
+                            ),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: themeProvider.primaryColor,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              ),
+                              icon: const Icon(Icons.print_rounded, size: 16, color: Colors.white),
+                              label: Text(
+                                isHindi ? 'खाता प्रिंट करें' : 'Print Ledger',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: () async {
+                                final data = await fetchLedgerData();
+                                final txs = (data['transactions'] as List?) ?? [];
+                                InvoicePrinter.printCustomerLedger(
+                                  tenantName: themeProvider.tenantName,
+                                  customerName: (c['name'] ?? '').toString(),
+                                  customerPhone: (c['phone'] ?? '').toString(),
+                                  currentBalance: udhaarVal,
+                                  transactions: txs,
+                                );
+                              },
+                            ),
+                            ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade700,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              ),
+                              icon: const Icon(Icons.add_card, size: 16, color: Colors.white),
+                              label: Text(
+                                isHindi ? 'भुगतान जोड़ें' : 'Add Payment',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _showRecordPaymentDialog(context, c, isHindi);
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
