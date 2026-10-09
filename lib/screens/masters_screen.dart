@@ -288,7 +288,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   }
 
   String _resolveMasterName(Map<String, dynamic> item) {
-    final keys = ['masterName', 'MasterName', 'name', 'Name', 'categoryName', 'CategoryName', 'uomName', 'UOMName', 'itemTypeName', 'ItemTypeName', 'brandName', 'BrandName'];
+    final keys = ['masterName', 'MasterName', 'name', 'Name'];
     for (var k in keys) {
       if (item[k] != null && item[k].toString().trim().isNotEmpty) {
         return item[k].toString().trim();
@@ -299,7 +299,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   }
 
   String _resolveMasterCode(Map<String, dynamic> item) {
-    final keys = ['masterCode', 'MasterCode', 'code', 'Code', 'categoryCode', 'CategoryCode', 'uomCode', 'UOMCode', 'symbol', 'Symbol', 'itemTypeCode', 'ItemTypeCode', 'brandCode', 'BrandCode'];
+    final keys = ['masterCode', 'MasterCode', 'code', 'Code'];
     for (var k in keys) {
       if (item[k] != null && item[k].toString().trim().isNotEmpty) {
         return item[k].toString().trim();
