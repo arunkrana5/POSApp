@@ -797,29 +797,7 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    // Payment Mode Chips
-                    Row(
-                      children: ['Cash', if (themeProvider.enableOnlinePayment) 'UPI', if (themeProvider.enableUdhaar) 'Udhaar'].map((mode) {
-                        final isSelected = _selectedPaymentMode == mode;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: ChoiceChip(
-                            label: Text(
-                              mode == 'Udhaar' ? (isHindi ? 'उधार' : 'Udhaar') : mode,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isSelected ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                            selected: isSelected,
-                            selectedColor: mode == 'Udhaar' ? Colors.red.shade700 : themeProvider.buttonBgColor,
-                            onSelected: (selected) {
-                              if (selected) setState(() => _selectedPaymentMode = mode);
-                            },
-                          ),
-                        );
-                      }).toList(),
-                    ),
+
                   ],
                 ),
               ),
@@ -1331,7 +1309,10 @@ class _PosScreenState extends State<PosScreen> {
   }) {
     final discountCtrl = TextEditingController(text: '0');
     final paidCtrl = TextEditingController(text: grandTotal.toStringAsFixed(0));
-    String mode = _selectedPaymentMode;
+    final cashCtrl = TextEditingController(text: (grandTotal / 2).toStringAsFixed(0));
+    final upiCtrl = TextEditingController(text: (grandTotal / 2).toStringAsFixed(0));
+    
+    String selectedMode = _selectedPaymentMode;
     String? modalErrorMessage;
     bool isProcessingSale = false;
 
@@ -1344,10 +1325,34 @@ class _PosScreenState extends State<PosScreen> {
           builder: (modalCtx, setModalState) {
             final discount = double.tryParse(discountCtrl.text) ?? 0.0;
             final netPayable = (grandTotal - discount).clamp(0.0, double.infinity);
-            final paidAmount = double.tryParse(paidCtrl.text) ?? netPayable;
-            final remainingUdhaar = mode == 'Udhaar'
-                ? netPayable
-                : (netPayable - paidAmount).clamp(0.0, double.infinity);
+            
+            double cashAmt = 0.0;
+            double upiAmt = 0.0;
+            double totalPaid = 0.0;
+            double remainingUdhaar = 0.0;
+
+            if (selectedMode == 'Cash') {
+              totalPaid = double.tryParse(paidCtrl.text) ?? netPayable;
+              cashAmt = totalPaid;
+              upiAmt = 0.0;
+              remainingUdhaar = (netPayable - totalPaid).clamp(0.0, double.infinity);
+            } else if (selectedMode == 'UPI') {
+              totalPaid = double.tryParse(paidCtrl.text) ?? netPayable;
+              cashAmt = 0.0;
+              upiAmt = totalPaid;
+              remainingUdhaar = (netPayable - totalPaid).clamp(0.0, double.infinity);
+            } else if (selectedMode == 'Udhaar') {
+              totalPaid = 0.0;
+              cashAmt = 0.0;
+              upiAmt = 0.0;
+              remainingUdhaar = netPayable;
+            } else {
+              // Split Mode
+              cashAmt = double.tryParse(cashCtrl.text) ?? 0.0;
+              upiAmt = double.tryParse(upiCtrl.text) ?? 0.0;
+              totalPaid = cashAmt + upiAmt;
+              remainingUdhaar = (netPayable - totalPaid).clamp(0.0, double.infinity);
+            }
 
             return Padding(
               padding: EdgeInsets.only(
@@ -1415,10 +1420,45 @@ class _PosScreenState extends State<PosScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(color: themeProvider.primaryColor.withOpacity(0.12), borderRadius: BorderRadius.circular(6)),
-                            child: Text(mode.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.primaryColor, fontSize: 12)),
+                            child: Text(selectedMode.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.primaryColor, fontSize: 12)),
                           ),
                         ],
                       ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Payment Mode Selection Chips Inside Modal
+                    const Text('Select Payment Mode:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      children: ['Cash', if (themeProvider.enableOnlinePayment) 'UPI', 'Split', if (themeProvider.enableUdhaar) 'Udhaar'].map((m) {
+                        final isSelected = selectedMode == m;
+                        return ChoiceChip(
+                          label: Text(
+                            m == 'Udhaar' ? (isHindi ? 'उधार' : 'Udhaar') : (m == 'Split' ? (isHindi ? 'मिक्स (Cash+UPI)' : 'Split Payment') : m),
+                            style: TextStyle(fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black87),
+                          ),
+                          selected: isSelected,
+                          selectedColor: m == 'Udhaar' ? Colors.red.shade700 : (m == 'Split' ? Colors.purple.shade700 : themeProvider.buttonBgColor),
+                          onSelected: (val) {
+                            if (val) {
+                              setModalState(() {
+                                selectedMode = m;
+                                _selectedPaymentMode = m;
+                                if (m == 'Cash' || m == 'UPI') {
+                                  paidCtrl.text = netPayable.toStringAsFixed(0);
+                                } else if (m == 'Split') {
+                                  cashCtrl.text = (netPayable / 2).toStringAsFixed(0);
+                                  upiCtrl.text = (netPayable - (double.tryParse(cashCtrl.text) ?? 0)).toStringAsFixed(0);
+                                } else if (m == 'Udhaar') {
+                                  paidCtrl.text = '0';
+                                }
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
                     ),
                     const SizedBox(height: 14),
 
@@ -1441,7 +1481,6 @@ class _PosScreenState extends State<PosScreen> {
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             decoration: InputDecoration(
                               labelText: isHindi ? 'छूट / राउंड ऑफ' : 'Discount / Round Off (₹)',
-                              hintText: '',
                               border: const OutlineInputBorder(),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                             ),
@@ -1449,7 +1488,12 @@ class _PosScreenState extends State<PosScreen> {
                               setModalState(() {
                                 final d = double.tryParse(val) ?? 0.0;
                                 final net = (grandTotal - d).clamp(0.0, double.infinity);
-                                paidCtrl.text = net.toStringAsFixed(0);
+                                if (selectedMode == 'Cash' || selectedMode == 'UPI') {
+                                  paidCtrl.text = net.toStringAsFixed(0);
+                                } else if (selectedMode == 'Split') {
+                                  cashCtrl.text = (net / 2).toStringAsFixed(0);
+                                  upiCtrl.text = (net - (double.tryParse(cashCtrl.text) ?? 0)).toStringAsFixed(0);
+                                }
                               });
                             },
                           ),
@@ -1461,7 +1505,12 @@ class _PosScreenState extends State<PosScreen> {
                               final roundTotal = grandTotal.floorToDouble();
                               final autoDiscount = grandTotal - roundTotal;
                               discountCtrl.text = autoDiscount.toStringAsFixed(2);
-                              paidCtrl.text = roundTotal.toStringAsFixed(0);
+                              if (selectedMode == 'Cash' || selectedMode == 'UPI') {
+                                paidCtrl.text = roundTotal.toStringAsFixed(0);
+                              } else if (selectedMode == 'Split') {
+                                cashCtrl.text = (roundTotal / 2).toStringAsFixed(0);
+                                upiCtrl.text = (roundTotal - (double.tryParse(cashCtrl.text) ?? 0)).toStringAsFixed(0);
+                              }
                             });
                           },
                           child: Text(isHindi ? 'राउंड ऑफ ₹${grandTotal.floor()}' : 'Round to ₹${grandTotal.floor()}'),
@@ -1470,19 +1519,54 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Paid Amount Field
-                    TextField(
-                      controller: paidCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        labelText: isHindi ? 'प्राप्त राशि' : 'Amount Paid by Customer (₹)',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.payments_rounded, color: Colors.green),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    // Dynamic Payment Amount Inputs based on Mode
+                    if (selectedMode == 'Cash' || selectedMode == 'UPI') ...[
+                      TextField(
+                        controller: paidCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: isHindi ? 'प्राप्त राशि (${selectedMode})' : 'Amount Paid by Customer (${selectedMode} ₹)',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: Icon(selectedMode == 'UPI' ? Icons.qr_code_rounded : Icons.payments_rounded, color: Colors.green),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        ),
+                        onChanged: (_) => setModalState(() {}),
                       ),
-                      onChanged: (_) => setModalState(() {}),
-                    ),
-                    const SizedBox(height: 14),
+                      const SizedBox(height: 14),
+                    ] else if (selectedMode == 'Split') ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: cashCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'Cash Received (₹)',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.money_rounded, color: Colors.green),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              ),
+                              onChanged: (_) => setModalState(() {}),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: upiCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: const InputDecoration(
+                                labelText: 'UPI Received (₹)',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.qr_code_2_rounded, color: Colors.indigo),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              ),
+                              onChanged: (_) => setModalState(() {}),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // Net Payable & Udhaar Notice Banner
                     Container(
@@ -1499,6 +1583,14 @@ class _PosScreenState extends State<PosScreen> {
                             children: [
                               Text(isHindi ? 'नेट देय राशि:' : 'Net Payable Total:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                               Text('₹ ${netPayable.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: themeProvider.primaryColor)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(isHindi ? 'कुल प्राप्त राशि:' : 'Total Received:', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              Text('₹ ${totalPaid.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green)),
                             ],
                           ),
                           if (remainingUdhaar > 0) ...[
@@ -1534,11 +1626,10 @@ class _PosScreenState extends State<PosScreen> {
                         onPressed: isProcessingSale
                             ? null
                             : () async {
-                                final modeSnapshot = mode;
                                 final customerSnapshot = _selectedCustomer;
 
-                                // Requirement 1: Walk-in Customer Udhaar Validation
-                                if (customerSnapshot == 'Walk-in Customer' && (modeSnapshot == 'Udhaar' || remainingUdhaar > 0.001)) {
+                                // Validation: Walk-in Customer Udhaar Protection
+                                if (customerSnapshot == 'Walk-in Customer' && (selectedMode == 'Udhaar' || remainingUdhaar > 0.001)) {
                                   final errMsg = isHindi
                                       ? 'Walk-in (बिना पंजीकृत ग्राहक) को उधार पर सामान नहीं बेचा जा सकता! कृपया ग्राहक चुनें।'
                                       : 'Udhaar / Credit sale is not allowed for Walk-in Customer! Please select or add a registered customer.';
@@ -1558,133 +1649,139 @@ class _PosScreenState extends State<PosScreen> {
 
                                   try {
                                     final invoiceNo = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
-                                  final cartSnapshot = _cartItems.map((item) {
-                                    final rawId = item['id'];
-                                    final parsedId = rawId is num ? rawId.toInt() : (int.tryParse(rawId?.toString() ?? '') ?? 0);
-                                    final qtyVal = (item['qty'] as num?)?.toDouble() ?? 1.0;
-                                    final priceVal = (item['price'] as num?)?.toDouble() ?? 0.0;
-                                    return {
-                                      'id': parsedId > 0 ? parsedId : rawId,
-                                      'productId': parsedId,
-                                      'name': item['name'] ?? '',
-                                      'productName': item['name'] ?? '',
-                                      'price': priceVal,
-                                      'unitPrice': priceVal,
-                                      'qty': qtyVal,
-                                      'quantity': qtyVal,
-                                      'unit': item['unit'] ?? 'pcs',
-                                      'isLoose': item['isLoose'] ?? false,
-                                    };
-                                  }).toList();
+                                    final cartSnapshot = _cartItems.map((item) {
+                                      final rawId = item['id'];
+                                      final parsedId = rawId is num ? rawId.toInt() : (int.tryParse(rawId?.toString() ?? '') ?? 0);
+                                      final qtyVal = (item['qty'] as num?)?.toDouble() ?? 1.0;
+                                      final priceVal = (item['price'] as num?)?.toDouble() ?? 0.0;
+                                      return {
+                                        'id': parsedId > 0 ? parsedId : rawId,
+                                        'productId': parsedId,
+                                        'name': item['name'] ?? '',
+                                        'productName': item['name'] ?? '',
+                                        'price': priceVal,
+                                        'unitPrice': priceVal,
+                                        'qty': qtyVal,
+                                        'quantity': qtyVal,
+                                        'unit': item['unit'] ?? 'pcs',
+                                        'isLoose': item['isLoose'] ?? false,
+                                      };
+                                    }).toList();
 
-                                  final subtotalSnapshot = subtotal;
-                                  final taxSnapshot = taxAmount;
-                                  final netPayableSnapshot = netPayable;
-                                  final discountSnapshot = (subtotal + taxAmount - netPayable).clamp(0.0, double.infinity);
-                                  final modeSnapshot = mode;
-                                  final customerSnapshot = _selectedCustomer;
-                                  final phoneSnapshot = _customerPhoneController.text;
+                                    final subtotalSnapshot = subtotal;
+                                    final taxSnapshot = taxAmount;
+                                    final netPayableSnapshot = netPayable;
+                                    final discountSnapshot = (subtotal + taxAmount - netPayable).clamp(0.0, double.infinity);
+                                    final modeSnapshot = selectedMode;
+                                    final customerSnapshot = _selectedCustomer;
+                                    final phoneSnapshot = _customerPhoneController.text;
 
-                                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                                  final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                                    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                                    final syncProvider = Provider.of<SyncProvider>(context, listen: false);
 
-                                  final paymentsList = <Map<String, dynamic>>[];
-                                  if (paidAmount > 0) {
-                                    paymentsList.add({
+                                    final paymentsList = <Map<String, dynamic>>[];
+                                    if (cashAmt > 0) {
+                                      paymentsList.add({
+                                        'paymentMode': 'Cash',
+                                        'amount': cashAmt,
+                                        'isReceived': true,
+                                      });
+                                    }
+                                    if (upiAmt > 0) {
+                                      paymentsList.add({
+                                        'paymentMode': 'UPI',
+                                        'amount': upiAmt,
+                                        'upiIdUsed': upiIdUsed,
+                                        'accountName': acNameUsed,
+                                        'bankName': bNameUsed,
+                                        'isReceived': true,
+                                      });
+                                    }
+                                    if (remainingUdhaar > 0) {
+                                      paymentsList.add({
+                                        'paymentMode': 'Udhaar',
+                                        'amount': remainingUdhaar,
+                                        'isReceived': false,
+                                      });
+                                    }
+                                    
+                                    await syncProvider.saveOfflineSale({
+                                      'clientTransactionId': invoiceNo,
+                                      'tenantId': authProvider.tenantId,
+                                      'tenantCode': authProvider.tenantCode,
+                                      'customer': customerSnapshot,
+                                      'customerName': customerSnapshot,
+                                      'customerPhone': phoneSnapshot,
+                                      'subtotal': subtotalSnapshot,
+                                      'taxAmount': taxSnapshot,
+                                      'discountAmount': discountSnapshot,
+                                      'discount': discountSnapshot,
+                                      'amount': netPayableSnapshot,
+                                      'totalAmount': netPayableSnapshot,
+                                      'paidAmount': totalPaid,
                                       'paymentMode': modeSnapshot,
-                                      'amount': paidAmount,
-                                      'upiIdUsed': modeSnapshot.toUpperCase().contains('UPI') ? upiIdUsed : null,
-                                      'accountName': acNameUsed,
-                                      'bankName': bNameUsed,
-                                      'isReceived': true,
+                                      'payments': paymentsList,
+                                      'items': cartSnapshot,
+                                      'createdAt': DateTime.now().toIso8601String(),
                                     });
-                                  }
-                                  if (remainingUdhaar > 0) {
-                                    paymentsList.add({
-                                      'paymentMode': 'Udhaar',
-                                      'amount': remainingUdhaar,
-                                      'isReceived': false,
-                                    });
-                                  }
-                                  
-                                  await syncProvider.saveOfflineSale({
-                                    'clientTransactionId': invoiceNo,
-                                    'tenantId': authProvider.tenantId,
-                                    'tenantCode': authProvider.tenantCode,
-                                    'customer': customerSnapshot,
-                                    'customerName': customerSnapshot,
-                                    'customerPhone': phoneSnapshot,
-                                    'subtotal': subtotalSnapshot,
-                                    'taxAmount': taxSnapshot,
-                                    'discountAmount': discountSnapshot,
-                                    'discount': discountSnapshot,
-                                    'amount': netPayableSnapshot,
-                                    'totalAmount': netPayableSnapshot,
-                                    'paidAmount': paidAmount,
-                                    'paymentMode': modeSnapshot,
-                                    'payments': paymentsList,
-                                    'items': cartSnapshot,
-                                    'createdAt': DateTime.now().toIso8601String(),
-                                  });
 
-                                  // Update Customer Udhaar Ledger balance if remainingUdhaar > 0
-                                  if (remainingUdhaar > 0 && customerSnapshot != 'Walk-in Customer') {
-                                    final customersList = await SQLiteHelper.instance.getCustomers();
-                                    final cust = customersList.firstWhere((c) => c['name'] == customerSnapshot, orElse: () => {});
-                                    final currentBalance = (cust['udhaar'] as num?)?.toDouble() ?? 0.0;
-                                    final newBalance = currentBalance + remainingUdhaar;
-                                    await SQLiteHelper.instance.updateCustomerUdhaar(customerSnapshot, newBalance);
-                                  }
+                                    // Update Customer Udhaar Ledger balance if remainingUdhaar > 0
+                                    if (remainingUdhaar > 0 && customerSnapshot != 'Walk-in Customer') {
+                                      final customersList = await SQLiteHelper.instance.getCustomers();
+                                      final cust = customersList.firstWhere((c) => c['name'] == customerSnapshot, orElse: () => {});
+                                      final currentBalance = (cust['udhaar'] as num?)?.toDouble() ?? 0.0;
+                                      final newBalance = currentBalance + remainingUdhaar;
+                                      await SQLiteHelper.instance.updateCustomerUdhaar(customerSnapshot, newBalance);
+                                    }
 
-                                  if (context.mounted) {
-                                    setState(() {
-                                      for (var cartItem in cartSnapshot) {
-                                        final idx = _availableProducts.indexWhere((p) => p['id'] == cartItem['id'] || p['name'] == cartItem['name']);
-                                        if (idx >= 0) {
-                                          final current = (_availableProducts[idx]['stock'] as num).toDouble();
-                                          final qty = (cartItem['qty'] as num).toDouble();
-                                          _availableProducts[idx]['stock'] = (current - qty) < 0 ? 0 : (current - qty);
-                                          // Update SQLite stock
-                                          SQLiteHelper.instance.deductProductStock(_availableProducts[idx]['name'], qty);
+                                    if (context.mounted) {
+                                      setState(() {
+                                        for (var cartItem in cartSnapshot) {
+                                          final idx = _availableProducts.indexWhere((p) => p['id'] == cartItem['id'] || p['name'] == cartItem['name']);
+                                          if (idx >= 0) {
+                                            final current = (_availableProducts[idx]['stock'] as num).toDouble();
+                                            final qty = (cartItem['qty'] as num).toDouble();
+                                            _availableProducts[idx]['stock'] = (current - qty) < 0 ? 0 : (current - qty);
+                                            // Update SQLite stock
+                                            SQLiteHelper.instance.deductProductStock(_availableProducts[idx]['name'], qty);
+                                          }
                                         }
-                                      }
-                                      _cartItems.clear();
-                                      _selectedCustomer = 'Walk-in Customer';
-                                      _customerPhoneController.clear();
-                                      _selectedPaymentMode = 'Cash';
+                                        _cartItems.clear();
+                                        _selectedCustomer = 'Walk-in Customer';
+                                        _customerPhoneController.clear();
+                                        _selectedPaymentMode = 'Cash';
+                                      });
+
+                                      Navigator.pop(modalCtx);
+
+                                      _showInvoiceReceiptModal(
+                                        context: context,
+                                        isHindi: isHindi,
+                                        themeProvider: themeProvider,
+                                        invoiceNo: invoiceNo,
+                                        customerName: customerSnapshot,
+                                        customerPhone: phoneSnapshot,
+                                        items: cartSnapshot,
+                                        subtotal: subtotalSnapshot,
+                                        taxAmount: taxSnapshot,
+                                        discountAmount: discountSnapshot,
+                                        grandTotal: netPayableSnapshot,
+                                        paymentMode: modeSnapshot,
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setModalState(() {
+                                      isProcessingSale = false;
+                                      modalErrorMessage = 'Failed to process sale: ${e.toString()}';
                                     });
-
-                                    Navigator.pop(modalCtx);
-
-                                    _showInvoiceReceiptModal(
-                                      context: context,
-                                      isHindi: isHindi,
-                                      themeProvider: themeProvider,
-                                      invoiceNo: invoiceNo,
-                                      customerName: customerSnapshot,
-                                      customerPhone: phoneSnapshot,
-                                      items: cartSnapshot,
-                                      subtotal: subtotalSnapshot,
-                                      taxAmount: taxSnapshot,
-                                      discountAmount: discountSnapshot,
-                                      grandTotal: netPayableSnapshot,
-                                      paymentMode: modeSnapshot,
-                                    );
                                   }
-                                } catch (e) {
-                                  setModalState(() {
-                                    isProcessingSale = false;
-                                    modalErrorMessage = 'Failed to process sale: ${e.toString()}';
-                                  });
                                 }
-                              }
 
-                                // Requirement 2: If payment mode is UPI/Online, show scanner modal FIRST!
-                                if (modeSnapshot.toUpperCase().contains('UPI') || modeSnapshot.toUpperCase().contains('ONLINE')) {
+                                // If UPI payment is involved (Full UPI or Split with UPI > 0), show Scanner Modal FIRST!
+                                if (upiAmt > 0) {
                                   final invoiceNo = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
                                   final subtotalSnapshot = subtotal;
                                   final taxSnapshot = taxAmount;
-                                  final netPayableSnapshot = netPayable;
                                   final discountSnapshot = (subtotal + taxAmount - netPayable).clamp(0.0, double.infinity);
                                   final phoneSnapshot = _customerPhoneController.text;
                                   final cartSnapshot = List<Map<String, dynamic>>.from(_cartItems);
@@ -1700,8 +1797,8 @@ class _PosScreenState extends State<PosScreen> {
                                     subtotalSnapshot: subtotalSnapshot,
                                     taxSnapshot: taxSnapshot,
                                     discountSnapshot: discountSnapshot,
-                                    netPayableSnapshot: netPayableSnapshot,
-                                    modeSnapshot: modeSnapshot,
+                                    netPayableSnapshot: upiAmt, // Display EXACT UPI payable amount on QR scanner
+                                    modeSnapshot: selectedMode,
                                     onPaymentConfirmed: (chosenUpiId, chosenAcName, chosenBName) {
                                       executeSaleInsertion(chosenUpiId, chosenAcName, chosenBName);
                                     },
