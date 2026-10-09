@@ -237,64 +237,14 @@ class _AppDrawerState extends State<AppDrawer> {
                       route: '/reports',
                     ),
                 ],
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Divider(height: 1),
-                ),
-
-                // Sync Status Section
-                ListTile(
-                  dense: true,
-                  leading: Icon(
-                    syncProvider.isSyncing
-                        ? Icons.sync_rounded
-                        : (syncProvider.pendingSyncCount > 0
-                            ? Icons.cloud_upload_rounded
-                            : Icons.cloud_done_rounded),
-                    color: syncProvider.pendingSyncCount > 0 ? Colors.orange.shade700 : const Color(0xFF10B981),
-                    size: 24,
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.category_rounded,
+                    title: isHindi ? 'मास्टर्स प्रबंधन (Masters)' : 'Master Management',
+                    route: '/masters',
+                    badgeText: 'NEW',
+                    badgeColor: Colors.purple.shade700,
                   ),
-                  title: Text(
-                    isHindi ? 'सिंक स्थिति' : 'Sync Status',
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5, color: Color(0xFF1E293B)),
-                  ),
-                  subtitle: Text(
-                    syncProvider.pendingSyncCount > 0
-                        ? (isHindi
-                            ? '${syncProvider.pendingSyncCount} डेटा पेंडिंग'
-                            : '${syncProvider.pendingSyncCount} pending items')
-                        : (isHindi ? 'सब डेटा सुरक्षित है' : 'Fully Synced'),
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: syncProvider.pendingSyncCount > 0 ? Colors.orange.shade900 : Colors.green.shade800,
-                    ),
-                  ),
-                  trailing: ElevatedButton(
-                    onPressed: syncProvider.isSyncing
-                        ? null
-                        : () async {
-                            await syncProvider.syncNow();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(isHindi ? 'सिंक पूरा हुआ!' : 'Sync completed successfully!'),
-                                  backgroundColor: themeProvider.accentColor,
-                                ),
-                              );
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      backgroundColor: themeProvider.buttonBgColor,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                    ),
-                    child: Text(
-                      isHindi ? 'सिंक' : 'Sync',
-                      style: TextStyle(fontSize: 11.5, color: themeProvider.buttonTextColor, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Divider(height: 1),

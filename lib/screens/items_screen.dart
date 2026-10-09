@@ -19,6 +19,8 @@ class ItemsScreen extends StatefulWidget {
 
 class _ItemsScreenState extends State<ItemsScreen> {
   final List<Map<String, dynamic>> _masterItems = [];
+  final List<String> _dynamicCategories = ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'Dairy', 'Grains', 'General'];
+  final List<String> _dynamicUoms = ['pkt', 'bottle', 'kg', 'gm', 'ltr', 'pcs', 'box'];
 
   String _searchQuery = '';
   bool _isLoading = false;
@@ -51,6 +53,26 @@ class _ItemsScreenState extends State<ItemsScreen> {
         if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
         if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
       };
+
+      // Fetch dynamic master dropdowns
+      try {
+        final dropRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/masters/all-dropdowns'), headers: headers).timeout(const Duration(seconds: 4));
+        if (dropRes.statusCode == 200) {
+          final dropData = jsonDecode(dropRes.body);
+          if (dropData is Map<String, dynamic>) {
+            final catList = (dropData['categories'] as List?)?.map((c) => (c['name'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+            final uomList = (dropData['uoms'] as List?)?.map((u) => (u['symbol'] ?? u['name'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+            if (catList.isNotEmpty) {
+              _dynamicCategories.clear();
+              _dynamicCategories.addAll(catList);
+            }
+            if (uomList.isNotEmpty) {
+              _dynamicUoms.clear();
+              _dynamicUoms.addAll(uomList);
+            }
+          }
+        }
+      } catch (_) {}
 
       final qStr = tenantId > 0 ? '?tenantId=$tenantId' : '';
       final url = Uri.parse('${ApiConfig.baseUrl}/Items$qStr');
@@ -384,13 +406,13 @@ class _ItemsScreenState extends State<ItemsScreen> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: categoryVal,
+                            value: _dynamicCategories.contains(categoryVal) ? categoryVal : (_dynamicCategories.isNotEmpty ? _dynamicCategories.first : categoryVal),
                             decoration: InputDecoration(
                               labelText: isHindi ? 'कैटेगरी' : 'Category',
                               border: const OutlineInputBorder(),
                             ),
-                            items: ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'Dairy', 'Grains', 'General']
-                                .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                            items: _dynamicCategories
+                                .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)))
                                 .toList(),
                             onChanged: (val) {
                               if (val != null) setModalState(() => categoryVal = val);
@@ -400,13 +422,13 @@ class _ItemsScreenState extends State<ItemsScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: uomVal,
+                            value: _dynamicUoms.contains(uomVal) ? uomVal : (_dynamicUoms.isNotEmpty ? _dynamicUoms.first : uomVal),
                             decoration: InputDecoration(
                               labelText: isHindi ? 'इकाई' : 'UOM',
                               border: const OutlineInputBorder(),
                             ),
-                            items: ['pkt', 'bottle', 'kg', 'gm', 'ltr', 'pcs', 'box']
-                                .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                            items: _dynamicUoms
+                                .map((u) => DropdownMenuItem(value: u, child: Text(u, overflow: TextOverflow.ellipsis)))
                                 .toList(),
                             onChanged: (val) {
                               if (val != null) setModalState(() => uomVal = val);

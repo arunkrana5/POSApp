@@ -17,6 +17,7 @@ import 'screens/reports_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/sales_history_screen.dart';
 import 'screens/items_screen.dart';
+import 'screens/masters_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +74,7 @@ class VillageShopApp extends StatelessWidget {
               '/reports': (context) => const ReportsScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/sales-history': (context) => const SalesHistoryScreen(),
+              '/masters': (context) => const MastersScreen(),
             },
           );
         },
