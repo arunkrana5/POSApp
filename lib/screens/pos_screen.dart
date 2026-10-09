@@ -714,7 +714,7 @@ class _PosScreenState extends State<PosScreen> {
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(
-          isHindi ? 'नया बिल' : 'New Bill)',
+          isHindi ? 'नया बिल' : 'New Bill',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -1125,7 +1125,7 @@ class _PosScreenState extends State<PosScreen> {
     required double discountSnapshot,
     required double netPayableSnapshot,
     required String modeSnapshot,
-    required Function(String selectedUpiId) onPaymentConfirmed,
+    required Function(String selectedUpiId, String selectedAccountName, String selectedBankName) onPaymentConfirmed,
   }) {
     final upiList = themeProvider.upiAccounts;
     String selectedUpiId = themeProvider.getDefaultUpiId();
@@ -1137,7 +1137,22 @@ class _PosScreenState extends State<PosScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (modalCtx, setModalState) {
-          final upiPayload = 'upi://pay?pa=$selectedUpiId&pn=${Uri.encodeComponent(themeProvider.tenantName)}&am=${netPayableSnapshot.toStringAsFixed(2)}&cu=INR&tn=Bill_$invoiceNo';
+          final selectedAcc = upiList.firstWhere(
+            (a) => (a['upiId'] ?? '').toString().toLowerCase() == selectedUpiId.toLowerCase(),
+            orElse: () => {
+              'upiId': selectedUpiId,
+              'accountName': themeProvider.tenantName,
+              'bankName': '',
+              'label': 'Shop UPI',
+            },
+          );
+
+          final selectedAccountName = (selectedAcc['accountName'] != null && selectedAcc['accountName'].toString().trim().isNotEmpty)
+              ? selectedAcc['accountName'].toString().trim()
+              : themeProvider.tenantName;
+          final selectedBankName = (selectedAcc['bankName'] ?? '').toString().trim();
+
+          final upiPayload = 'upi://pay?pa=$selectedUpiId&pn=${Uri.encodeComponent(selectedAccountName)}&am=${netPayableSnapshot.toStringAsFixed(2)}&cu=INR&tn=Bill_$invoiceNo';
           final qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${Uri.encodeComponent(upiPayload)}';
 
           return AlertDialog(
@@ -1181,9 +1196,12 @@ class _PosScreenState extends State<PosScreen> {
                           items: upiList.map((a) {
                             final uid = (a['upiId'] ?? '').toString();
                             final lbl = (a['label'] ?? 'UPI Account').toString();
+                            final acN = (a['accountName'] ?? '').toString();
+                            final bN = (a['bankName'] ?? '').toString();
+                            final displayName = '$lbl - ${acN.isNotEmpty ? acN : themeProvider.tenantName}${bN.isNotEmpty ? " ($bN)" : ""} ($uid)';
                             return DropdownMenuItem<String>(
                               value: uid,
-                              child: Text('$lbl ($uid)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              child: Text(displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                             );
                           }).toList(),
                           onChanged: (val) {
@@ -1229,10 +1247,34 @@ class _PosScreenState extends State<PosScreen> {
                           '₹ ${netPayableSnapshot.toStringAsFixed(2)}',
                           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'UPI ID: $selectedUpiId',
-                          style: const TextStyle(fontSize: 11, color: Colors.purple, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                        const SizedBox(height: 4),
+                        // Dynamic Account Name & Bank Name
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                'A/c Name: $selectedAccountName',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.black87),
+                              ),
+                              if (selectedBankName.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Bank: $selectedBankName',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade800),
+                                ),
+                              ],
+                              const SizedBox(height: 2),
+                              Text(
+                                'UPI ID: $selectedUpiId',
+                                style: const TextStyle(fontSize: 11, color: Colors.purple, fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -1269,7 +1311,7 @@ class _PosScreenState extends State<PosScreen> {
                     : () {
                         setModalState(() => isConfirming = true);
                         Navigator.pop(ctx);
-                        onPaymentConfirmed(selectedUpiId);
+                        onPaymentConfirmed(selectedUpiId, selectedAccountName, selectedBankName);
                       },
               ),
             ],
@@ -1508,7 +1550,7 @@ class _PosScreenState extends State<PosScreen> {
                                   return;
                                 }
 
-                                Future<void> executeSaleInsertion([String? upiIdUsed]) async {
+                                Future<void> executeSaleInsertion([String? upiIdUsed, String? acNameUsed, String? bNameUsed]) async {
                                   setModalState(() {
                                     isProcessingSale = true;
                                     modalErrorMessage = null;
@@ -1552,6 +1594,8 @@ class _PosScreenState extends State<PosScreen> {
                                       'paymentMode': modeSnapshot,
                                       'amount': paidAmount,
                                       'upiIdUsed': modeSnapshot.toUpperCase().contains('UPI') ? upiIdUsed : null,
+                                      'accountName': acNameUsed,
+                                      'bankName': bNameUsed,
                                       'isReceived': true,
                                     });
                                   }
@@ -1658,8 +1702,8 @@ class _PosScreenState extends State<PosScreen> {
                                     discountSnapshot: discountSnapshot,
                                     netPayableSnapshot: netPayableSnapshot,
                                     modeSnapshot: modeSnapshot,
-                                    onPaymentConfirmed: (chosenUpiId) {
-                                      executeSaleInsertion(chosenUpiId);
+                                    onPaymentConfirmed: (chosenUpiId, chosenAcName, chosenBName) {
+                                      executeSaleInsertion(chosenUpiId, chosenAcName, chosenBName);
                                     },
                                   );
                                   return;

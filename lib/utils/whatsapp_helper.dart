@@ -86,6 +86,9 @@ class WhatsAppHelper {
     required String customerName,
     required double currentBalance,
     required List<dynamic> transactions,
+    String? upiId,
+    String? accountName,
+    String? bankName,
   }) {
     final storeName = tenantName.isNotEmpty ? tenantName.toUpperCase() : 'VILLAGE POS STORE';
     final StringBuffer sb = StringBuffer();
@@ -119,6 +122,15 @@ class WhatsAppHelper {
     }
 
     sb.writeln('--------------------------------------------------');
+    if (upiId != null && upiId.isNotEmpty) {
+      sb.writeln('💳 *PAYMENT DETAILS (UPI):*');
+      sb.writeln('👤 *Account Name:* ${accountName ?? tenantName}');
+      if (bankName != null && bankName.isNotEmpty) {
+        sb.writeln('🏦 *Bank:* $bankName');
+      }
+      sb.writeln('📱 *UPI ID:* `$upiId`');
+      sb.writeln('--------------------------------------------------');
+    }
     sb.writeln('👉 *Kindly clear the outstanding dues of ₹${currentBalance.toStringAsFixed(2)} at your earliest convenience.*');
     sb.writeln('🙏 *Thank you for your continued business!*');
 

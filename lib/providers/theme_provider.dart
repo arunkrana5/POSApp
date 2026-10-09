@@ -48,7 +48,14 @@ class TenantThemeProvider with ChangeNotifier {
   String whatsappApiKey = "";
 
   List<Map<String, dynamic>> upiAccounts = [
-    {'id': 'default-1', 'upiId': 'shopkeeper@okaxis', 'label': 'Primary GPay / PhonePe', 'isDefault': true},
+    {
+      'id': 'default-1',
+      'upiId': 'shopkeeper@okaxis',
+      'accountName': 'Shop Owner',
+      'bankName': 'Axis Bank',
+      'label': 'Primary GPay / PhonePe',
+      'isDefault': true,
+    },
   ];
 
   TenantThemeProvider() {
@@ -525,6 +532,20 @@ class TenantThemeProvider with ChangeNotifier {
     if (upiAccounts.isEmpty) return 'shopkeeper@okaxis';
     final def = upiAccounts.firstWhere((a) => a['isDefault'] == true, orElse: () => upiAccounts.first);
     return (def['upiId'] ?? 'shopkeeper@okaxis').toString();
+  }
+
+  Map<String, dynamic> getDefaultUpiAccount() {
+    if (upiAccounts.isEmpty) {
+      return {
+        'id': 'default-1',
+        'upiId': 'shopkeeper@okaxis',
+        'accountName': tenantName,
+        'bankName': 'Bank',
+        'label': 'Shop UPI',
+        'isDefault': true,
+      };
+    }
+    return upiAccounts.firstWhere((a) => a['isDefault'] == true, orElse: () => upiAccounts.first);
   }
 }
 

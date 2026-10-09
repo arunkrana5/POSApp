@@ -1203,9 +1203,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ],
                   ),
-                  subtitle: Text(
-                    upiId,
-                    style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600, color: Colors.purple),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.person_rounded, size: 13, color: Colors.grey.shade700),
+                          const SizedBox(width: 4),
+                          Text(
+                            (item['accountName'] ?? themeProvider.tenantName).toString(),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                          ),
+                          const SizedBox(width: 10),
+                          if ((item['bankName'] ?? '').toString().isNotEmpty) ...[
+                            Icon(Icons.account_balance_rounded, size: 13, color: Colors.grey.shade700),
+                            const SizedBox(width: 4),
+                            Text(
+                              item['bankName'].toString(),
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        upiId,
+                        style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600, color: Colors.purple, fontSize: 12),
+                      ),
+                    ],
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1244,6 +1270,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showAddEditUpiDialog(BuildContext context, Map<String, dynamic>? item, bool isHindi, TenantThemeProvider themeProvider) {
+    final accountNameCtrl = TextEditingController(text: item != null ? (item['accountName'] ?? '') : themeProvider.tenantName);
+    final bankNameCtrl = TextEditingController(text: item != null ? (item['bankName'] ?? '') : '');
     final upiCtrl = TextEditingController(text: item != null ? item['upiId'] : '');
     final labelCtrl = TextEditingController(text: item != null ? item['label'] : '');
     bool isDefault = item != null ? (item['isDefault'] == true) : themeProvider.upiAccounts.isEmpty;
@@ -1253,35 +1281,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDlgState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text(item == null ? (isHindi ? 'नई UPI ID जोड़ें' : 'Add New UPI ID') : (isHindi ? 'UPI ID एडिट करें' : 'Edit UPI ID')),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: labelCtrl,
-                decoration: InputDecoration(
-                  labelText: isHindi ? 'UPI लेबल / नाम (e.g. GPay Main)' : 'Label / App Name (e.g. GPay Main)',
-                  border: const OutlineInputBorder(),
+          title: Text(item == null ? (isHindi ? 'नई UPI ID जोड़ें' : 'Add New UPI Account') : (isHindi ? 'UPI ID एडिट करें' : 'Edit UPI Account')),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: accountNameCtrl,
+                  decoration: InputDecoration(
+                    labelText: isHindi ? 'A/c धारक का नाम (Account Name) *' : 'A/c Holder Name (Account Name) *',
+                    hintText: 'e.g. Ramesh Kumar / Shop Name',
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: upiCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'UPI ID (e.g. 9876543210@paytm)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: bankNameCtrl,
+                  decoration: InputDecoration(
+                    labelText: isHindi ? 'बैंक नाम (Bank Name)' : 'Bank Name (e.g. State Bank of India)',
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(isHindi ? 'इसे डिफ़ॉल्ट UPI बनाएँ' : 'Set as default UPI ID'),
-                value: isDefault,
-                onChanged: (val) {
-                  setDlgState(() => isDefault = val ?? false);
-                },
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: upiCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'UPI ID (e.g. 9876543210@paytm / name@sbi) *',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: labelCtrl,
+                  decoration: InputDecoration(
+                    labelText: isHindi ? 'UPI लेबल / निकनेम (e.g. Main Shop QR)' : 'Label / Nickname (e.g. Main Shop QR)',
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(isHindi ? 'इसे डिफ़ॉल्ट UPI बनाएँ' : 'Set as default UPI ID'),
+                  value: isDefault,
+                  onChanged: (val) {
+                    setDlgState(() => isDefault = val ?? false);
+                  },
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1291,6 +1338,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.purple.shade700, foregroundColor: Colors.white),
               onPressed: () {
+                final acName = accountNameCtrl.text.trim().isNotEmpty ? accountNameCtrl.text.trim() : themeProvider.tenantName;
+                final bName = bankNameCtrl.text.trim();
                 final uId = upiCtrl.text.trim();
                 final lbl = labelCtrl.text.trim().isNotEmpty ? labelCtrl.text.trim() : 'Shop UPI';
                 if (uId.isEmpty) return;
@@ -1306,6 +1355,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   currentList.add({
                     'id': DateTime.now().millisecondsSinceEpoch.toString(),
                     'upiId': uId,
+                    'accountName': acName,
+                    'bankName': bName,
                     'label': lbl,
                     'isDefault': isDefault || currentList.isEmpty,
                   });
@@ -1315,6 +1366,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     currentList[idx] = {
                       'id': item['id'],
                       'upiId': uId,
+                      'accountName': acName,
+                      'bankName': bName,
                       'label': lbl,
                       'isDefault': isDefault,
                     };
