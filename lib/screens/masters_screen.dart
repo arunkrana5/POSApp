@@ -287,10 +287,31 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     );
   }
 
+  String _resolveMasterName(Map<String, dynamic> item) {
+    final keys = ['masterName', 'MasterName', 'name', 'Name', 'categoryName', 'CategoryName', 'uomName', 'UOMName', 'itemTypeName', 'ItemTypeName', 'brandName', 'BrandName'];
+    for (var k in keys) {
+      if (item[k] != null && item[k].toString().trim().isNotEmpty) {
+        return item[k].toString().trim();
+      }
+    }
+    final id = item['id'] ?? item['ID'] ?? '';
+    return 'Master Record #$id';
+  }
+
+  String _resolveMasterCode(Map<String, dynamic> item) {
+    final keys = ['masterCode', 'MasterCode', 'code', 'Code', 'categoryCode', 'CategoryCode', 'uomCode', 'UOMCode', 'symbol', 'Symbol', 'itemTypeCode', 'ItemTypeCode', 'brandCode', 'BrandCode'];
+    for (var k in keys) {
+      if (item[k] != null && item[k].toString().trim().isNotEmpty) {
+        return item[k].toString().trim();
+      }
+    }
+    return '';
+  }
+
   Widget _buildMasterList(List<Map<String, dynamic>> rawList, String masterType, bool isHindi, bool isDark) {
     var list = rawList.where((item) {
-      final name = (item['masterName'] ?? item['categoryName'] ?? item['uomName'] ?? item['itemTypeName'] ?? item['brandName'] ?? '').toString().toLowerCase();
-      final code = (item['masterCode'] ?? item['categoryCode'] ?? item['uomCode'] ?? item['itemTypeCode'] ?? item['brandCode'] ?? '').toString().toLowerCase();
+      final name = _resolveMasterName(item).toLowerCase();
+      final code = _resolveMasterCode(item).toLowerCase();
       final desc = (item['description'] ?? '').toString().toLowerCase();
       final isActive = item['isActive'] == true;
 
@@ -325,8 +346,8 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         itemBuilder: (ctx, idx) {
           final item = list[idx];
           final id = item['id'] as int;
-          final name = (item['masterName'] ?? item['categoryName'] ?? item['uomName'] ?? item['itemTypeName'] ?? item['brandName'] ?? '').toString();
-          final code = (item['masterCode'] ?? item['categoryCode'] ?? item['uomCode'] ?? item['itemTypeCode'] ?? item['brandCode'] ?? '').toString();
+          final name = _resolveMasterName(item);
+          final code = _resolveMasterCode(item);
           final desc = (item['description'] ?? '').toString();
           final isActive = item['isActive'] == true;
           final priority = item['priority'] ?? 0;
