@@ -485,11 +485,11 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
       tabTitle = 'Brand';
     }
 
-    final nameCtrl = TextEditingController(text: item != null ? (item['masterName'] ?? item['categoryName'] ?? item['uomName'] ?? item['itemTypeName'] ?? item['brandName'] ?? '') : '');
-    final codeCtrl = TextEditingController(text: item != null ? (item['masterCode'] ?? item['categoryCode'] ?? item['uomCode'] ?? item['itemTypeCode'] ?? item['brandCode'] ?? '') : '');
-    final descCtrl = TextEditingController(text: item != null ? (item['description'] ?? '') : '');
-    final priorityCtrl = TextEditingController(text: item != null ? '${item['priority'] ?? 0}' : '0');
-    final typeCtrl = TextEditingController(text: item != null ? (item['masterType'] ?? currentMasterType) : currentMasterType);
+    final nameCtrl = TextEditingController(text: item != null ? _resolveMasterName(item) : '');
+    final codeCtrl = TextEditingController(text: item != null ? _resolveMasterCode(item) : '');
+    final descCtrl = TextEditingController(text: item != null ? _getValStr(item, ['description', 'Description']) : '');
+    final priorityCtrl = TextEditingController(text: item != null ? '${_getValStr(item, ['priority', 'Priority'], fallback: '0')}' : '0');
+    final typeCtrl = TextEditingController(text: item != null ? _getValStr(item, ['masterType', 'MasterType'], fallback: currentMasterType) : currentMasterType);
 
     bool isSubmitting = false;
 
@@ -542,7 +542,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                   TextField(
                     controller: nameCtrl,
                     decoration: InputDecoration(
-                      labelText: '$tabTitle Name *',
+                      labelText: '$tabTitle Name / Master Name *',
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
@@ -594,7 +594,8 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                       onPressed: isSubmitting
                           ? null
                           : () async {
-                              if (nameCtrl.text.trim().isEmpty) {
+                              final nameText = nameCtrl.text.trim();
+                              if (nameText.isEmpty) {
                                 ToastHelper.showError(context, 'Master Name is required!');
                                 return;
                               }
@@ -603,15 +604,37 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
 
                               try {
                                 final baseUrl = ApiConfig.baseUrl;
+                                final mType = typeCtrl.text.trim().isEmpty ? currentMasterType : typeCtrl.text.trim();
+                                final mCode = codeCtrl.text.trim();
+
                                 Map<String, dynamic> body = {
-                                  'masterType': typeCtrl.text.trim().isEmpty ? currentMasterType : typeCtrl.text.trim(),
-                                  'masterName': nameCtrl.text.trim(),
-                                  'masterCode': codeCtrl.text.trim(),
+                                  'masterType': mType,
+                                  'MasterType': mType,
+                                  'masterName': nameText,
+                                  'MasterName': nameText,
+                                  'name': nameText,
+                                  'Name': nameText,
+                                  'categoryName': nameText,
+                                  'uomName': nameText,
+                                  'itemTypeName': nameText,
+                                  'brandName': nameText,
+                                  'masterCode': mCode,
+                                  'MasterCode': mCode,
+                                  'code': mCode,
+                                  'Code': mCode,
+                                  'categoryCode': mCode,
+                                  'uomCode': mCode,
+                                  'symbol': mCode,
+                                  'itemTypeCode': mCode,
+                                  'brandCode': mCode,
                                   'description': descCtrl.text.trim(),
+                                  'Description': descCtrl.text.trim(),
                                   'priority': int.tryParse(priorityCtrl.text) ?? 0,
+                                  'Priority': int.tryParse(priorityCtrl.text) ?? 0,
                                 };
 
-                                final url = isEdit ? '$baseUrl/masters/${item['id']}' : '$baseUrl/masters';
+                                final itemId = item != null ? (item['id'] ?? item['ID']) : null;
+                                final url = isEdit ? '$baseUrl/masters/$itemId' : '$baseUrl/masters';
                                 final res = isEdit
                                     ? await http.put(Uri.parse(url), headers: _getHeaders(), body: jsonEncode(body))
                                     : await http.post(Uri.parse(url), headers: _getHeaders(), body: jsonEncode(body));
