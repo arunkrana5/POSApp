@@ -61,6 +61,22 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     };
   }
 
+  String _getValStr(Map<String, dynamic> item, List<String> keys, {String fallback = ''}) {
+    for (var k in keys) {
+      if (item.containsKey(k) && item[k] != null && item[k].toString().trim().isNotEmpty) {
+        return item[k].toString().trim();
+      }
+    }
+    for (var entry in item.entries) {
+      for (var k in keys) {
+        if (entry.key.toLowerCase() == k.toLowerCase() && entry.value != null && entry.value.toString().trim().isNotEmpty) {
+          return entry.value.toString().trim();
+        }
+      }
+    }
+    return fallback;
+  }
+
   Future<void> _loadAllMasters() async {
     setState(() => _isLoading = true);
     try {
@@ -74,10 +90,10 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         final allMasters = List<Map<String, dynamic>>.from(raw);
 
         setState(() {
-          _categories = allMasters.where((m) => (m['masterType'] ?? '').toString().toLowerCase() == 'itemcategory').toList();
-          _uoms = allMasters.where((m) => (m['masterType'] ?? '').toString().toLowerCase() == 'unitofmeasurement').toList();
-          _itemTypes = allMasters.where((m) => (m['masterType'] ?? '').toString().toLowerCase() == 'itemtype').toList();
-          _brands = allMasters.where((m) => (m['masterType'] ?? '').toString().toLowerCase() == 'brand').toList();
+          _categories = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemcategory').toList();
+          _uoms = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'unitofmeasurement').toList();
+          _itemTypes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemtype').toList();
+          _brands = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'brand').toList();
         });
       }
     } catch (_) {}
@@ -212,19 +228,26 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
             onPressed: _loadAllMasters,
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.amber,
-          indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-          tabs: [
-            Tab(icon: const Icon(Icons.category), text: isHindi ? 'श्रेणियां' : 'Categories'),
-            Tab(icon: const Icon(Icons.square_foot), text: isHindi ? 'मापक इकाइयाँ' : 'UOMs'),
-            Tab(icon: const Icon(Icons.merge_type), text: isHindi ? 'प्रकार' : 'Item Types'),
-            Tab(icon: const Icon(Icons.branding_watermark), text: isHindi ? 'ब्रांड्स' : 'Brands'),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            color: Colors.indigo.shade900,
+            child: TabBar(
+              controller: _tabController,
+              indicatorColor: Colors.amberAccent,
+              indicatorWeight: 4,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
+              tabs: [
+                Tab(icon: const Icon(Icons.category, color: Colors.white, size: 20), text: isHindi ? 'श्रेणियां' : 'Categories'),
+                Tab(icon: const Icon(Icons.square_foot, color: Colors.white, size: 20), text: isHindi ? 'मापक इकाइयाँ' : 'UOMs'),
+                Tab(icon: const Icon(Icons.merge_type, color: Colors.white, size: 20), text: isHindi ? 'प्रकार' : 'Item Types'),
+                Tab(icon: const Icon(Icons.branding_watermark, color: Colors.white, size: 20), text: isHindi ? 'ब्रांड्स' : 'Brands'),
+              ],
+            ),
+          ),
         ),
       ),
       drawer: const AppDrawer(),
@@ -288,24 +311,14 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   }
 
   String _resolveMasterName(Map<String, dynamic> item) {
-    final keys = ['masterName', 'MasterName', 'name', 'Name'];
-    for (var k in keys) {
-      if (item[k] != null && item[k].toString().trim().isNotEmpty) {
-        return item[k].toString().trim();
-      }
-    }
+    final name = _getValStr(item, ['masterName', 'MasterName', 'name', 'Name', 'categoryName', 'uomName', 'itemTypeName', 'brandName']);
+    if (name.isNotEmpty) return name;
     final id = item['id'] ?? item['ID'] ?? '';
     return 'Master Record #$id';
   }
 
   String _resolveMasterCode(Map<String, dynamic> item) {
-    final keys = ['masterCode', 'MasterCode', 'code', 'Code'];
-    for (var k in keys) {
-      if (item[k] != null && item[k].toString().trim().isNotEmpty) {
-        return item[k].toString().trim();
-      }
-    }
-    return '';
+    return _getValStr(item, ['masterCode', 'MasterCode', 'code', 'Code', 'symbol', 'Symbol', 'categoryCode', 'uomCode', 'itemTypeCode', 'brandCode']);
   }
 
   Widget _buildMasterList(List<Map<String, dynamic>> rawList, String masterType, bool isHindi, bool isDark) {
