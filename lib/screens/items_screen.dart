@@ -21,6 +21,8 @@ class _ItemsScreenState extends State<ItemsScreen> {
   final List<Map<String, dynamic>> _masterItems = [];
   final List<String> _dynamicCategories = ['Groceries', 'Edible Oil', 'Detergent', 'Spices', 'Beverages', 'Dairy', 'Grains', 'General'];
   final List<String> _dynamicUoms = ['pkt', 'bottle', 'kg', 'gm', 'ltr', 'pcs', 'box'];
+  final List<String> _dynamicItemTypes = ['Packed Goods', 'Loose Goods', 'Service / Custom'];
+  final List<String> _dynamicBrands = ['General / Local', 'Amul', 'Tata Consumer', 'Nestle'];
 
   String _searchQuery = '';
   bool _isLoading = false;
@@ -60,8 +62,11 @@ class _ItemsScreenState extends State<ItemsScreen> {
         if (dropRes.statusCode == 200) {
           final dropData = jsonDecode(dropRes.body);
           if (dropData is Map<String, dynamic>) {
-            final catList = (dropData['categories'] as List?)?.map((c) => (c['name'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
-            final uomList = (dropData['uoms'] as List?)?.map((u) => (u['symbol'] ?? u['name'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+            final catList = (dropData['categories'] as List?)?.map((c) => (c['name'] ?? c['categoryName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+            final uomList = (dropData['uoms'] as List?)?.map((u) => (u['symbol'] ?? u['name'] ?? u['uomName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+            final typeList = (dropData['itemTypes'] as List?)?.map((t) => (t['name'] ?? t['itemTypeName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+            final brandList = (dropData['brands'] as List?)?.map((b) => (b['name'] ?? b['brandName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+
             if (catList.isNotEmpty) {
               _dynamicCategories.clear();
               _dynamicCategories.addAll(catList);
@@ -69,6 +74,14 @@ class _ItemsScreenState extends State<ItemsScreen> {
             if (uomList.isNotEmpty) {
               _dynamicUoms.clear();
               _dynamicUoms.addAll(uomList);
+            }
+            if (typeList.isNotEmpty) {
+              _dynamicItemTypes.clear();
+              _dynamicItemTypes.addAll(typeList);
+            }
+            if (brandList.isNotEmpty) {
+              _dynamicBrands.clear();
+              _dynamicBrands.addAll(brandList);
             }
           }
         }
