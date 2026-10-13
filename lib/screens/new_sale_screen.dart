@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/sale.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sale_provider.dart';
+import '../widgets/master_dropdown.dart';
 
 class NewSaleScreen extends StatefulWidget {
   const NewSaleScreen({super.key});
@@ -15,6 +16,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final _amountController = TextEditingController(text: '150');
   final _paidController = TextEditingController(text: '150');
   String _paymentMode = 'Cash';
+  int? _paymentModeId;
 
   @override
   Widget build(BuildContext context) {
@@ -53,19 +55,17 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _paymentMode,
-              decoration: const InputDecoration(
-                labelText: "भुगतान का प्रकार (Payment Mode)",
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'Cash', child: Text('नगद (Cash)')),
-                DropdownMenuItem(value: 'UPI', child: Text('यूपीआई / ऑनलाइन (UPI)')),
-                DropdownMenuItem(value: 'Udhaar', child: Text('उधार खाता (Udhaar Credit)')),
-              ],
-              onChanged: (val) {
-                if (val != null) setState(() => _paymentMode = val);
+            MasterDropdown(
+              masterType: 'PaymentMode',
+              label: "भुगतान का प्रकार (Payment Mode)",
+              selectedValue: _paymentMode,
+              selectedId: _paymentModeId,
+              prefixIcon: const Icon(Icons.payments_rounded),
+              onChanged: (id, name) {
+                setState(() {
+                  _paymentModeId = id;
+                  if (name != null) _paymentMode = name;
+                });
               },
             ),
             const Spacer(),

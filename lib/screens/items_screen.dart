@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
+import '../providers/master_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/master_dropdown.dart';
 
 class ItemsScreen extends StatefulWidget {
   final bool autoOpenAddModal;
@@ -101,8 +103,13 @@ class _ItemsScreenState extends State<ItemsScreen> {
                 'itemCode': item['itemCode'] ?? item['ItemCode'] ?? '',
                 'name': item['name'] ?? item['Name'] ?? '',
                 'category': item['category'] ?? item['Category'] ?? 'Groceries',
+                'categoryId': item['categoryId'] ?? item['CategoryId'],
                 'uom': item['unit'] ?? item['Unit'] ?? 'pcs',
-                'format': (item['format'] ?? item['Format'] ?? 'Packed') == 'Loose' ? 'Loose' : 'Packed',
+                'unitId': item['unitId'] ?? item['UnitId'],
+                'format': item['format'] ?? item['Format'] ?? 'Packed',
+                'itemTypeId': item['itemTypeId'] ?? item['ItemTypeId'],
+                'brand': item['brand'] ?? item['Brand'] ?? '',
+                'brandId': item['brandId'] ?? item['BrandId'],
                 'description': item['description'] ?? item['Description'] ?? '',
               });
             }
@@ -308,9 +315,25 @@ class _ItemsScreenState extends State<ItemsScreen> {
     final nameCtrl = TextEditingController(text: existing?['name'] ?? '');
     final descCtrl = TextEditingController(text: existing?['description'] ?? '');
 
-    String categoryVal = existing?['category'] ?? 'Groceries';
-    String uomVal = existing?['uom'] ?? 'pkt';
+    int? categoryId = existing?['categoryId'] is int
+        ? existing!['categoryId']
+        : int.tryParse('${existing?['categoryId']}');
+    String categoryVal = existing?['category'] ?? '';
+
+    int? uomId = existing?['unitId'] is int
+        ? existing!['unitId']
+        : int.tryParse('${existing?['unitId']}');
+    String uomVal = existing?['uom'] ?? 'pcs';
+
+    int? itemTypeId = existing?['itemTypeId'] is int
+        ? existing!['itemTypeId']
+        : int.tryParse('${existing?['itemTypeId']}');
     String formatVal = existing?['format'] ?? 'Packed';
+
+    int? brandId = existing?['brandId'] is int
+        ? existing!['brandId']
+        : int.tryParse('${existing?['brandId']}');
+    String brandVal = existing?['brand'] ?? '';
 
     showModalBottomSheet(
       context: context,
@@ -351,41 +374,6 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     const Divider(),
                     const SizedBox(height: 8),
 
-                    // Format Toggle (Packed vs Loose Bulk)
-                    Text(
-                      isHindi ? 'सामान का प्रकार' : 'Item Type',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueGrey),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ChoiceChip(
-                            avatar: const Icon(Icons.inventory_2_rounded, size: 16),
-                            label: Text(isHindi ? 'पैक्ड सामान' : 'Packed Item'),
-                            selected: formatVal == 'Packed',
-                            selectedColor: Colors.blue.shade100,
-                            onSelected: (sel) {
-                              if (sel) setModalState(() => formatVal = 'Packed');
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ChoiceChip(
-                            avatar: const Icon(Icons.scale_rounded, size: 16),
-                            label: Text(isHindi ? 'खुला सामान' : 'Loose'),
-                            selected: formatVal == 'Loose',
-                            selectedColor: Colors.orange.shade100,
-                            onSelected: (sel) {
-                              if (sel) setModalState(() => formatVal = 'Loose');
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
                     // Item Code & Name
                     Row(
                       children: [
@@ -414,41 +402,76 @@ class _ItemsScreenState extends State<ItemsScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Category & UOM Dropdowns
+                    // Dynamic Item Type (Packed, Loose, Service) from Master
+                    MasterDropdown(
+                      masterType: 'ItemType',
+                      label: isHindi ? 'सामान का प्रकार (Item Type)' : 'Item Type',
+                      selectedValue: formatVal,
+                      selectedId: itemTypeId,
+                      prefixIcon: const Icon(Icons.merge_type_rounded, size: 20),
+                      onChanged: (id, name) {
+                        setModalState(() {
+                          itemTypeId = id;
+                          formatVal = name ?? 'Packed';
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Dynamic Category & UOM Dropdowns from Masters
                     Row(
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: _dynamicCategories.contains(categoryVal) ? categoryVal : (_dynamicCategories.isNotEmpty ? _dynamicCategories.first : categoryVal),
-                            decoration: InputDecoration(
-                              labelText: isHindi ? 'कैटेगरी' : 'Category',
-                              border: const OutlineInputBorder(),
-                            ),
-                            items: _dynamicCategories
-                                .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)))
-                                .toList(),
-                            onChanged: (val) {
-                              if (val != null) setModalState(() => categoryVal = val);
+                          child: MasterDropdown(
+                            masterType: 'ItemCategory',
+                            label: isHindi ? 'श्रेणी (Category)' : 'Category',
+                            selectedValue: categoryVal,
+                            selectedId: categoryId,
+                            isRequired: true,
+                            prefixIcon: const Icon(Icons.category_rounded, size: 20),
+                            onChanged: (id, name) {
+                              setModalState(() {
+                                categoryId = id;
+                                categoryVal = name ?? '';
+                              });
                             },
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: _dynamicUoms.contains(uomVal) ? uomVal : (_dynamicUoms.isNotEmpty ? _dynamicUoms.first : uomVal),
-                            decoration: InputDecoration(
-                              labelText: isHindi ? 'इकाई' : 'UOM',
-                              border: const OutlineInputBorder(),
-                            ),
-                            items: _dynamicUoms
-                                .map((u) => DropdownMenuItem(value: u, child: Text(u, overflow: TextOverflow.ellipsis)))
-                                .toList(),
-                            onChanged: (val) {
-                              if (val != null) setModalState(() => uomVal = val);
+                          child: MasterDropdown(
+                            masterType: 'UnitOfMeasurement',
+                            label: isHindi ? 'इकाई (UOM)' : 'Unit (UOM)',
+                            selectedValue: uomVal,
+                            selectedId: uomId,
+                            isRequired: true,
+                            prefixIcon: const Icon(Icons.square_foot_rounded, size: 20),
+                            onChanged: (id, name) {
+                              setModalState(() {
+                                uomId = id;
+                                uomVal = name ?? 'pcs';
+                              });
                             },
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Dynamic Brand Dropdown from Masters
+                    MasterDropdown(
+                      masterType: 'Brand',
+                      label: isHindi ? 'ब्रांड (Brand)' : 'Brand',
+                      selectedValue: brandVal,
+                      selectedId: brandId,
+                      allowClear: true,
+                      prefixIcon: const Icon(Icons.branding_watermark_rounded, size: 20),
+                      onChanged: (id, name) {
+                        setModalState(() {
+                          brandId = id;
+                          brandVal = name ?? '';
+                        });
+                      },
                     ),
                     const SizedBox(height: 12),
 
@@ -489,8 +512,12 @@ class _ItemsScreenState extends State<ItemsScreen> {
                             'itemCode': codeCtrl.text.trim(),
                             'name': nameCtrl.text.trim(),
                             'category': categoryVal,
+                            'categoryId': categoryId,
                             'unit': uomVal,
+                            'unitId': uomId,
                             'format': formatVal,
+                            'itemTypeId': itemTypeId,
+                            'brandId': brandId,
                             'description': descCtrl.text.trim(),
                             'tenantId': tenantId > 0 ? tenantId : 1,
                           };

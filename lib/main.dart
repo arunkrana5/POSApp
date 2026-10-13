@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/auth_provider.dart';
 import 'providers/locale_provider.dart';
+import 'providers/master_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/sync_provider.dart';
 import 'providers/theme_provider.dart';
@@ -40,6 +41,7 @@ class VillageShopApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SyncProvider()),
         ChangeNotifierProvider(create: (_) => TenantThemeProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => MasterProvider()),
       ],
       child: Consumer2<LocaleProvider, TenantThemeProvider>(
         builder: (context, localeProvider, themeProvider, child) {
@@ -74,7 +76,11 @@ class VillageShopApp extends StatelessWidget {
               '/reports': (context) => const ReportsScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/sales-history': (context) => const SalesHistoryScreen(),
-              '/masters': (context) => const MastersScreen(),
+              '/masters': (context) {
+                final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+                final tabIdx = args?['tabIndex'] is int ? (args!['tabIndex'] as int) : 0;
+                return MastersScreen(initialTabIndex: tabIdx);
+              },
             },
           );
         },
@@ -113,6 +119,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
           authProvider.accessToken ?? '',
           authProvider.tenantCode,
           authProvider.tenantId,
+        );
+        Provider.of<MasterProvider>(context, listen: false).fetchAllMasters(
+          authProvider.accessToken ?? '',
+          tenantCode: authProvider.tenantCode,
         );
       }
       return const HomeScreen();

@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -8,9 +7,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
+import '../providers/master_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/master_dropdown.dart';
 import '../database/sqlite_helper.dart';
 import '../utils/image_picker_helper.dart';
 import '../utils/toast_helper.dart';
@@ -90,8 +91,13 @@ class _StockScreenState extends State<StockScreen> {
               'itemCode': item['itemCode'] ?? item['ItemCode'] ?? '',
               'name': item['name'] ?? item['Name'] ?? '',
               'category': item['category'] ?? item['Category'] ?? 'Groceries',
+              'categoryId': item['categoryId'] ?? item['CategoryId'],
               'uom': item['unit'] ?? item['Unit'] ?? 'pcs',
+              'unitId': item['unitId'] ?? item['UnitId'],
               'format': (item['format'] ?? item['Format'] ?? 'Packed') == 'Loose' ? 'Loose' : 'Packed',
+              'itemTypeId': item['itemTypeId'] ?? item['ItemTypeId'],
+              'brand': item['brand'] ?? item['Brand'] ?? '',
+              'brandId': item['brandId'] ?? item['BrandId'],
               'description': item['description'] ?? item['Description'] ?? '',
             });
           }
@@ -421,6 +427,9 @@ class _StockScreenState extends State<StockScreen> {
     final gstCtrl = TextEditingController(text: (existingProduct?['gst'] ?? '0').toString());
     final stockCtrl = TextEditingController(text: (existingProduct?['stock'] ?? '10').toString());
     final minStockCtrl = TextEditingController(text: (existingProduct?['minStock'] ?? '5').toString());
+    int? selectedTaxId = existingProduct?['taxId'] is int
+        ? existingProduct!['taxId']
+        : int.tryParse('${existingProduct?['taxId']}');
     final barcodeCtrl = TextEditingController(text: existingProduct?['barcode'] ?? '890${100000000 + Random().nextInt(899999999)}');
     final hsnCtrl = TextEditingController(text: existingProduct?['hsn'] ?? '');
 
@@ -664,13 +673,24 @@ class _StockScreenState extends State<StockScreen> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: TextField(
-                              controller: gstCtrl,
-                              keyboardType: TextInputType.number,
-                              decoration: InputDecoration(
-                                labelText: isHindi ? 'GST %' : 'GST %',
-                                border: const OutlineInputBorder(),
-                              ),
+                            child: MasterDropdown(
+                              masterType: 'Tax',
+                              label: isHindi ? 'टैक्स / GST दर' : 'GST / Tax Rate',
+                              hint: 'Select GST %',
+                              selectedId: selectedTaxId,
+                              selectedValue: gstCtrl.text.isNotEmpty && gstCtrl.text != '0' ? 'GST ${gstCtrl.text}%' : null,
+                              prefixIcon: const Icon(Icons.receipt_long_rounded, size: 20),
+                              onChanged: (id, name) {
+                                setModalState(() {
+                                  selectedTaxId = id;
+                                  if (name != null) {
+                                    final rate = Provider.of<MasterProvider>(context, listen: false).getTaxRate(id ?? name);
+                                    gstCtrl.text = rate.toStringAsFixed(0);
+                                  } else {
+                                    gstCtrl.text = '0';
+                                  }
+                                });
+                              },
                             ),
                           ),
                         ],
@@ -851,7 +871,12 @@ class _StockScreenState extends State<StockScreen> {
                                 'productCode': selectedCatalogItem!['itemCode'] ?? '',
                                 'name': selectedCatalogItem!['name'] ?? '',
                                 'category': selectedCatalogItem!['category'] ?? 'Groceries',
+                                'categoryId': selectedCatalogItem!['categoryId'],
                                 'unit': selectedCatalogItem!['uom'] ?? 'pcs',
+                                'unitId': selectedCatalogItem!['unitId'],
+                                'brand': selectedCatalogItem!['brand'] ?? '',
+                                'brandId': selectedCatalogItem!['brandId'],
+                                'taxId': selectedTaxId,
                                 'sellingPrice': price,
                                 'purchasePrice': double.tryParse(costCtrl.text) ?? 0.0,
                                 'mrp': double.tryParse(mrpCtrl.text) ?? price,

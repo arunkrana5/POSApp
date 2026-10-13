@@ -12,6 +12,7 @@ import '../providers/theme_provider.dart';
 import '../database/sqlite_helper.dart';
 import '../widgets/app_drawer.dart';
 import '../utils/toast_helper.dart';
+import '../providers/master_provider.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -1323,6 +1324,17 @@ class _PosScreenState extends State<PosScreen> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
+            final masterProvider = Provider.of<MasterProvider>(context, listen: false);
+            final masterModes = masterProvider.paymentModes.map((pm) => pm.masterName).where((name) {
+              if (name.toLowerCase() == 'upi' && !themeProvider.enableOnlinePayment) return false;
+              if (name.toLowerCase() == 'udhaar' && !themeProvider.enableUdhaar) return false;
+              return true;
+            }).toList();
+            final availableModes = [
+              ...masterModes.isEmpty ? ['Cash', if (themeProvider.enableOnlinePayment) 'UPI', if (themeProvider.enableUdhaar) 'Udhaar'] : masterModes,
+              'Split',
+            ].toSet().toList();
+
             final discount = double.tryParse(discountCtrl.text) ?? 0.0;
             final netPayable = (grandTotal - discount).clamp(0.0, double.infinity);
             
@@ -1331,26 +1343,29 @@ class _PosScreenState extends State<PosScreen> {
             double totalPaid = 0.0;
             double remainingUdhaar = 0.0;
 
-            if (selectedMode == 'Cash') {
-              totalPaid = double.tryParse(paidCtrl.text) ?? netPayable;
-              cashAmt = totalPaid;
-              upiAmt = 0.0;
-              remainingUdhaar = (netPayable - totalPaid).clamp(0.0, double.infinity);
-            } else if (selectedMode == 'UPI') {
-              totalPaid = double.tryParse(paidCtrl.text) ?? netPayable;
-              cashAmt = 0.0;
-              upiAmt = totalPaid;
-              remainingUdhaar = (netPayable - totalPaid).clamp(0.0, double.infinity);
-            } else if (selectedMode == 'Udhaar') {
+            if (selectedMode == 'Udhaar') {
               totalPaid = 0.0;
               cashAmt = 0.0;
               upiAmt = 0.0;
               remainingUdhaar = netPayable;
-            } else {
+            } else if (selectedMode == 'Split') {
               // Split Mode
               cashAmt = double.tryParse(cashCtrl.text) ?? 0.0;
               upiAmt = double.tryParse(upiCtrl.text) ?? 0.0;
               totalPaid = cashAmt + upiAmt;
+              remainingUdhaar = (netPayable - totalPaid).clamp(0.0, double.infinity);
+            } else {
+              totalPaid = double.tryParse(paidCtrl.text) ?? netPayable;
+              if (selectedMode == 'UPI') {
+                cashAmt = 0.0;
+                upiAmt = totalPaid;
+              } else if (selectedMode == 'Cash') {
+                cashAmt = totalPaid;
+                upiAmt = 0.0;
+              } else {
+                cashAmt = 0.0;
+                upiAmt = 0.0;
+              }
               remainingUdhaar = (netPayable - totalPaid).clamp(0.0, double.infinity);
             }
 
@@ -1432,7 +1447,7 @@ class _PosScreenState extends State<PosScreen> {
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 8,
-                      children: ['Cash', if (themeProvider.enableOnlinePayment) 'UPI', 'Split', if (themeProvider.enableUdhaar) 'Udhaar'].map((m) {
+                      children: availableModes.map((m) {
                         final isSelected = selectedMode == m;
                         return ChoiceChip(
                           label: Text(
@@ -1446,13 +1461,13 @@ class _PosScreenState extends State<PosScreen> {
                               setModalState(() {
                                 selectedMode = m;
                                 _selectedPaymentMode = m;
-                                if (m == 'Cash' || m == 'UPI') {
-                                  paidCtrl.text = netPayable.toStringAsFixed(0);
+                                if (m == 'Udhaar') {
+                                  paidCtrl.text = '0';
                                 } else if (m == 'Split') {
                                   cashCtrl.text = (netPayable / 2).toStringAsFixed(0);
                                   upiCtrl.text = (netPayable - (double.tryParse(cashCtrl.text) ?? 0)).toStringAsFixed(0);
-                                } else if (m == 'Udhaar') {
-                                  paidCtrl.text = '0';
+                                } else {
+                                  paidCtrl.text = netPayable.toStringAsFixed(0);
                                 }
                               });
                             }
@@ -1488,11 +1503,11 @@ class _PosScreenState extends State<PosScreen> {
                               setModalState(() {
                                 final d = double.tryParse(val) ?? 0.0;
                                 final net = (grandTotal - d).clamp(0.0, double.infinity);
-                                if (selectedMode == 'Cash' || selectedMode == 'UPI') {
-                                  paidCtrl.text = net.toStringAsFixed(0);
-                                } else if (selectedMode == 'Split') {
+                                if (selectedMode == 'Split') {
                                   cashCtrl.text = (net / 2).toStringAsFixed(0);
                                   upiCtrl.text = (net - (double.tryParse(cashCtrl.text) ?? 0)).toStringAsFixed(0);
+                                } else if (selectedMode != 'Udhaar') {
+                                  paidCtrl.text = net.toStringAsFixed(0);
                                 }
                               });
                             },
@@ -1505,11 +1520,11 @@ class _PosScreenState extends State<PosScreen> {
                               final roundTotal = grandTotal.floorToDouble();
                               final autoDiscount = grandTotal - roundTotal;
                               discountCtrl.text = autoDiscount.toStringAsFixed(2);
-                              if (selectedMode == 'Cash' || selectedMode == 'UPI') {
-                                paidCtrl.text = roundTotal.toStringAsFixed(0);
-                              } else if (selectedMode == 'Split') {
+                              if (selectedMode == 'Split') {
                                 cashCtrl.text = (roundTotal / 2).toStringAsFixed(0);
                                 upiCtrl.text = (roundTotal - (double.tryParse(cashCtrl.text) ?? 0)).toStringAsFixed(0);
+                              } else if (selectedMode != 'Udhaar') {
+                                paidCtrl.text = roundTotal.toStringAsFixed(0);
                               }
                             });
                           },
@@ -1520,7 +1535,7 @@ class _PosScreenState extends State<PosScreen> {
                     const SizedBox(height: 12),
 
                     // Dynamic Payment Amount Inputs based on Mode
-                    if (selectedMode == 'Cash' || selectedMode == 'UPI') ...[
+                    if (selectedMode != 'Udhaar' && selectedMode != 'Split') ...[
                       TextField(
                         controller: paidCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -1678,28 +1693,44 @@ class _PosScreenState extends State<PosScreen> {
 
                                     final authProvider = Provider.of<AuthProvider>(context, listen: false);
                                     final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                                    final masterProvider = Provider.of<MasterProvider>(context, listen: false);
 
                                     final paymentsList = <Map<String, dynamic>>[];
-                                    if (cashAmt > 0) {
+                                    if (selectedMode == 'Split') {
+                                      if (cashAmt > 0) {
+                                        paymentsList.add({
+                                          'paymentMode': 'Cash',
+                                          'paymentModeId': masterProvider.getPaymentModeId('Cash'),
+                                          'amount': cashAmt,
+                                          'isReceived': true,
+                                        });
+                                      }
+                                      if (upiAmt > 0) {
+                                        paymentsList.add({
+                                          'paymentMode': 'UPI',
+                                          'paymentModeId': masterProvider.getPaymentModeId('UPI'),
+                                          'amount': upiAmt,
+                                          'upiIdUsed': upiIdUsed,
+                                          'accountName': acNameUsed,
+                                          'bankName': bNameUsed,
+                                          'isReceived': true,
+                                        });
+                                      }
+                                    } else if (selectedMode != 'Udhaar') {
                                       paymentsList.add({
-                                        'paymentMode': 'Cash',
-                                        'amount': cashAmt,
-                                        'isReceived': true,
-                                      });
-                                    }
-                                    if (upiAmt > 0) {
-                                      paymentsList.add({
-                                        'paymentMode': 'UPI',
-                                        'amount': upiAmt,
-                                        'upiIdUsed': upiIdUsed,
-                                        'accountName': acNameUsed,
-                                        'bankName': bNameUsed,
+                                        'paymentMode': modeSnapshot,
+                                        'paymentModeId': masterProvider.getPaymentModeId(modeSnapshot),
+                                        'amount': totalPaid,
+                                        'upiIdUsed': modeSnapshot == 'UPI' ? upiIdUsed : null,
+                                        'accountName': modeSnapshot == 'UPI' ? acNameUsed : null,
+                                        'bankName': modeSnapshot == 'UPI' ? bNameUsed : null,
                                         'isReceived': true,
                                       });
                                     }
                                     if (remainingUdhaar > 0) {
                                       paymentsList.add({
                                         'paymentMode': 'Udhaar',
+                                        'paymentModeId': masterProvider.getPaymentModeId('Udhaar'),
                                         'amount': remainingUdhaar,
                                         'isReceived': false,
                                       });
@@ -1720,6 +1751,7 @@ class _PosScreenState extends State<PosScreen> {
                                       'totalAmount': netPayableSnapshot,
                                       'paidAmount': totalPaid,
                                       'paymentMode': modeSnapshot,
+                                      'paymentModeId': masterProvider.getPaymentModeId(modeSnapshot),
                                       'payments': paymentsList,
                                       'items': cartSnapshot,
                                       'createdAt': DateTime.now().toIso8601String(),

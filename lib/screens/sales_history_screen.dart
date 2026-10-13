@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -10,6 +9,7 @@ import '../providers/theme_provider.dart';
 import '../utils/invoice_printer.dart';
 import '../utils/whatsapp_helper.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/master_dropdown.dart';
 
 class SalesHistoryScreen extends StatefulWidget {
   const SalesHistoryScreen({super.key});
@@ -688,6 +688,9 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     final amtCtrl = TextEditingController(text: (sale['totalAmount'] ?? sale['amount'] ?? 0.0).toString());
     final paidCtrl = TextEditingController(text: (sale['paidAmount'] ?? sale['totalAmount'] ?? 0.0).toString());
     String selectedMode = (sale['paymentMode'] ?? 'Cash').toString();
+    int? selectedModeId = sale['paymentModeId'] is int
+        ? sale['paymentModeId'] as int
+        : int.tryParse(sale['paymentModeId']?.toString() ?? '');
 
     showModalBottomSheet(
       context: context,
@@ -769,20 +772,17 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      value: ['Cash', 'UPI', 'Udhaar'].contains(selectedMode) ? selectedMode : 'Cash',
-                      decoration: InputDecoration(
-                        labelText: isHindi ? 'भुगतान का प्रकार' : 'Payment Mode',
-                        border: const OutlineInputBorder(),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'Cash', child: Text('Cash (नगद)')),
-                        DropdownMenuItem(value: 'UPI', child: Text('UPI / Online')),
-                        DropdownMenuItem(value: 'Udhaar', child: Text('Udhaar (उधार)')),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) setModalState(() => selectedMode = val);
+                    MasterDropdown(
+                      masterType: 'PaymentMode',
+                      selectedId: selectedModeId,
+                      selectedValue: selectedMode,
+                      labelText: isHindi ? 'भुगतान का प्रकार' : 'Payment Mode',
+                      prefixIcon: const Icon(Icons.payment_rounded, size: 20),
+                      onChanged: (id, name) {
+                        setModalState(() {
+                          selectedModeId = id;
+                          selectedMode = name ?? 'Cash';
+                        });
                       },
                     ),
                     const SizedBox(height: 18),
@@ -802,6 +802,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                             sale['totalAmount'] = double.tryParse(amtCtrl.text) ?? sale['totalAmount'];
                             sale['paidAmount'] = double.tryParse(paidCtrl.text) ?? sale['paidAmount'];
                             sale['paymentMode'] = selectedMode;
+                            sale['paymentModeId'] = selectedModeId;
                           });
 
                           Navigator.pop(modalCtx);

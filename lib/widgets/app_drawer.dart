@@ -237,14 +237,56 @@ class _AppDrawerState extends State<AppDrawer> {
                       route: '/reports',
                     ),
                 ],
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.category_rounded,
-                    title: isHindi ? 'मास्टर्स प्रबंधन (Masters)' : 'Master Management',
-                    route: '/masters',
-                    badgeText: 'NEW',
-                    badgeColor: Colors.purple.shade700,
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: ModalRoute.of(context)?.settings.name == '/masters'
+                        ? themeProvider.primaryColor.withOpacity(0.08)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      leading: Icon(
+                        Icons.category_rounded,
+                        size: 22,
+                        color: ModalRoute.of(context)?.settings.name == '/masters'
+                            ? themeProvider.primaryColor
+                            : Colors.purple.shade700,
+                      ),
+                      title: Text(
+                        isHindi ? 'मास्टर्स प्रबंधन (Masters)' : 'Master Management',
+                        style: TextStyle(
+                          fontFamily: themeProvider.fontFamily,
+                          fontWeight: FontWeight.bold,
+                          color: ModalRoute.of(context)?.settings.name == '/masters'
+                              ? themeProvider.primaryColor
+                              : themeProvider.textColor,
+                          fontSize: 14 * themeProvider.fontSizeScale,
+                        ),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade700,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text('ALL', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                      ),
+                      children: [
+                        _buildMasterDrawerSubItem(context, title: isHindi ? 'सभी मास्टर्स (Overview)' : 'All Masters Overview', tabIndex: 0, icon: Icons.dashboard_customize_outlined),
+                        _buildMasterDrawerSubItem(context, title: isHindi ? 'श्रेणियां (Item Categories)' : 'Item Categories', tabIndex: 0, icon: Icons.category_outlined),
+                        _buildMasterDrawerSubItem(context, title: isHindi ? 'मापक इकाइयाँ (UOM)' : 'Units of Measurement (UOM)', tabIndex: 1, icon: Icons.square_foot_outlined),
+                        _buildMasterDrawerSubItem(context, title: isHindi ? 'सामान के प्रकार (Item Types)' : 'Item Types (Format)', tabIndex: 2, icon: Icons.merge_type_outlined),
+                        _buildMasterDrawerSubItem(context, title: isHindi ? 'ब्रांड्स (Brands)' : 'Brands', tabIndex: 3, icon: Icons.branding_watermark_outlined),
+                        _buildMasterDrawerSubItem(context, title: isHindi ? 'भुगतान के साधन (Payment Modes)' : 'Payment Modes', tabIndex: 4, icon: Icons.payments_outlined),
+                        _buildMasterDrawerSubItem(context, title: isHindi ? 'टैक्स व जीएसटी (Tax Rates)' : 'Tax & GST Rates', tabIndex: 5, icon: Icons.receipt_outlined),
+                        _buildMasterDrawerSubItem(context, title: isHindi ? 'खर्च श्रेणियां (Expense Categories)' : 'Expense Categories', tabIndex: 6, icon: Icons.money_off_outlined),
+                      ],
+                    ),
+                  ),
+                ),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Divider(height: 1),
@@ -365,6 +407,37 @@ class _AppDrawerState extends State<AppDrawer> {
           }
         },
       ),
+    );
+  }
+
+  Widget _buildMasterDrawerSubItem(
+    BuildContext context, {
+    required String title,
+    required int tabIndex,
+    required IconData icon,
+  }) {
+    final themeProvider = Provider.of<TenantThemeProvider>(context);
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.only(left: 32, right: 16),
+      leading: Icon(icon, size: 18, color: Colors.purple.shade600),
+      title: Text(
+        title,
+        style: TextStyle(
+          fontFamily: themeProvider.fontFamily,
+          fontSize: 13 * themeProvider.fontSizeScale,
+          fontWeight: FontWeight.w500,
+          color: themeProvider.textColor.withOpacity(0.9),
+        ),
+      ),
+      onTap: () {
+        Navigator.pop(context); // Close drawer
+        Navigator.pushReplacementNamed(
+          context,
+          '/masters',
+          arguments: {'tabIndex': tabIndex},
+        );
+      },
     );
   }
 

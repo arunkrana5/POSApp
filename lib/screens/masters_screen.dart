@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
-import '../providers/theme_provider.dart';
+import '../providers/master_provider.dart';
 import '../utils/toast_helper.dart';
 import '../widgets/app_drawer.dart';
 
@@ -27,13 +27,20 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   List<Map<String, dynamic>> _uoms = [];
   List<Map<String, dynamic>> _itemTypes = [];
   List<Map<String, dynamic>> _brands = [];
+  List<Map<String, dynamic>> _paymentModes = [];
+  List<Map<String, dynamic>> _taxes = [];
+  List<Map<String, dynamic>> _expenseCategories = [];
 
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this, initialIndex: widget.initialTabIndex);
+    _tabController = TabController(
+      length: 7,
+      vsync: this,
+      initialIndex: (widget.initialTabIndex >= 0 && widget.initialTabIndex < 7) ? widget.initialTabIndex : 0,
+    );
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {
         setState(() => _searchQuery = '');
@@ -94,7 +101,18 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
           _uoms = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'unitofmeasurement').toList();
           _itemTypes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemtype').toList();
           _brands = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'brand').toList();
+          _paymentModes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'paymentmode').toList();
+          _taxes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'tax').toList();
+          _expenseCategories = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'expensecategory').toList();
         });
+
+        // Eagerly update global MasterProvider cache
+        try {
+          Provider.of<MasterProvider>(context, listen: false).fetchAllMasters(
+            _getAuthToken(),
+            forceRefresh: true,
+          );
+        } catch (_) {}
       }
     } catch (_) {}
     if (mounted) setState(() => _isLoading = false);
@@ -234,6 +252,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
             color: Colors.indigo.shade900,
             child: TabBar(
               controller: _tabController,
+              isScrollable: true,
               indicatorColor: Colors.amberAccent,
               indicatorWeight: 4,
               labelColor: Colors.white,
@@ -241,10 +260,13 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
               labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
               tabs: [
-                Tab(icon: const Icon(Icons.category, color: Colors.white, size: 20), text: isHindi ? 'श्रेणियां' : 'Categories'),
-                Tab(icon: const Icon(Icons.square_foot, color: Colors.white, size: 20), text: isHindi ? 'मापक इकाइयाँ' : 'UOMs'),
-                Tab(icon: const Icon(Icons.merge_type, color: Colors.white, size: 20), text: isHindi ? 'प्रकार' : 'Item Types'),
-                Tab(icon: const Icon(Icons.branding_watermark, color: Colors.white, size: 20), text: isHindi ? 'ब्रांड्स' : 'Brands'),
+                Tab(icon: const Icon(Icons.category, color: Colors.white, size: 20), text: isHindi ? 'श्रेणियां (${_categories.length})' : 'Categories (${_categories.length})'),
+                Tab(icon: const Icon(Icons.square_foot, color: Colors.white, size: 20), text: isHindi ? 'मापक इकाइयाँ (${_uoms.length})' : 'UOMs (${_uoms.length})'),
+                Tab(icon: const Icon(Icons.merge_type, color: Colors.white, size: 20), text: isHindi ? 'प्रकार (${_itemTypes.length})' : 'Item Types (${_itemTypes.length})'),
+                Tab(icon: const Icon(Icons.branding_watermark, color: Colors.white, size: 20), text: isHindi ? 'ब्रांड्स (${_brands.length})' : 'Brands (${_brands.length})'),
+                Tab(icon: const Icon(Icons.payments, color: Colors.white, size: 20), text: isHindi ? 'भुगतान प्रकार (${_paymentModes.length})' : 'Payment Modes (${_paymentModes.length})'),
+                Tab(icon: const Icon(Icons.receipt, color: Colors.white, size: 20), text: isHindi ? 'टैक्स / GST (${_taxes.length})' : 'Taxes / GST (${_taxes.length})'),
+                Tab(icon: const Icon(Icons.money_off, color: Colors.white, size: 20), text: isHindi ? 'खर्च श्रेणियां (${_expenseCategories.length})' : 'Expense Categories (${_expenseCategories.length})'),
               ],
             ),
           ),
@@ -295,6 +317,9 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                       _buildMasterList(_uoms, 'UnitOfMeasurement', isHindi, isDark),
                       _buildMasterList(_itemTypes, 'ItemType', isHindi, isDark),
                       _buildMasterList(_brands, 'Brand', isHindi, isDark),
+                      _buildMasterList(_paymentModes, 'PaymentMode', isHindi, isDark),
+                      _buildMasterList(_taxes, 'Tax', isHindi, isDark),
+                      _buildMasterList(_expenseCategories, 'ExpenseCategory', isHindi, isDark),
                     ],
                   ),
           ),
@@ -483,6 +508,15 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     } else if (tabIndex == 3) {
       currentMasterType = 'Brand';
       tabTitle = 'Brand';
+    } else if (tabIndex == 4) {
+      currentMasterType = 'PaymentMode';
+      tabTitle = 'Payment Mode';
+    } else if (tabIndex == 5) {
+      currentMasterType = 'Tax';
+      tabTitle = 'Tax / GST Rate';
+    } else if (tabIndex == 6) {
+      currentMasterType = 'ExpenseCategory';
+      tabTitle = 'Expense Category';
     }
 
     final nameCtrl = TextEditingController(text: item != null ? _resolveMasterName(item) : '');
