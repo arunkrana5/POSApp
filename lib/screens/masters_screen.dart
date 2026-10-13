@@ -6,6 +6,7 @@ import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/master_provider.dart';
+import '../providers/theme_provider.dart';
 import '../utils/toast_helper.dart';
 import '../widgets/app_drawer.dart';
 
@@ -42,11 +43,13 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
       initialIndex: (widget.initialTabIndex >= 0 && widget.initialTabIndex < 7) ? widget.initialTabIndex : 0,
     );
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        setState(() => _searchQuery = '');
+      if (mounted) {
+        setState(() {});
       }
     });
-    _loadAllMasters();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAllMasters();
+    });
   }
 
   @override
@@ -61,10 +64,15 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   }
 
   Map<String, String> _getHeaders() {
-    final token = _getAuthToken();
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final token = auth.accessToken ?? '';
+    final tenantId = auth.tenantId ?? 0;
+    final tenantCode = auth.tenantCode ?? '';
     return {
       'Content-Type': 'application/json',
       if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+      if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+      if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
     };
   }
 
@@ -84,37 +92,104 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     return fallback;
   }
 
+  void _setMastersFromList(List<Map<String, dynamic>> allMasters) {
+    if (!mounted) return;
+    setState(() {
+      _categories = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemcategory').toList();
+      _uoms = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'unitofmeasurement').toList();
+      _itemTypes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemtype').toList();
+      _brands = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'brand').toList();
+      _paymentModes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'paymentmode').toList();
+      _taxes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'tax').toList();
+      _expenseCategories = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'expensecategory').toList();
+    });
+  }
+
   Future<void> _loadAllMasters() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final masterProvider = Provider.of<MasterProvider>(context, listen: false);
+
+    // Eagerly populate from MasterProvider in-memory cache if available
+    if (masterProvider.hasFetched && masterProvider.allMasters.isNotEmpty) {
+      final all = masterProvider.allMasters.map((m) => {
+        'id': m.id,
+        'ID': m.id,
+        'masterType': m.masterType,
+        'MasterType': m.masterType,
+        'masterName': m.masterName,
+        'MasterName': m.masterName,
+        'name': m.masterName,
+        'masterCode': m.masterCode,
+        'MasterCode': m.masterCode,
+        'description': m.description,
+        'Description': m.description,
+        'priority': m.priority,
+        'Priority': m.priority,
+        'isActive': m.isActive,
+        'IsActive': m.isActive,
+      }).toList();
+      _setMastersFromList(all);
+    }
+
     setState(() => _isLoading = true);
     try {
       final baseUrl = ApiConfig.baseUrl;
       final headers = _getHeaders();
+      final tenantId = auth.tenantId ?? 0;
+      final qParam = tenantId > 0 ? '?tenantId=$tenantId' : '';
 
-      final res = await http.get(Uri.parse('$baseUrl/masters'), headers: headers).timeout(const Duration(seconds: 5));
+      final res = await http.get(Uri.parse('$baseUrl/masters$qParam'), headers: headers).timeout(const Duration(seconds: 12));
 
       if (res.statusCode == 200 && mounted) {
         final List<dynamic> raw = jsonDecode(res.body);
         final allMasters = List<Map<String, dynamic>>.from(raw);
 
-        setState(() {
-          _categories = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemcategory').toList();
-          _uoms = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'unitofmeasurement').toList();
-          _itemTypes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemtype').toList();
-          _brands = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'brand').toList();
-          _paymentModes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'paymentmode').toList();
-          _taxes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'tax').toList();
-          _expenseCategories = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'expensecategory').toList();
-        });
+        if (allMasters.isNotEmpty) {
+          _setMastersFromList(allMasters);
+        } else {
+          // Fallback to bulk all-dropdowns endpoint
+          final fbRes = await http.get(Uri.parse('$baseUrl/masters/all-dropdowns$qParam'), headers: headers).timeout(const Duration(seconds: 8));
+          if (fbRes.statusCode == 200 && mounted) {
+            final fbData = jsonDecode(fbRes.body);
+            if (fbData['allMasters'] != null) {
+              _setMastersFromList(List<Map<String, dynamic>>.from(fbData['allMasters']));
+            }
+          }
+        }
 
-        // Eagerly update global MasterProvider cache
+        // Keep MasterProvider synchronized
         try {
-          Provider.of<MasterProvider>(context, listen: false).fetchAllMasters(
-            _getAuthToken(),
+          masterProvider.fetchAllMasters(
+            auth.accessToken ?? '',
             forceRefresh: true,
+            tenantId: tenantId > 0 ? tenantId : null,
+            tenantCode: auth.tenantCode,
           );
         } catch (_) {}
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Masters fetch notice: $e');
+      if (masterProvider.hasFetched && masterProvider.allMasters.isNotEmpty) {
+        final all = masterProvider.allMasters.map((m) => {
+          'id': m.id,
+          'ID': m.id,
+          'masterType': m.masterType,
+          'MasterType': m.masterType,
+          'masterName': m.masterName,
+          'MasterName': m.masterName,
+          'name': m.masterName,
+          'masterCode': m.masterCode,
+          'MasterCode': m.masterCode,
+          'description': m.description,
+          'Description': m.description,
+          'priority': m.priority,
+          'Priority': m.priority,
+          'isActive': m.isActive,
+          'IsActive': m.isActive,
+        }).toList();
+        _setMastersFromList(all);
+      }
+    }
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -124,13 +199,13 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
       final baseUrl = ApiConfig.baseUrl;
       final res = await http.put(Uri.parse('$baseUrl/masters/$id/toggle-active'), headers: _getHeaders());
       if (res.statusCode == 200) {
-        ToastHelper.showSuccess(context, 'Status updated successfully.');
+        if (mounted) ToastHelper.showSuccess(context, 'Status updated successfully.');
         _loadAllMasters();
       } else {
-        ToastHelper.showError(context, 'Failed to update status.');
+        if (mounted) ToastHelper.showError(context, 'Failed to update status.');
       }
     } catch (e) {
-      ToastHelper.showError(context, 'Error updating status: ${e.toString()}');
+      if (mounted) ToastHelper.showError(context, 'Error updating status: ${e.toString()}');
     }
   }
 
@@ -167,26 +242,26 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         final baseUrl = ApiConfig.baseUrl;
         final res = await http.delete(Uri.parse('$baseUrl/masters/$id'), headers: _getHeaders());
         if (res.statusCode == 200) {
-          ToastHelper.showSuccess(context, 'Record deleted successfully.');
+          if (mounted) ToastHelper.showSuccess(context, 'Record deleted successfully.');
           _loadAllMasters();
         } else {
-          ToastHelper.showError(context, 'Failed to delete record.');
+          if (mounted) ToastHelper.showError(context, 'Failed to delete record.');
         }
       } catch (e) {
-        ToastHelper.showError(context, 'Delete failed: ${e.toString()}');
+        if (mounted) ToastHelper.showError(context, 'Delete failed: ${e.toString()}');
       }
     }
   }
 
-  void _showAuditDialog(Map<String, dynamic> item, String title) {
+  void _showAuditDetails(BuildContext context, Map<String, dynamic> item) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.info_outline, color: Colors.indigo),
-            const SizedBox(width: 8),
-            Expanded(child: Text('$title Audit Info', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+            Icon(Icons.shield_outlined, color: Colors.blue, size: 24),
+            SizedBox(width: 8),
+            Text('Audit Trail (11 Common Columns)', style: TextStyle(fontSize: 16)),
           ],
         ),
         content: SingleChildScrollView(
@@ -194,10 +269,11 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _auditRow('ID:', '${item['id']}'),
-              _auditRow('Master Type:', '${item['masterType'] ?? 'N/A'}'),
-              _auditRow('Name:', '${item['masterName'] ?? item['categoryName'] ?? item['uomName'] ?? item['itemTypeName'] ?? item['brandName'] ?? ''}'),
-              _auditRow('Code:', '${item['masterCode'] ?? item['categoryCode'] ?? item['uomCode'] ?? item['itemTypeCode'] ?? item['brandCode'] ?? ''}'),
+              _auditRow('Master ID:', '${item['id'] ?? item['ID']}'),
+              _auditRow('Master Type:', '${item['masterType'] ?? item['MasterType']}'),
+              _auditRow('Tenant ID:', '${item['tenantId'] ?? item['TenantId'] ?? 1}'),
+              _auditRow('Name:', _resolveMasterName(item)),
+              _auditRow('Code:', _resolveMasterCode(item)),
               _auditRow('Is Active:', item['isActive'] == true ? 'YES' : 'NO'),
               _auditRow('Priority:', '${item['priority'] ?? 0}'),
               _auditRow('Created By:', '${item['createdBy'] ?? 0}'),
@@ -229,45 +305,136 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     );
   }
 
+  Widget _buildTabItem({
+    required int index,
+    required IconData icon,
+    required String label,
+    required int count,
+    required Color primaryColor,
+  }) {
+    final isSelected = _tabController.index == index;
+    return Tab(
+      height: 42,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.white.withOpacity(0.18),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.white30,
+            width: isSelected ? 1.5 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.18),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? primaryColor : Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? primaryColor : Colors.white,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                fontSize: 13,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: isSelected ? primaryColor : Colors.white.withOpacity(0.28),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isHindi = Provider.of<LocaleProvider>(context).isHindi;
+    final localeProvider = Provider.of<LocaleProvider>(context);
+    final themeProvider = Provider.of<TenantThemeProvider>(context);
+    final isHindi = localeProvider.isHindi;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = themeProvider.primaryColor;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isHindi ? 'मास्टर प्रबंधन (Master Table)' : 'Master Management (Single V_Masters)'),
-        backgroundColor: Colors.indigo.shade700,
+        elevation: 1,
+        title: Text(
+          isHindi ? 'मास्टर्स प्रबंधन (Unified Masters)' : 'Master Management',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+        ),
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
             tooltip: isHindi ? 'ताज़ा करें' : 'Refresh Masters',
             onPressed: _loadAllMasters,
           ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
+            tooltip: isHindi ? 'नया जोड़ें' : 'Add New Master',
+            onPressed: () => _showMasterFormModal(context, null),
+          ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
+          preferredSize: const Size.fromHeight(56),
           child: Container(
-            color: Colors.indigo.shade900,
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              indicatorColor: Colors.amberAccent,
-              indicatorWeight: 4,
-              labelColor: Colors.white,
-              unselectedLabelColor: Colors.white70,
-              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 13),
-              tabs: [
-                Tab(icon: const Icon(Icons.category, color: Colors.white, size: 20), text: isHindi ? 'श्रेणियां (${_categories.length})' : 'Categories (${_categories.length})'),
-                Tab(icon: const Icon(Icons.square_foot, color: Colors.white, size: 20), text: isHindi ? 'मापक इकाइयाँ (${_uoms.length})' : 'UOMs (${_uoms.length})'),
-                Tab(icon: const Icon(Icons.merge_type, color: Colors.white, size: 20), text: isHindi ? 'प्रकार (${_itemTypes.length})' : 'Item Types (${_itemTypes.length})'),
-                Tab(icon: const Icon(Icons.branding_watermark, color: Colors.white, size: 20), text: isHindi ? 'ब्रांड्स (${_brands.length})' : 'Brands (${_brands.length})'),
-                Tab(icon: const Icon(Icons.payments, color: Colors.white, size: 20), text: isHindi ? 'भुगतान प्रकार (${_paymentModes.length})' : 'Payment Modes (${_paymentModes.length})'),
-                Tab(icon: const Icon(Icons.receipt, color: Colors.white, size: 20), text: isHindi ? 'टैक्स / GST (${_taxes.length})' : 'Taxes / GST (${_taxes.length})'),
-                Tab(icon: const Icon(Icons.money_off, color: Colors.white, size: 20), text: isHindi ? 'खर्च श्रेणियां (${_expenseCategories.length})' : 'Expense Categories (${_expenseCategories.length})'),
-              ],
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            color: primaryColor,
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                tabBarTheme: const TabBarTheme(
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white70,
+                  indicatorSize: TabBarIndicatorSize.label,
+                ),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                indicatorColor: Colors.transparent,
+                dividerColor: Colors.transparent,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                tabs: [
+                  _buildTabItem(index: 0, icon: Icons.category_rounded, label: isHindi ? 'श्रेणियां' : 'Categories', count: _categories.length, primaryColor: primaryColor),
+                  _buildTabItem(index: 1, icon: Icons.square_foot_rounded, label: isHindi ? 'मापक इकाइयाँ' : 'UOMs', count: _uoms.length, primaryColor: primaryColor),
+                  _buildTabItem(index: 2, icon: Icons.merge_type_rounded, label: isHindi ? 'सामान प्रकार' : 'Item Types', count: _itemTypes.length, primaryColor: primaryColor),
+                  _buildTabItem(index: 3, icon: Icons.branding_watermark_rounded, label: isHindi ? 'ब्रांड्स' : 'Brands', count: _brands.length, primaryColor: primaryColor),
+                  _buildTabItem(index: 4, icon: Icons.payments_rounded, label: isHindi ? 'भुगतान साधन' : 'Payment Modes', count: _paymentModes.length, primaryColor: primaryColor),
+                  _buildTabItem(index: 5, icon: Icons.receipt_long_rounded, label: isHindi ? 'टैक्स / GST' : 'Taxes / GST', count: _taxes.length, primaryColor: primaryColor),
+                  _buildTabItem(index: 6, icon: Icons.money_off_rounded, label: isHindi ? 'खर्च श्रेणियां' : 'Expense Categories', count: _expenseCategories.length, primaryColor: primaryColor),
+                ],
+              ),
             ),
           ),
         ),
@@ -277,8 +444,8 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         children: [
           // Filter & Search Header
           Container(
-            padding: const EdgeInsets.all(12),
-            color: isDark ? Colors.grey.shade900 : Colors.indigo.shade50,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
             child: Row(
               children: [
                 Expanded(
@@ -286,7 +453,9 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                     decoration: InputDecoration(
                       hintText: isHindi ? 'खोजें (नाम, कोड)...' : 'Search master records...',
                       prefixIcon: const Icon(Icons.search, size: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: primaryColor, width: 1.5)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       fillColor: isDark ? Colors.grey.shade800 : Colors.white,
                       filled: true,
@@ -296,11 +465,20 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                 ),
                 const SizedBox(width: 12),
                 FilterChip(
-                  label: Text(isHindi ? 'सक्रिय' : 'Active Only'),
+                  label: Text(
+                    isHindi ? 'सक्रिय केवल' : 'Active Only',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _activeOnly ? primaryColor : (isDark ? Colors.white70 : Colors.black87),
+                    ),
+                  ),
                   selected: _activeOnly,
                   onSelected: (val) => setState(() => _activeOnly = val),
-                  selectedColor: Colors.indigo.shade100,
-                  checkmarkColor: Colors.indigo,
+                  selectedColor: primaryColor.withOpacity(0.15),
+                  checkmarkColor: primaryColor,
+                  backgroundColor: isDark ? Colors.grey.shade800 : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: _activeOnly ? primaryColor : Colors.grey.shade300)),
                 ),
               ],
             ),
@@ -313,23 +491,26 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                 : TabBarView(
                     controller: _tabController,
                     children: [
-                      _buildMasterList(_categories, 'ItemCategory', isHindi, isDark),
-                      _buildMasterList(_uoms, 'UnitOfMeasurement', isHindi, isDark),
-                      _buildMasterList(_itemTypes, 'ItemType', isHindi, isDark),
-                      _buildMasterList(_brands, 'Brand', isHindi, isDark),
-                      _buildMasterList(_paymentModes, 'PaymentMode', isHindi, isDark),
-                      _buildMasterList(_taxes, 'Tax', isHindi, isDark),
-                      _buildMasterList(_expenseCategories, 'ExpenseCategory', isHindi, isDark),
+                      _buildMasterList(_categories, 'ItemCategory', isHindi, isDark, primaryColor),
+                      _buildMasterList(_uoms, 'UnitOfMeasurement', isHindi, isDark, primaryColor),
+                      _buildMasterList(_itemTypes, 'ItemType', isHindi, isDark, primaryColor),
+                      _buildMasterList(_brands, 'Brand', isHindi, isDark, primaryColor),
+                      _buildMasterList(_paymentModes, 'PaymentMode', isHindi, isDark, primaryColor),
+                      _buildMasterList(_taxes, 'Tax', isHindi, isDark, primaryColor),
+                      _buildMasterList(_expenseCategories, 'ExpenseCategory', isHindi, isDark, primaryColor),
                     ],
                   ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.indigo.shade700,
+        backgroundColor: primaryColor,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: Text(isHindi ? 'नया मास्टर जोड़ें' : 'Add Master'),
+        icon: const Icon(Icons.add_rounded),
+        label: Text(
+          isHindi ? 'नया मास्टर जोड़ें' : 'Add Master',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         onPressed: () => _showMasterFormModal(context, null),
       ),
     );
@@ -346,7 +527,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     return _getValStr(item, ['masterCode', 'MasterCode', 'code', 'Code', 'symbol', 'Symbol', 'categoryCode', 'uomCode', 'itemTypeCode', 'brandCode']);
   }
 
-  Widget _buildMasterList(List<Map<String, dynamic>> rawList, String masterType, bool isHindi, bool isDark) {
+  Widget _buildMasterList(List<Map<String, dynamic>> rawList, String masterType, bool isHindi, bool isDark, Color primaryColor) {
     var list = rawList.where((item) {
       final name = _resolveMasterName(item).toLowerCase();
       final code = _resolveMasterCode(item).toLowerCase();
@@ -362,16 +543,55 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
 
     if (list.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(
-              isHindi ? 'कोई रिकॉर्ड नहीं मिला' : 'No master records found',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-            ),
-          ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.category_outlined, size: 42, color: primaryColor),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                isHindi ? 'कोई $masterType रिकॉर्ड नहीं मिला' : 'No $masterType Records Found',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isHindi
+                    ? 'नीचे दिए गए बटन से नया रिकॉर्ड जोड़ें या ऊपर से रिफ्रेश करें।'
+                    : 'Get started by creating your first record in this master category.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 2,
+                ),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(
+                  isHindi ? '+ नया रिकॉर्ड जोड़ें' : '+ Add $masterType Record',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: () => _showMasterFormModal(context, null),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -391,17 +611,29 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
           final priority = item['priority'] ?? 0;
 
           return Card(
-            elevation: 2,
+            elevation: 1.5,
             margin: const EdgeInsets.only(bottom: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            color: isDark ? Colors.grey.shade800 : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+            ),
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              leading: CircleAvatar(
-                backgroundColor: isActive ? Colors.green.shade100 : Colors.red.shade100,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isActive ? Colors.green.shade50 : Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isActive ? Colors.green.shade200 : Colors.red.shade200,
+                  ),
+                ),
                 child: Icon(
-                  isActive ? Icons.check_circle : Icons.pause_circle_filled,
-                  color: isActive ? Colors.green.shade800 : Colors.red.shade800,
+                  isActive ? Icons.check_circle_rounded : Icons.pause_circle_rounded,
+                  color: isActive ? Colors.green.shade700 : Colors.red.shade700,
+                  size: 24,
                 ),
               ),
               title: Row(
@@ -411,21 +643,29 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                       name,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 15,
                         decoration: isActive ? TextDecoration.none : TextDecoration.lineThrough,
-                        color: isActive ? null : Colors.grey,
+                        color: isActive ? (isDark ? Colors.white : const Color(0xFF1E293B)) : Colors.grey,
                       ),
                     ),
                   ),
                   if (code.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.indigo.shade50,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.indigo.shade200),
+                        color: primaryColor.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: primaryColor.withOpacity(0.25)),
                       ),
-                      child: Text(code, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.indigo.shade800)),
+                      child: Text(
+                        code,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -434,18 +674,30 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                 children: [
                   if (desc.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(desc, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                    Text(
+                      desc,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                    ),
                   ],
                   const SizedBox(height: 6),
                   Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)),
-                        child: Text('Type: $masterType', style: const TextStyle(fontSize: 10, color: Colors.black87, fontWeight: FontWeight.bold)),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Text(
+                          masterType,
+                          style: TextStyle(fontSize: 10, color: Colors.grey.shade800, fontWeight: FontWeight.bold),
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      Text('Priority: $priority', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      Text('Priority: $priority', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
                     ],
                   ),
                 ],
@@ -454,9 +706,9 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.info_outline, color: Colors.blue),
+                    icon: const Icon(Icons.info_outline_rounded, size: 20, color: Colors.blueGrey),
                     tooltip: 'Audit Info',
-                    onPressed: () => _showAuditDialog(item, name),
+                    onPressed: () => _showAuditDetails(context, item),
                   ),
                   Switch(
                     value: isActive,
@@ -474,7 +726,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                     itemBuilder: (ctx) => [
                       PopupMenuItem(
                         value: 'edit',
-                        child: Row(children: [const Icon(Icons.edit, size: 18, color: Colors.indigo), const SizedBox(width: 8), Text(isHindi ? 'संपादित करें' : 'Edit')]),
+                        child: Row(children: [Icon(Icons.edit, size: 18, color: primaryColor), const SizedBox(width: 8), Text(isHindi ? 'संपादित करें' : 'Edit')]),
                       ),
                       PopupMenuItem(
                         value: 'delete',
@@ -492,8 +744,12 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   }
 
   void _showMasterFormModal(BuildContext context, Map<String, dynamic>? item) {
-    final isHindi = Provider.of<LocaleProvider>(context, listen: false).isHindi;
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final isHindi = localeProvider.isHindi;
     final isEdit = item != null;
+    final primaryColor = themeProvider.primaryColor;
 
     final tabIndex = _tabController.index;
     String currentMasterType = 'ItemCategory';
@@ -547,13 +803,13 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                 children: [
                   Row(
                     children: [
-                      Icon(isEdit ? Icons.edit : Icons.add_circle, color: Colors.indigo, size: 28),
+                      Icon(isEdit ? Icons.edit_rounded : Icons.add_circle_rounded, color: primaryColor, size: 28),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           isEdit
-                              ? (isHindi ? '$tabTitle संपादित करें (V_Masters)' : 'Edit $tabTitle (Single V_Masters)')
-                              : (isHindi ? 'नया $tabTitle जोड़ें (V_Masters)' : 'Add New $tabTitle (Single V_Masters)'),
+                              ? (isHindi ? '$tabTitle संपादित करें (V_Masters)' : 'Edit $tabTitle')
+                              : (isHindi ? 'नया $tabTitle जोड़ें (V_Masters)' : 'Add New $tabTitle'),
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -565,7 +821,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                   TextField(
                     controller: typeCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Master Type (Domain Name)',
+                      labelText: 'Master Type (Domain Discriminator)',
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
@@ -622,8 +878,9 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                     width: double.infinity,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo,
+                        backgroundColor: primaryColor,
                         padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: isSubmitting
                           ? null
@@ -642,25 +899,18 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                                 final mCode = codeCtrl.text.trim();
 
                                 Map<String, dynamic> body = {
+                                  'tenantId': auth.tenantId ?? 1,
+                                  'TenantId': auth.tenantId ?? 1,
                                   'masterType': mType,
                                   'MasterType': mType,
                                   'masterName': nameText,
                                   'MasterName': nameText,
                                   'name': nameText,
                                   'Name': nameText,
-                                  'categoryName': nameText,
-                                  'uomName': nameText,
-                                  'itemTypeName': nameText,
-                                  'brandName': nameText,
                                   'masterCode': mCode,
                                   'MasterCode': mCode,
                                   'code': mCode,
                                   'Code': mCode,
-                                  'categoryCode': mCode,
-                                  'uomCode': mCode,
-                                  'symbol': mCode,
-                                  'itemTypeCode': mCode,
-                                  'brandCode': mCode,
                                   'description': descCtrl.text.trim(),
                                   'Description': descCtrl.text.trim(),
                                   'priority': int.tryParse(priorityCtrl.text) ?? 0,
@@ -674,16 +924,16 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                                     : await http.post(Uri.parse(url), headers: _getHeaders(), body: jsonEncode(body));
 
                                 if (res.statusCode == 200) {
-                                  ToastHelper.showSuccess(context, '$tabTitle saved successfully into V_Masters!');
+                                  if (mounted) ToastHelper.showSuccess(context, '$tabTitle saved successfully into V_Masters!');
                                   Navigator.pop(modalCtx);
                                   _loadAllMasters();
                                 } else {
                                   final err = jsonDecode(res.body);
-                                  ToastHelper.showError(context, err['message'] ?? 'Failed to save master record.');
+                                  if (mounted) ToastHelper.showError(context, err['message'] ?? 'Failed to save master record.');
                                   setModalState(() => isSubmitting = false);
                                 }
                               } catch (e) {
-                                ToastHelper.showError(context, 'Error: ${e.toString()}');
+                                if (mounted) ToastHelper.showError(context, 'Error: ${e.toString()}');
                                 setModalState(() => isSubmitting = false);
                               }
                             },
