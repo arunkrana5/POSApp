@@ -1214,47 +1214,13 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                                 final mType = typeCtrl.text.trim().isEmpty ? currentMasterType : typeCtrl.text.trim();
                                 final mCode = codeCtrl.text.trim();
 
-                                 Map<String, dynamic> body = {
+                                Map<String, dynamic> body = {
                                   'tenantId': auth.tenantId ?? 1,
-                                  'TenantId': auth.tenantId ?? 1,
                                   'masterType': mType,
-                                  'MasterType': mType,
                                   'masterName': nameText,
-                                  'MasterName': nameText,
-                                  'name': nameText,
-                                  'Name': nameText,
-                                  'categoryName': nameText,
-                                  'CategoryName': nameText,
-                                  'uomName': nameText,
-                                  'UOMName': nameText,
-                                  'itemTypeName': nameText,
-                                  'ItemTypeName': nameText,
-                                  'brandName': nameText,
-                                  'BrandName': nameText,
-                                  'paymentModeName': nameText,
-                                  'PaymentModeName': nameText,
-                                  'taxName': nameText,
-                                  'TaxName': nameText,
-                                  'expenseCategoryName': nameText,
-                                  'ExpenseCategoryName': nameText,
                                   'masterCode': mCode,
-                                  'MasterCode': mCode,
-                                  'code': mCode,
-                                  'Code': mCode,
-                                  'symbol': mCode,
-                                  'Symbol': mCode,
-                                  'categoryCode': mCode,
-                                  'CategoryCode': mCode,
-                                  'uomCode': mCode,
-                                  'UOMCode': mCode,
-                                  'itemTypeCode': mCode,
-                                  'ItemTypeCode': mCode,
-                                  'brandCode': mCode,
-                                  'BrandCode': mCode,
                                   'description': descCtrl.text.trim(),
-                                  'Description': descCtrl.text.trim(),
                                   'priority': int.tryParse(priorityCtrl.text) ?? 0,
-                                  'Priority': int.tryParse(priorityCtrl.text) ?? 0,
                                 };
 
                                 final itemId = item != null ? (item['id'] ?? item['ID']) : null;
@@ -1265,13 +1231,23 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
 
                                 if (!modalCtx.mounted) return;
 
-                                if (res.statusCode == 200) {
+                                if (res.statusCode == 200 || res.statusCode == 201) {
                                   ToastHelper.showSuccess(modalCtx, '$tabTitle saved successfully into V_Masters!');
                                   Navigator.pop(modalCtx);
                                   _loadAllMasters();
                                 } else {
-                                  final err = jsonDecode(res.body);
-                                  ToastHelper.showError(modalCtx, err['message'] ?? 'Failed to save master record.');
+                                  String errorMsg = 'Failed to save master record.';
+                                  try {
+                                    final err = jsonDecode(res.body);
+                                    if (err is Map<String, dynamic>) {
+                                      errorMsg = err['message'] ?? err['Message'] ?? err['error'] ?? errorMsg;
+                                    }
+                                  } catch (_) {
+                                    if (res.body.isNotEmpty && res.body.length < 200) {
+                                      errorMsg = res.body;
+                                    }
+                                  }
+                                  ToastHelper.showError(modalCtx, errorMsg);
                                   setModalState(() => isSubmitting = false);
                                 }
                               } catch (e) {
