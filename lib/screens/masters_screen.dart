@@ -155,13 +155,34 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   void _setMastersFromList(List<Map<String, dynamic>> allMasters) {
     if (!mounted) return;
     setState(() {
-      _categories = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemcategory').toList();
-      _uoms = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'unitofmeasurement').toList();
-      _itemTypes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'itemtype').toList();
-      _brands = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'brand').toList();
-      _paymentModes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'paymentmode').toList();
-      _taxes = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'tax').toList();
-      _expenseCategories = allMasters.where((m) => _getValStr(m, ['masterType', 'MasterType']).toLowerCase() == 'expensecategory').toList();
+      _categories = allMasters.where((m) {
+        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
+        return t == 'itemcategory' || t == 'category' || t == 'categories';
+      }).toList();
+      _uoms = allMasters.where((m) {
+        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
+        return t == 'unitofmeasurement' || t == 'uom' || t == 'unit' || t == 'units';
+      }).toList();
+      _itemTypes = allMasters.where((m) {
+        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
+        return t == 'itemtype' || t == 'itemtypes' || t == 'format';
+      }).toList();
+      _brands = allMasters.where((m) {
+        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
+        return t == 'brand' || t == 'brands';
+      }).toList();
+      _paymentModes = allMasters.where((m) {
+        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
+        return t == 'paymentmode' || t == 'paymentmodes' || t == 'payment';
+      }).toList();
+      _taxes = allMasters.where((m) {
+        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
+        return t == 'tax' || t == 'taxes' || t == 'gst';
+      }).toList();
+      _expenseCategories = allMasters.where((m) {
+        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
+        return t == 'expensecategory' || t == 'expensecategories' || t == 'expense' || t == 'expenses';
+      }).toList();
     });
   }
 
@@ -219,8 +240,21 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
           final fbRes = await http.get(Uri.parse('$baseUrl/masters/all-dropdowns$qParam'), headers: headers).timeout(const Duration(seconds: 8));
           if (fbRes.statusCode == 200) {
             final fbData = jsonDecode(fbRes.body);
-            if (fbData is Map<String, dynamic> && fbData['allMasters'] != null && fbData['allMasters'] is List) {
-              loadedMasters = List<Map<String, dynamic>>.from(fbData['allMasters']);
+            if (fbData is Map<String, dynamic>) {
+              if (fbData['allMasters'] != null && fbData['allMasters'] is List) {
+                loadedMasters = List<Map<String, dynamic>>.from(fbData['allMasters']);
+              } else {
+                final List<Map<String, dynamic>> collected = [];
+                for (var key in ['categories', 'uoms', 'itemTypes', 'brands', 'paymentModes', 'taxes', 'expenseCategories']) {
+                  final list = fbData[key];
+                  if (list is List) {
+                    collected.addAll(List<Map<String, dynamic>>.from(list));
+                  }
+                }
+                if (collected.isNotEmpty) loadedMasters = collected;
+              }
+            } else if (fbData is List) {
+              loadedMasters = List<Map<String, dynamic>>.from(fbData);
             }
           }
         } catch (e) {
@@ -400,11 +434,26 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
       'uomName', 'UOMName',
       'itemTypeName', 'ItemTypeName',
       'brandName', 'BrandName',
+      'paymentModeName', 'PaymentModeName',
+      'taxName', 'TaxName',
+      'expenseCategoryName', 'ExpenseCategoryName',
+      'expenseName', 'ExpenseName',
       'title', 'Title',
+      'label', 'Label',
     ]);
-    if (name.isNotEmpty) return name;
-    final id = item['id'] ?? item['ID'] ?? '';
-    return 'Master Record #$id';
+    if (name.isNotEmpty && name.toLowerCase() != 'unnamed') return name;
+
+    // Fallback 1: Code / Symbol
+    final code = _resolveMasterCode(item);
+    if (code.isNotEmpty) return code;
+
+    // Fallback 2: Description
+    final desc = _getValStr(item, ['description', 'Description', 'desc', 'Desc']);
+    if (desc.isNotEmpty) return desc;
+
+    // Fallback 3: Master ID
+    final id = item['id'] ?? item['ID'] ?? item['Id'] ?? '';
+    return id.toString().isNotEmpty ? 'Master Record #$id' : 'Master Record';
   }
 
   String _resolveMasterCode(Map<String, dynamic> item) {
@@ -416,6 +465,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
       'uomCode', 'UOMCode',
       'itemTypeCode', 'ItemTypeCode',
       'brandCode', 'BrandCode',
+      'shortName', 'ShortName',
     ]);
   }
 
@@ -456,6 +506,8 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     final icon = tabConfig['icon'] as IconData;
     final tabAccent = tabConfig['color'] as Color;
 
+    final selectedColor = tabAccent;
+
     return InkWell(
       onTap: () {
         _tabController.animateTo(index);
@@ -469,19 +521,19 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? primaryColor
+              ? selectedColor
               : (isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9)),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isSelected
-                ? primaryColor
+                ? selectedColor
                 : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
             width: isSelected ? 1.5 : 1.0,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: primaryColor.withOpacity(0.35),
+                    color: selectedColor.withOpacity(0.35),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
@@ -497,7 +549,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
               size: 16,
               color: isSelected
                   ? Colors.white
-                  : (isDark ? tabAccent : tabAccent),
+                  : tabAccent,
             ),
             const SizedBox(width: 8),
             Text(
@@ -524,7 +576,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                 '$count',
                 style: TextStyle(
                   color: isSelected
-                      ? primaryColor
+                      ? selectedColor
                       : (isDark ? Colors.white : const Color(0xFF1E293B)),
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -1162,7 +1214,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                                 final mType = typeCtrl.text.trim().isEmpty ? currentMasterType : typeCtrl.text.trim();
                                 final mCode = codeCtrl.text.trim();
 
-                                Map<String, dynamic> body = {
+                                 Map<String, dynamic> body = {
                                   'tenantId': auth.tenantId ?? 1,
                                   'TenantId': auth.tenantId ?? 1,
                                   'masterType': mType,
@@ -1171,10 +1223,34 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                                   'MasterName': nameText,
                                   'name': nameText,
                                   'Name': nameText,
+                                  'categoryName': nameText,
+                                  'CategoryName': nameText,
+                                  'uomName': nameText,
+                                  'UOMName': nameText,
+                                  'itemTypeName': nameText,
+                                  'ItemTypeName': nameText,
+                                  'brandName': nameText,
+                                  'BrandName': nameText,
+                                  'paymentModeName': nameText,
+                                  'PaymentModeName': nameText,
+                                  'taxName': nameText,
+                                  'TaxName': nameText,
+                                  'expenseCategoryName': nameText,
+                                  'ExpenseCategoryName': nameText,
                                   'masterCode': mCode,
                                   'MasterCode': mCode,
                                   'code': mCode,
                                   'Code': mCode,
+                                  'symbol': mCode,
+                                  'Symbol': mCode,
+                                  'categoryCode': mCode,
+                                  'CategoryCode': mCode,
+                                  'uomCode': mCode,
+                                  'UOMCode': mCode,
+                                  'itemTypeCode': mCode,
+                                  'ItemTypeCode': mCode,
+                                  'brandCode': mCode,
+                                  'BrandCode': mCode,
                                   'description': descCtrl.text.trim(),
                                   'Description': descCtrl.text.trim(),
                                   'priority': int.tryParse(priorityCtrl.text) ?? 0,
