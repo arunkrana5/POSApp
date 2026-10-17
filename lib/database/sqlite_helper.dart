@@ -198,6 +198,25 @@ class SQLiteHelper {
     } catch (_) {}
   }
 
+  Future<void> updateCustomerLastTx(String name, String lastTx, [double? newUdhaar]) async {
+    if (kIsWeb) return;
+    try {
+      final db = await instance.database;
+      if (db == null) return;
+      await ensureTablesExist();
+      final updateData = <String, dynamic>{'lastTx': lastTx};
+      if (newUdhaar != null) {
+        updateData['udhaar'] = newUdhaar;
+      }
+      await db.update(
+        'customers',
+        updateData,
+        where: 'name = ?',
+        whereArgs: [name],
+      );
+    } catch (_) {}
+  }
+
   Future<void> updateCustomerRecord(String oldName, Map<String, dynamic> c) async {
     if (kIsWeb) return;
     try {

@@ -61,6 +61,7 @@ class _PosScreenState extends State<PosScreen> {
   ];
 
   final Map<String, String> _customerPhoneMap = {};
+  final Map<String, dynamic> _customerIdMap = {};
 
   final TextEditingController _customerPhoneController = TextEditingController();
   final List<Map<String, dynamic>> _cartItems = [];
@@ -96,12 +97,16 @@ class _PosScreenState extends State<PosScreen> {
           for (var c in customersToProcess) {
             final n = c['name']?.toString() ?? '';
             final p = c['phone']?.toString() ?? '';
+            final id = c['id'];
             if (n.isNotEmpty) {
               if (!_customerList.contains(n)) {
                 _customerList.add(n);
               }
               if (p.isNotEmpty) {
                 _customerPhoneMap[n] = p;
+              }
+              if (id != null) {
+                _customerIdMap[n] = id;
               }
             }
           }
@@ -2328,10 +2333,14 @@ class _PosScreenState extends State<PosScreen> {
                                       });
                                     }
                                     
+                                    final rawCustId = _customerIdMap[customerSnapshot];
+                                    final parsedCustId = rawCustId is num ? rawCustId.toInt() : int.tryParse(rawCustId?.toString() ?? '');
+
                                     await syncProvider.saveOfflineSale({
                                       'clientTransactionId': invoiceNo,
                                       'tenantId': authProvider.tenantId,
                                       'tenantCode': authProvider.tenantCode,
+                                      'customerId': parsedCustId,
                                       'customer': customerSnapshot,
                                       'customerName': customerSnapshot,
                                       'customerPhone': phoneSnapshot,
@@ -2349,13 +2358,20 @@ class _PosScreenState extends State<PosScreen> {
                                       'createdAt': DateTime.now().toIso8601String(),
                                     });
 
-                                    // Update Customer Udhaar Ledger balance if remainingUdhaar > 0
-                                    if (remainingUdhaar > 0 && customerSnapshot != 'Walk-in Customer') {
-                                      final customersList = await SQLiteHelper.instance.getCustomers();
-                                      final cust = customersList.firstWhere((c) => c['name'] == customerSnapshot, orElse: () => {});
-                                      final currentBalance = (cust['udhaar'] as num?)?.toDouble() ?? 0.0;
-                                      final newBalance = currentBalance + remainingUdhaar;
-                                      await SQLiteHelper.instance.updateCustomerUdhaar(customerSnapshot, newBalance);
+                                    // Update Customer Record in local SQLite (both cash and udhaar transactions)
+                                    if (customerSnapshot != 'Walk-in Customer') {
+                                      try {
+                                        final lastTxSummary = 'Invoice #$invoiceNo ($modeSnapshot: ₹${netPayableSnapshot.toStringAsFixed(0)})';
+                                        final customersList = await SQLiteHelper.instance.getCustomers();
+                                        final cust = customersList.firstWhere((c) => c['name'] == customerSnapshot, orElse: () => {});
+                                        final currentBalance = (cust['udhaar'] as num?)?.toDouble() ?? 0.0;
+                                        final newBalance = currentBalance + remainingUdhaar;
+                                        await SQLiteHelper.instance.updateCustomerLastTx(
+                                          customerSnapshot,
+                                          lastTxSummary,
+                                          remainingUdhaar > 0 ? newBalance : null,
+                                        );
+                                      } catch (_) {}
                                     }
 
                                     if (context.mounted) {

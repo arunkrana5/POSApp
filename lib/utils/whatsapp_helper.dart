@@ -104,17 +104,22 @@ class WhatsAppHelper {
     sb.writeln('');
 
     int idx = 1;
-    for (var tx in transactions.take(5)) {
+    for (var tx in transactions.take(10)) {
       if (tx is Map) {
         final date = (tx['date'] ?? '').toString();
         final desc = (tx['description'] ?? 'Tx').toString();
-        final debit = ((tx['debit'] ?? 0.0) as num).toDouble();
-        final credit = ((tx['credit'] ?? 0.0) as num).toDouble();
+        final mode = (tx['paymentMode'] ?? '').toString();
+        final items = (tx['itemsSummary'] ?? '').toString();
+        final bill = ((tx['debit'] ?? tx['totalAmount'] ?? 0.0) as num).toDouble();
+        final paid = ((tx['credit'] ?? tx['paidAmount'] ?? 0.0) as num).toDouble();
         final bal = ((tx['balance'] ?? 0.0) as num).toDouble();
+        final status = (tx['status'] ?? '').toString();
 
         sb.writeln('$idx. *$date* - $desc');
-        if (debit > 0) sb.writeln('    Debit (+): ₹${debit.toStringAsFixed(2)}');
-        if (credit > 0) sb.writeln('    Credit (-): ₹${credit.toStringAsFixed(2)}');
+        if (items.isNotEmpty) sb.writeln('    🛒 Items: $items');
+        if (mode.isNotEmpty) sb.writeln('    💳 Mode: $mode ($status)');
+        if (bill > 0) sb.writeln('    Bill Amount: ₹${bill.toStringAsFixed(2)}');
+        if (paid > 0) sb.writeln('    Paid: ₹${paid.toStringAsFixed(2)}');
         sb.writeln('    Running Balance: ₹${bal.toStringAsFixed(2)}');
         sb.writeln('');
         idx++;

@@ -8,6 +8,7 @@ import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../database/sqlite_helper.dart';
 import '../widgets/app_drawer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/invoice_printer.dart';
 import '../utils/whatsapp_helper.dart';
 
@@ -367,6 +368,20 @@ class _CustomersScreenState extends State<CustomersScreen> {
     );
   }
 
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tId = prefs.getInt('tenant_id');
+      final tCode = prefs.getString('tenant_code');
+      final token = prefs.getString('auth_token');
+      if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+      if (tId != null && tId > 0) headers['X-Tenant-Id'] = tId.toString();
+      if (tCode != null && tCode.isNotEmpty) headers['X-Tenant-Code'] = tCode;
+    } catch (_) {}
+    return headers;
+  }
+
   void _showCustomerDetailModal(BuildContext context, Map<String, dynamic> c, bool isHindi) {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
     final udhaarVal = (c['udhaar'] as num?)?.toDouble() ?? 0.0;
@@ -375,7 +390,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
     Future<Map<String, dynamic>> fetchLedgerData() async {
       try {
         final baseUrl = ApiConfig.baseUrl;
-        final res = await http.get(Uri.parse('$baseUrl/customers/$custId/ledger')).timeout(const Duration(seconds: 5));
+        final headers = await _getAuthHeaders();
+        final encodedId = Uri.encodeComponent(custId);
+        final res = await http.get(Uri.parse('$baseUrl/customers/$encodedId/ledger'), headers: headers).timeout(const Duration(seconds: 8));
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
           if (data is Map<String, dynamic>) {
@@ -384,281 +401,473 @@ class _CustomersScreenState extends State<CustomersScreen> {
         }
       } catch (_) {}
       return {
+        'customer': {
+          'id': custId,
+          'name': c['name'] ?? '',
+          'phone': c['phone'] ?? '',
+          'currentBalance': udhaarVal,
+          'totalPurchases': 0.0,
+          'totalPaid': 0.0,
+          'salesCount': 0,
+        },
         'transactions': <Map<String, dynamic>>[]
       };
     }
+
+    String activeFilter = 'ALL';
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.85,
-          minChildSize: 0.5,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (sheetContext, scrollController) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-              child: SingleChildScrollView(
-                controller: scrollController,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return StatefulBuilder(
+          builder: (sheetContext, setModalState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.88,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (sheetContext, scrollController) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          isHindi ? 'ग्राहक खाता विवरण (Ledger Statement)' : 'Customer Udhaar Ledger',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _showAddCustomerModal(context, isHindi, c);
-                          },
-                        ),
-                      ],
-                    ),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        radius: 24,
-                        backgroundColor: themeProvider.primaryColor.withOpacity(0.1),
-                        child: Icon(Icons.person_rounded, color: themeProvider.primaryColor, size: 28),
-                      ),
-                      title: Text(c['name'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      subtitle: Text('Father\'s Name: ${c["fatherName"] ?? "N/A"}'),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          const Text('Total Balance', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                          Text(
-                            '₹ ${udhaarVal.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: udhaarVal > 0 ? Colors.red.shade700 : Colors.green.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text('CONTACT DETAILS:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.phone, size: 16, color: Colors.grey.shade700),
-                        const SizedBox(width: 8),
-                        Text('Phone: ${c["phone"] ?? "N/A"}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        const SizedBox(width: 16),
-                        Icon(Icons.message_rounded, size: 16, color: Colors.green),
-                        const SizedBox(width: 4),
-                        Text('WA: ${c["whatsapp"] ?? c["phone"] ?? "N/A"}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                    if (c['email'] != null && c['email'].toString().isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.email, size: 16, color: Colors.grey.shade700),
-                          const SizedBox(width: 8),
-                          Text('Email: ${c["email"]}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-                    const Text('FULL ADDRESS BREAKDOWN:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-                    const SizedBox(height: 6),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(10)),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Address: ${c["address"] ?? "N/A"}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 4),
-                          Text('Village/Town: ${c["village"] ?? "N/A"}  |  P.O.: ${c["po"] ?? "N/A"}', style: const TextStyle(fontSize: 12)),
-                          const SizedBox(height: 2),
-                          Text('P.S.: ${c["ps"] ?? "N/A"}  |  District: ${c["dist"] ?? "N/A"}  |  PIN: ${c["pincode"] ?? "N/A"}', style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          isHindi ? 'दिनांक-वार लेन-देन इतिहास' : 'Date-wise Transaction Ledger',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                        ),
-                        Wrap(
-                          spacing: 6,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF25D366),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              ),
-                              icon: const Icon(Icons.send_rounded, size: 16, color: Colors.white),
-                              label: Text(
-                                isHindi ? 'व्हाट्सएप रिमाइंडर' : 'WhatsApp Reminder',
-                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                              onPressed: () async {
-                                final data = await fetchLedgerData();
-                                final txs = (data['transactions'] as List?) ?? [];
-                                final msg = WhatsAppHelper.formatLedgerReminderMessage(
-                                  tenantName: themeProvider.tenantName,
-                                  customerName: (c['name'] ?? '').toString(),
-                                  currentBalance: udhaarVal,
-                                  transactions: txs,
-                                );
-                                final phone = (c['whatsapp'] ?? c['phone'] ?? '').toString();
-                                WhatsAppHelper.openWhatsApp(phone: phone, message: msg);
-                              },
+                            Row(
+                              children: [
+                                Icon(Icons.account_balance_wallet_rounded, color: themeProvider.primaryColor, size: 24),
+                                const SizedBox(width: 8),
+                                Text(
+                                  isHindi ? 'ग्राहक खाता विवरण (Ledger Statement)' : 'Customer Ledger Statement',
+                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
+                                ),
+                              ],
                             ),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: themeProvider.primaryColor,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              ),
-                              icon: const Icon(Icons.print_rounded, size: 16, color: Colors.white),
-                              label: Text(
-                                isHindi ? 'खाता प्रिंट करें' : 'Print Ledger',
-                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
-                              onPressed: () async {
-                                final data = await fetchLedgerData();
-                                final txs = (data['transactions'] as List?) ?? [];
-                                InvoicePrinter.printCustomerLedger(
-                                  tenantName: themeProvider.tenantName,
-                                  customerName: (c['name'] ?? '').toString(),
-                                  customerPhone: (c['phone'] ?? '').toString(),
-                                  currentBalance: udhaarVal,
-                                  transactions: txs,
-                                );
-                              },
-                            ),
-                            ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade700,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              ),
-                              icon: const Icon(Icons.add_card, size: 16, color: Colors.white),
-                              label: Text(
-                                isHindi ? 'भुगतान जोड़ें' : 'Add Payment',
-                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                              ),
+                            IconButton(
+                              icon: const Icon(Icons.edit_note_rounded, color: Colors.blue),
+                              tooltip: 'Edit Profile',
                               onPressed: () {
                                 Navigator.pop(ctx);
-                                _showRecordPaymentDialog(context, c, isHindi);
+                                _showAddCustomerModal(context, isHindi, c);
                               },
                             ),
                           ],
                         ),
+                        const Divider(),
+                        const SizedBox(height: 8),
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            radius: 24,
+                            backgroundColor: themeProvider.primaryColor.withOpacity(0.1),
+                            child: Icon(Icons.person_rounded, color: themeProvider.primaryColor, size: 28),
+                          ),
+                          title: Text(c['name'] ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          subtitle: Text('Father\'s Name: ${c["fatherName"] ?? "N/A"}'),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const Text('Total Outstanding', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                              Text(
+                                '₹ ${udhaarVal.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: udhaarVal > 0 ? Colors.red.shade700 : Colors.green.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Icon(Icons.phone, size: 16, color: Colors.grey.shade700),
+                            const SizedBox(width: 6),
+                            Text('${c["phone"] ?? "N/A"}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                            const SizedBox(width: 16),
+                            Icon(Icons.message_rounded, size: 16, color: Colors.green),
+                            const SizedBox(width: 6),
+                            Text('${c["whatsapp"] ?? c["phone"] ?? "N/A"}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          ],
+                        ),
+                        if (c['address'] != null && c['address'].toString().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade700),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  '${c["address"]}${c["village"] != null ? ", " + c["village"] : ""}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 14),
+
+                        // FUTURE BUILDER FOR LEDGER TRANSACTIONS & SUMMARY
+                        FutureBuilder<Map<String, dynamic>>(
+                          future: fetchLedgerData(),
+                          builder: (fCtx, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: Padding(padding: EdgeInsets.all(30), child: CircularProgressIndicator()));
+                            }
+
+                            final data = snapshot.data ?? {};
+                            final custObj = (data['customer'] as Map<String, dynamic>?) ?? {};
+                            final allTxs = (data['transactions'] as List?) ?? [];
+
+                            final double totalPurchases = (custObj['totalPurchases'] as num?)?.toDouble() ??
+                                allTxs.fold(0.0, (s, t) => s + ((t['totalAmount'] ?? t['debit'] ?? 0.0) as num).toDouble());
+                            final double totalPaid = (custObj['totalPaid'] as num?)?.toDouble() ??
+                                allTxs.fold(0.0, (s, t) => s + ((t['paidAmount'] ?? t['credit'] ?? 0.0) as num).toDouble());
+                            final double liveBalance = (custObj['currentBalance'] as num?)?.toDouble() ?? udhaarVal;
+
+                            // 1. TOP 3 KPI SUMMARY CARDS
+                            final kpiCards = Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.blue.shade200),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(isHindi ? 'कुल बिक्री (Purchases)' : 'Total Purchases', style: TextStyle(fontSize: 10, color: Colors.blue.shade900, fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 2),
+                                        Text('₹ ${totalPurchases.toStringAsFixed(2)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.blue.shade900)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.green.shade200),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(isHindi ? 'कुल जमा (Paid)' : 'Total Paid', style: TextStyle(fontSize: 10, color: Colors.green.shade900, fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 2),
+                                        Text('₹ ${totalPaid.toStringAsFixed(2)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.green.shade900)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: liveBalance > 0 ? Colors.red.shade50 : Colors.teal.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: liveBalance > 0 ? Colors.red.shade200 : Colors.teal.shade200),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(isHindi ? 'बकाया (Balance)' : 'Balance Due', style: TextStyle(fontSize: 10, color: liveBalance > 0 ? Colors.red.shade900 : Colors.teal.shade900, fontWeight: FontWeight.bold)),
+                                        const SizedBox(height: 2),
+                                        Text('₹ ${liveBalance.toStringAsFixed(2)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: liveBalance > 0 ? Colors.red.shade900 : Colors.teal.shade900)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+
+                            // 2. ACTION BUTTONS (WhatsApp, Print, Add Payment)
+                            final actionButtons = Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF25D366),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  ),
+                                  icon: const Icon(Icons.send_rounded, size: 16, color: Colors.white),
+                                  label: Text(
+                                    isHindi ? 'व्हाट्सएप स्टेटमेंट' : 'WhatsApp Statement',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () {
+                                    final msg = WhatsAppHelper.formatLedgerReminderMessage(
+                                      tenantName: themeProvider.tenantName,
+                                      customerName: (c['name'] ?? '').toString(),
+                                      currentBalance: liveBalance,
+                                      transactions: allTxs,
+                                    );
+                                    final phone = (c['whatsapp'] ?? c['phone'] ?? '').toString();
+                                    WhatsAppHelper.openWhatsApp(phone: phone, message: msg);
+                                  },
+                                ),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: themeProvider.primaryColor,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  ),
+                                  icon: const Icon(Icons.print_rounded, size: 16, color: Colors.white),
+                                  label: Text(
+                                    isHindi ? 'खाता प्रिंट करें' : 'Print Ledger',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () {
+                                    InvoicePrinter.printCustomerLedger(
+                                      tenantName: themeProvider.tenantName,
+                                      customerName: (c['name'] ?? '').toString(),
+                                      customerPhone: (c['phone'] ?? '').toString(),
+                                      currentBalance: liveBalance,
+                                      transactions: allTxs,
+                                    );
+                                  },
+                                ),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green.shade700,
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  ),
+                                  icon: const Icon(Icons.add_card, size: 16, color: Colors.white),
+                                  label: Text(
+                                    isHindi ? 'भुगतान जोड़ें' : 'Add Payment',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    _showRecordPaymentDialog(context, c, isHindi);
+                                  },
+                                ),
+                              ],
+                            );
+
+                            // 3. FILTER TABS (All, Udhaar, Cash, Payments)
+                            List filteredTxs = allTxs;
+                            if (activeFilter == 'UDHAAR') {
+                              filteredTxs = allTxs.where((t) {
+                                final udhaar = (t['udhaarAmount'] as num?)?.toDouble() ?? 0.0;
+                                final mode = (t['paymentMode'] ?? '').toString().toLowerCase();
+                                return udhaar > 0 || mode.contains('udhaar');
+                              }).toList();
+                            } else if (activeFilter == 'CASH') {
+                              filteredTxs = allTxs.where((t) {
+                                final mode = (t['paymentMode'] ?? '').toString().toLowerCase();
+                                final type = (t['type'] ?? '').toString().toUpperCase();
+                                return mode.contains('cash') || mode.contains('upi') || type == 'CASH_SALE' || type == 'SALE';
+                              }).toList();
+                            } else if (activeFilter == 'PAYMENT') {
+                              filteredTxs = allTxs.where((t) {
+                                final type = (t['type'] ?? '').toString().toUpperCase();
+                                final mode = (t['paymentMode'] ?? '').toString().toLowerCase();
+                                return type == 'PAYMENT' || mode.contains('received');
+                              }).toList();
+                            }
+
+                            final filterRow = SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  ChoiceChip(
+                                    label: Text(isHindi ? 'सभी (${allTxs.length})' : 'All (${allTxs.length})', style: const TextStyle(fontSize: 11)),
+                                    selected: activeFilter == 'ALL',
+                                    onSelected: (sel) => setModalState(() => activeFilter = 'ALL'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ChoiceChip(
+                                    label: Text(isHindi ? 'उधार (Udhaar)' : 'Udhaar / Credit', style: const TextStyle(fontSize: 11)),
+                                    selected: activeFilter == 'UDHAAR',
+                                    selectedColor: Colors.red.shade100,
+                                    onSelected: (sel) => setModalState(() => activeFilter = 'UDHAAR'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ChoiceChip(
+                                    label: Text(isHindi ? 'नकद / चुकता (Cash)' : 'Cash / Paid', style: const TextStyle(fontSize: 11)),
+                                    selected: activeFilter == 'CASH',
+                                    selectedColor: Colors.green.shade100,
+                                    onSelected: (sel) => setModalState(() => activeFilter = 'CASH'),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  ChoiceChip(
+                                    label: Text(isHindi ? 'खाता जमा (Payments)' : 'Payments', style: const TextStyle(fontSize: 11)),
+                                    selected: activeFilter == 'PAYMENT',
+                                    selectedColor: Colors.teal.shade100,
+                                    onSelected: (sel) => setModalState(() => activeFilter = 'PAYMENT'),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                kpiCards,
+                                const SizedBox(height: 12),
+                                actionButtons,
+                                const SizedBox(height: 12),
+                                const Divider(),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      isHindi ? 'खाता लेन-देन बही (${filteredTxs.length})' : 'Ledger Transactions (${filteredTxs.length})',
+                                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                filterRow,
+                                const SizedBox(height: 10),
+                                if (filteredTxs.isEmpty)
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade50,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.grey.shade300),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        isHindi ? 'इस फ़िल्टर में कोई लेन-देन नहीं मिला' : 'No transactions found in this filter.',
+                                        style: const TextStyle(color: Colors.grey),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: Colors.grey.shade300),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: DataTable(
+                                        columnSpacing: 14,
+                                        headingRowHeight: 38,
+                                        dataRowMinHeight: 48,
+                                        dataRowMaxHeight: 56,
+                                        headingRowColor: WidgetStateProperty.all(Colors.grey.shade100),
+                                        columns: [
+                                          DataColumn(label: Text(isHindi ? 'दिनांक' : 'Date', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                          DataColumn(label: Text(isHindi ? 'विवरण व सामान' : 'Description & Items', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                          DataColumn(label: Text(isHindi ? 'मोड' : 'Mode', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                          DataColumn(label: Text(isHindi ? 'कुल बिल' : 'Bill Amount', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                          DataColumn(label: Text(isHindi ? 'जमा भुगतान' : 'Paid Amount', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                          DataColumn(label: Text(isHindi ? 'बकाया शेष' : 'Balance Due', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+                                        ],
+                                        rows: filteredTxs.map<DataRow>((t) {
+                                          final map = t as Map<String, dynamic>;
+                                          final dateStr = map['date']?.toString() ?? '';
+                                          final descStr = map['description']?.toString() ?? '';
+                                          final itemsStr = map['itemsSummary']?.toString() ?? '';
+                                          final modeStr = (map['paymentMode'] ?? (map['type'] == 'PAYMENT' ? 'Payment' : 'Cash')).toString();
+                                          final bill = ((map['debit'] ?? map['totalAmount'] ?? 0.0) as num).toDouble();
+                                          final paid = ((map['credit'] ?? map['paidAmount'] ?? 0.0) as num).toDouble();
+                                          final bal = ((map['balance'] ?? 0.0) as num).toDouble();
+
+                                          Color modeBg = Colors.blue.shade50;
+                                          Color modeColor = Colors.blue.shade900;
+                                          if (modeStr.toLowerCase().contains('cash')) {
+                                            modeBg = Colors.green.shade50;
+                                            modeColor = Colors.green.shade900;
+                                          } else if (modeStr.toLowerCase().contains('udhaar')) {
+                                            modeBg = Colors.red.shade50;
+                                            modeColor = Colors.red.shade900;
+                                          } else if (modeStr.toLowerCase().contains('upi')) {
+                                            modeBg = Colors.purple.shade50;
+                                            modeColor = Colors.purple.shade900;
+                                          }
+
+                                          return DataRow(
+                                            cells: [
+                                              DataCell(Text(dateStr, style: const TextStyle(fontSize: 11))),
+                                              DataCell(
+                                                Column(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(descStr, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                                    if (itemsStr.isNotEmpty)
+                                                      Text(
+                                                        '🛒 $itemsStr',
+                                                        style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow.ellipsis,
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                              DataCell(
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: modeBg,
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    border: Border.all(color: modeColor.withOpacity(0.3)),
+                                                  ),
+                                                  child: Text(
+                                                    modeStr,
+                                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: modeColor),
+                                                  ),
+                                                ),
+                                              ),
+                                              DataCell(Text(
+                                                bill > 0 ? '₹ ${bill.toStringAsFixed(2)}' : '-',
+                                                style: TextStyle(fontSize: 11, color: bill > 0 ? Colors.red.shade800 : Colors.black, fontWeight: bill > 0 ? FontWeight.bold : FontWeight.normal),
+                                              )),
+                                              DataCell(Text(
+                                                paid > 0 ? '₹ ${paid.toStringAsFixed(2)}' : '-',
+                                                style: TextStyle(fontSize: 11, color: paid > 0 ? Colors.green.shade800 : Colors.black, fontWeight: paid > 0 ? FontWeight.bold : FontWeight.normal),
+                                              )),
+                                              DataCell(Text(
+                                                '₹ ${bal.toStringAsFixed(2)}',
+                                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: bal > 0 ? Colors.red.shade900 : Colors.green.shade900),
+                                              )),
+                                            ],
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 20),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(isHindi ? 'बंद करें' : 'Close Ledger Statement'),
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    FutureBuilder<Map<String, dynamic>>(
-                      future: fetchLedgerData(),
-                      builder: (fCtx, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
-                        }
-
-                        final txs = (snapshot.data?['transactions'] as List?) ?? [];
-                        if (txs.isEmpty) {
-                          return Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Center(
-                              child: Text(
-                                isHindi ? 'कोई लेन-देन रिकॉर्ड नहीं मिला' : 'No date-wise ledger transactions found.',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                            ),
-                          );
-                        }
-
-                        return Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: DataTable(
-                              columnSpacing: 16,
-                              headingRowHeight: 36,
-                              dataRowHeight: 44,
-                              headingRowColor: MaterialStateProperty.all(Colors.grey.shade200),
-                              columns: [
-                                DataColumn(label: Text(isHindi ? 'दिनांक' : 'Date', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                                DataColumn(label: Text(isHindi ? 'विवरण' : 'Description', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                                DataColumn(label: Text(isHindi ? 'डेबिट (उधार)' : 'Debit (+)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                                DataColumn(label: Text(isHindi ? 'क्रेडिट (जमा)' : 'Credit (-)', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                                DataColumn(label: Text(isHindi ? 'शेष (Balance)' : 'Balance', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                              ],
-                              rows: txs.map<DataRow>((t) {
-                                final map = t as Map<String, dynamic>;
-                                final dateStr = map['date']?.toString() ?? '';
-                                final descStr = map['description']?.toString() ?? '';
-                                final debit = (map['debit'] as num?)?.toDouble() ?? 0.0;
-                                final credit = (map['credit'] as num?)?.toDouble() ?? 0.0;
-                                final bal = (map['balance'] as num?)?.toDouble() ?? 0.0;
-
-                                return DataRow(
-                                  cells: [
-                                    DataCell(Text(dateStr, style: const TextStyle(fontSize: 11))),
-                                    DataCell(Text(descStr, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500))),
-                                    DataCell(Text(
-                                      debit > 0 ? '₹ ${debit.toStringAsFixed(2)}' : '-',
-                                      style: TextStyle(fontSize: 11, color: debit > 0 ? Colors.red.shade700 : Colors.black, fontWeight: debit > 0 ? FontWeight.bold : FontWeight.normal),
-                                    )),
-                                    DataCell(Text(
-                                      credit > 0 ? '₹ ${credit.toStringAsFixed(2)}' : '-',
-                                      style: TextStyle(fontSize: 11, color: credit > 0 ? Colors.green.shade700 : Colors.black, fontWeight: credit > 0 ? FontWeight.bold : FontWeight.normal),
-                                    )),
-                                    DataCell(Text(
-                                      '₹ ${bal.toStringAsFixed(2)}',
-                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                                    )),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: Text(isHindi ? 'बंद करें' : 'Close Ledger Statement'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         );
