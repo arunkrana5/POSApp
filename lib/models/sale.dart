@@ -16,8 +16,14 @@ class OfflineSaleItem {
   Map<String, dynamic> toJson() {
     return {
       'productId': productId,
+      'productName': productName,
       'quantity': quantity,
+      'qty': quantity,
       'unitPrice': unitPrice,
+      'rate': unitPrice,
+      'price': unitPrice,
+      'total': quantity * unitPrice,
+      'totalAmount': quantity * unitPrice,
       'taxPercent': taxPercent,
     };
   }

@@ -138,7 +138,7 @@ class _PosScreenState extends State<PosScreen> {
         'expiryDate': p.expiryDate,
         'hsnCode': p.hsnCode,
         'barcode': p.barcode,
-        'imageUrl': p.imageUrl ?? '',
+        'imageUrl': p.imageUrl,
       }).toList();
 
       if (mounted) {
@@ -156,20 +156,29 @@ class _PosScreenState extends State<PosScreen> {
 
   void _showLooseItemQuantityDialog(Map<String, dynamic> product, TenantThemeProvider themeProvider, [int? cartIndex]) {
     final unit = (product['unit']?.toString() ?? 'kg').toLowerCase();
-    final price = (product['price'] as num).toDouble();
+    final stockRate = (product['price'] as num).toDouble();
+    double currentPrice = stockRate;
     double currentWeight = 1.0;
     if (cartIndex != null && cartIndex >= 0 && cartIndex < _cartItems.length) {
       currentWeight = (_cartItems[cartIndex]['qty'] as num).toDouble();
+      currentPrice = ((_cartItems[cartIndex]['price'] ?? stockRate) as num).toDouble();
     }
 
-    final weightController = TextEditingController(text: currentWeight.toStringAsFixed(currentWeight == currentWeight.roundToDouble() ? 0 : 3));
+    final rateController = TextEditingController(
+      text: currentPrice.toStringAsFixed(currentPrice == currentPrice.roundToDouble() ? 0 : 2),
+    );
+    final weightController = TextEditingController(
+      text: currentWeight.toStringAsFixed(currentWeight == currentWeight.roundToDouble() ? 0 : 3),
+    );
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          final calcRate = double.tryParse(rateController.text) ?? 0.0;
           final calcWeight = double.tryParse(weightController.text) ?? 0.0;
-          final calcTotal = calcWeight * price;
+          final calcTotal = calcWeight * calcRate;
+          final isRateModified = (calcRate - stockRate).abs() > 0.001;
 
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -182,63 +191,96 @@ class _PosScreenState extends State<PosScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(product['name'] ?? 'Loose Item', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text('Rate: ₹$price / ${product['unit']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                      Text(
+                        isRateModified
+                            ? 'Stock Rate: ₹$stockRate / ${product['unit']} (Custom rate active)'
+                            : 'Rate: ₹$stockRate / ${product['unit']}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isRateModified ? Colors.amber.shade900 : Colors.grey.shade700,
+                          fontWeight: isRateModified ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Enter Qty:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    0.100, 0.250, 0.500, 1.000, 2.000, 5.000
-                  ].map((w) => ActionChip(
-                    label: Text(w < 1 ? '${(w * 1000).toInt()} gm' : '$w $unit', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                    backgroundColor: (calcWeight == w) ? Colors.orange.shade100 : Colors.grey.shade100,
-                    onPressed: () {
-                      setDialogState(() {
-                        weightController.text = w.toStringAsFixed(w == w.roundToDouble() ? 0 : 3);
-                      });
-                    },
-                  )).toList(),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: weightController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Exact Quantity (${product['unit']})',
-                    hintText: 'e.g. 0.750 or 1.5',
-                    prefixIcon: const Icon(Icons.edit_rounded, size: 18),
-                    suffixText: product['unit'],
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Editable Rate Input Field
+                  TextField(
+                    controller: rateController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Selling Rate (₹ per ${product['unit']}) *',
+                      hintText: 'e.g. $stockRate',
+                      prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 18, color: Colors.green),
+                      suffixText: 'per ${product['unit']}',
+                      helperText: isRateModified
+                          ? '⚡ Custom Rate: ₹${calcRate.toStringAsFixed(2)} (Stock was ₹${stockRate.toStringAsFixed(2)})'
+                          : 'Autofilled from stock inventory',
+                      helperStyle: TextStyle(
+                        color: isRateModified ? Colors.amber.shade900 : Colors.grey.shade600,
+                        fontWeight: isRateModified ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
                   ),
-                  onChanged: (_) => setDialogState(() {}),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.green.shade200),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 12),
+
+                  const Text('Enter Qty / Weight:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
                     children: [
-                      const Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      Text('₹ ${calcTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.green.shade800)),
-                    ],
+                      0.100, 0.250, 0.500, 1.000, 2.000, 5.000
+                    ].map((w) => ActionChip(
+                      label: Text(w < 1 ? '${(w * 1000).toInt()} gm' : '$w $unit', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      backgroundColor: (calcWeight == w) ? Colors.orange.shade100 : Colors.grey.shade100,
+                      onPressed: () {
+                        setDialogState(() {
+                          weightController.text = w.toStringAsFixed(w == w.roundToDouble() ? 0 : 3);
+                        });
+                      },
+                    )).toList(),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: weightController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Exact Quantity (${product['unit']})',
+                      hintText: 'e.g. 0.750 or 1.5',
+                      prefixIcon: const Icon(Icons.edit_rounded, size: 18),
+                      suffixText: product['unit'],
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text('₹ ${calcTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: Colors.green.shade800)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
@@ -259,19 +301,25 @@ class _PosScreenState extends State<PosScreen> {
                 style: ElevatedButton.styleFrom(backgroundColor: themeProvider.buttonBgColor, foregroundColor: themeProvider.buttonTextColor),
                 onPressed: () {
                   final w = double.tryParse(weightController.text) ?? 0.0;
-                  if (w <= 0) return;
+                  final r = double.tryParse(rateController.text) ?? 0.0;
+                  if (w <= 0 || r < 0) return;
                   setState(() {
                     if (cartIndex != null && cartIndex >= 0) {
                       _cartItems[cartIndex]['qty'] = w;
+                      _cartItems[cartIndex]['price'] = r;
+                      _cartItems[cartIndex]['stockRate'] = stockRate;
                     } else {
                       final existingIdx = _cartItems.indexWhere((item) => item['id'] == product['id']);
                       if (existingIdx >= 0) {
                         _cartItems[existingIdx]['qty'] = w;
+                        _cartItems[existingIdx]['price'] = r;
+                        _cartItems[existingIdx]['stockRate'] = stockRate;
                       } else {
                         _cartItems.add({
                           'id': product['id'],
                           'name': product['name'],
-                          'price': product['price'],
+                          'price': r,
+                          'stockRate': stockRate,
                           'unit': product['unit'],
                           'qty': w,
                           'isLoose': true,
@@ -281,9 +329,439 @@ class _PosScreenState extends State<PosScreen> {
                   });
                   Navigator.pop(ctx);
                 },
-                child: Text(cartIndex != null ? 'Update Weight' : 'Add Loose Item', style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(cartIndex != null ? 'Update Item' : 'Add Loose Item', style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditCartItemDialog(int index, TenantThemeProvider themeProvider) {
+    if (index < 0 || index >= _cartItems.length) return;
+    final item = _cartItems[index];
+    final isHindi = Provider.of<LocaleProvider>(context, listen: false).isHindi;
+    final unit = (item['unit']?.toString() ?? 'pcs');
+    final stockRate = (item['stockRate'] as num?)?.toDouble() ?? (item['price'] as num).toDouble();
+    final currentRate = (item['price'] as num).toDouble();
+    final currentQty = (item['qty'] as num).toDouble();
+
+    final rateCtrl = TextEditingController(
+      text: currentRate.toStringAsFixed(currentRate == currentRate.roundToDouble() ? 0 : 2),
+    );
+    final qtyCtrl = TextEditingController(
+      text: currentQty.toStringAsFixed(currentQty == currentQty.roundToDouble() ? 0 : 3),
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogCtx, setDialogState) {
+          final calcRate = double.tryParse(rateCtrl.text) ?? 0.0;
+          final calcQty = double.tryParse(qtyCtrl.text) ?? 0.0;
+          final calcTotal = calcRate * calcQty;
+          final isModified = (calcRate - stockRate).abs() > 0.001;
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: isModified ? Colors.amber.shade100 : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.edit_note_rounded,
+                    color: isModified ? Colors.amber.shade900 : Colors.blue.shade700,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isHindi ? 'दर और मात्रा बदलें' : 'Edit Rate & Quantity',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        item['name'] ?? 'Item',
+                        style: TextStyle(fontSize: 13, color: themeProvider.primaryColor, fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Stock Reference & Reset pill
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isModified ? Colors.amber.shade50 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: isModified ? Colors.amber.shade200 : Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Stock Rate: ₹${stockRate.toStringAsFixed(2)} / $unit',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade800, fontWeight: FontWeight.w600),
+                        ),
+                        if (isModified)
+                          InkWell(
+                            onTap: () {
+                              setDialogState(() {
+                                rateCtrl.text = stockRate.toStringAsFixed(stockRate == stockRate.roundToDouble() ? 0 : 2);
+                              });
+                            },
+                            child: const Text(
+                              'Reset to Stock',
+                              style: TextStyle(fontSize: 11, color: Colors.blue, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 1. EDITABLE RATE FIELD
+                  TextField(
+                    controller: rateCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: isHindi ? 'बिक्री दर (Rate ₹ per $unit) *' : 'Selling Rate (₹ per $unit) *',
+                      hintText: 'Enter new rate',
+                      prefixIcon: const Icon(Icons.currency_rupee_rounded, size: 20, color: Colors.green),
+                      suffixText: 'per $unit',
+                      helperText: isModified
+                          ? '⚡ Custom Rate: ₹${calcRate.toStringAsFixed(2)} (Stock was ₹${stockRate.toStringAsFixed(2)})'
+                          : 'Autofilled from stock inventory',
+                      helperStyle: TextStyle(
+                        color: isModified ? Colors.amber.shade900 : Colors.grey.shade600,
+                        fontWeight: isModified ? FontWeight.bold : FontWeight.normal,
+                      ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: themeProvider.primaryColor, width: 2),
+                      ),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 2. QUANTITY FIELD WITH STEPPERS
+                  Row(
+                    children: [
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.remove, size: 18),
+                        onPressed: () {
+                          final current = double.tryParse(qtyCtrl.text) ?? 1.0;
+                          if (current > 1) {
+                            setDialogState(() {
+                              qtyCtrl.text = (current - 1).toStringAsFixed(0);
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: qtyCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          textAlign: TextAlign.center,
+                          decoration: InputDecoration(
+                            labelText: isHindi ? 'मात्रा (Quantity)' : 'Quantity ($unit)',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                          ),
+                          onChanged: (_) => setDialogState(() {}),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton.filledTonal(
+                        icon: const Icon(Icons.add, size: 18),
+                        onPressed: () {
+                          final current = double.tryParse(qtyCtrl.text) ?? 0.0;
+                          setDialogState(() {
+                            qtyCtrl.text = (current + 1).toStringAsFixed(0);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 3. INSTANT CALCULATION PREVIEW CARD
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade300, width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isHindi ? 'कुल लाइन मूल्य:' : 'Calculated Line Total:',
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87),
+                            ),
+                            Text(
+                              '₹ ${calcTotal.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.green.shade900,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Formula: $calcQty $unit × ₹${calcRate.toStringAsFixed(2)} = ₹${calcTotal.toStringAsFixed(2)}',
+                          style: TextStyle(fontSize: 11, color: Colors.green.shade800, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _cartItems.removeAt(index);
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: Text(isHindi ? 'हटाएं' : 'Remove', style: const TextStyle(color: Colors.red)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(isHindi ? 'रद्द करें' : 'Cancel'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeProvider.primaryColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: (calcRate < 0 || calcQty <= 0)
+                    ? null
+                    : () {
+                        setState(() {
+                          _cartItems[index]['price'] = calcRate;
+                          _cartItems[index]['qty'] = calcQty;
+                          _cartItems[index]['stockRate'] = stockRate;
+                        });
+                        Navigator.pop(ctx);
+                        ToastHelper.showSuccess(
+                          context,
+                          'Rate updated to ₹${calcRate.toStringAsFixed(2)} for ${item['name']}',
+                        );
+                      },
+                child: Text(
+                  isHindi ? 'दर अपडेट करें' : 'Update Rate',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showCartDetailsSheet(TenantThemeProvider themeProvider) {
+    final isHindi = Provider.of<LocaleProvider>(context, listen: false).isHindi;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          final currentTax = themeProvider.enableTaxCalculation
+              ? (_subtotal * (themeProvider.defaultTaxPercent / 100))
+              : 0.0;
+          final currentGrand = _subtotal + currentTax;
+
+          return Padding(
+            padding: EdgeInsets.only(
+              top: 16,
+              left: 16,
+              right: 16,
+              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16,
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.75,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.shopping_cart_rounded, color: themeProvider.primaryColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            isHindi ? 'कार्ट में सामान (${_cartItems.length})' : 'Cart Items (${_cartItems.length})',
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.delete_sweep_rounded, size: 18, color: Colors.red),
+                        label: Text(isHindi ? 'कार्ट खाली करें' : 'Clear All', style: const TextStyle(color: Colors.red, fontSize: 12)),
+                        onPressed: () {
+                          setState(() => _cartItems.clear());
+                          Navigator.pop(sheetCtx);
+                        },
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                  Expanded(
+                    child: _cartItems.isEmpty
+                        ? Center(child: Text(isHindi ? 'कार्ट खाली है' : 'Cart is empty'))
+                        : ListView.separated(
+                            itemCount: _cartItems.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (c, idx) {
+                              final it = _cartItems[idx];
+                              final rate = (it['price'] as num).toDouble();
+                              final qty = (it['qty'] as num).toDouble();
+                              final stockR = (it['stockRate'] as num?)?.toDouble() ?? rate;
+                              final isMod = (rate - stockR).abs() > 0.001;
+                              final lineTot = rate * qty;
+
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        it['name'] ?? 'Item',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                      ),
+                                    ),
+                                    if (isMod)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber.shade100,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.amber.shade300),
+                                        ),
+                                        child: Text(
+                                          'Edited Rate',
+                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                subtitle: Row(
+                                  children: [
+                                    // Rate with Edit button
+                                    InkWell(
+                                      onTap: () {
+                                        Navigator.pop(sheetCtx);
+                                        _showEditCartItemDialog(idx, themeProvider);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: Colors.blue.shade200),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'Rate: ₹${rate.toStringAsFixed(2)} / ${it['unit']}',
+                                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(Icons.edit, size: 12, color: Colors.blue),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text('× $qty = ₹${lineTot.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove_circle_outline, size: 20, color: Colors.red),
+                                      onPressed: () {
+                                        setState(() {
+                                          _updateQuantity(idx, -1, themeProvider);
+                                        });
+                                        setSheetState(() {});
+                                      },
+                                    ),
+                                    Text('$qty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                    IconButton(
+                                      icon: const Icon(Icons.add_circle_outline, size: 20, color: Colors.green),
+                                      onPressed: () {
+                                        setState(() {
+                                          _updateQuantity(idx, 1, themeProvider);
+                                        });
+                                        setSheetState(() {});
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  const Divider(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(isHindi ? 'कुल राशि:' : 'Total Amount:', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      Text('₹ ${currentGrand.toStringAsFixed(2)}', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: Colors.green.shade800)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: themeProvider.primaryColor,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () => Navigator.pop(sheetCtx),
+                      child: Text(isHindi ? 'बिलिंग जारी रखें' : 'Continue Billing', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
         },
       ),
@@ -316,6 +794,8 @@ class _PosScreenState extends State<PosScreen> {
       return;
     }
 
+    final stockRate = (product['price'] as num).toDouble();
+
     setState(() {
       if (existingIndex >= 0) {
         _cartItems[existingIndex]['qty'] += 1;
@@ -323,9 +803,11 @@ class _PosScreenState extends State<PosScreen> {
         _cartItems.add({
           'id': product['id'],
           'name': product['name'],
-          'price': product['price'],
+          'price': stockRate,
+          'stockRate': stockRate,
           'unit': product['unit'],
           'qty': 1,
+          'isLoose': false,
         });
       }
     });
@@ -465,16 +947,36 @@ class _PosScreenState extends State<PosScreen> {
                     decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(8)),
                     child: Column(
                       children: items.map((it) {
-                        final name = it['name'] ?? 'Item';
-                        final qty = it['qty'] ?? 1;
-                        final price = (it['price'] as num?)?.toDouble() ?? 0.0;
-                        final tot = qty * price;
+                        final name = (it['productName'] ?? it['name'] ?? 'Item').toString();
+                        final qty = it['qty'] ?? it['quantity'] ?? 1;
+                        final price = ((it['price'] ?? it['unitPrice'] ?? it['rate'] ?? 0.0) as num).toDouble();
+                        final tot = ((it['total'] ?? it['totalAmount'] ?? (qty * price)) as num).toDouble();
+                        final stockRate = (it['stockRate'] as num?)?.toDouble() ?? price;
+                        final isMod = (price - stockRate).abs() > 0.001;
+                        final unit = (it['unit'] ?? 'pcs').toString();
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 3.0),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Expanded(child: Text('$qty x $name', style: const TextStyle(fontSize: 13))),
+                              Expanded(
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(text: '$qty $unit × $name '),
+                                      TextSpan(
+                                        text: '(@ ₹${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)})',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: isMod ? FontWeight.bold : FontWeight.w500,
+                                          color: isMod ? Colors.amber.shade900 : Colors.blueGrey.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                              ),
                               Text('₹ ${tot.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ],
                           ),
@@ -720,6 +1222,15 @@ class _PosScreenState extends State<PosScreen> {
         ),
         actions: [
           IconButton(
+            icon: Badge(
+              isLabelVisible: _cartItems.isNotEmpty,
+              label: Text('${_cartItems.length}'),
+              child: const Icon(Icons.shopping_cart_outlined),
+            ),
+            tooltip: isHindi ? 'कार्ट देखें व दर बदलें' : 'View & Edit Cart Rates',
+            onPressed: _cartItems.isEmpty ? null : () => _showCartDetailsSheet(themeProvider),
+          ),
+          IconButton(
             icon: const Icon(Icons.cleaning_services_rounded),
             tooltip: 'Clear Cart',
             onPressed: _cartItems.isEmpty
@@ -855,6 +1366,21 @@ class _PosScreenState extends State<PosScreen> {
 
                 return InkWell(
                   onTap: () => _addToCart(product, themeProvider),
+                  onLongPress: () {
+                    final isLoose = product['isLoose'] == true ||
+                        (product['unit'] ?? '').toString().toLowerCase() != 'pcs';
+                    if (isLoose) {
+                      _showLooseItemQuantityDialog(product, themeProvider);
+                    } else if (cartIndex >= 0) {
+                      _showEditCartItemDialog(cartIndex, themeProvider);
+                    } else {
+                      _addToCart(product, themeProvider);
+                      final newIdx = _cartItems.indexWhere((it) => it['id'] == product['id']);
+                      if (newIdx >= 0) {
+                        _showEditCartItemDialog(newIdx, themeProvider);
+                      }
+                    }
+                  },
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -977,51 +1503,109 @@ class _PosScreenState extends State<PosScreen> {
               children: [
                 if (_cartItems.isNotEmpty)
                   SizedBox(
-                    height: 38,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _cartItems.length,
-                      separatorBuilder: (ctx, i) => const SizedBox(width: 6),
-                      itemBuilder: (ctx, index) {
-                        final item = _cartItems[index];
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: themeProvider.buttonBgColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: themeProvider.buttonBgColor.withOpacity(0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                item['name'],
-                                style: TextStyle(
-                                  fontFamily: themeProvider.fontFamily,
-                                  fontSize: 12 * themeProvider.fontSizeScale,
-                                  fontWeight: FontWeight.bold,
-                                  color: themeProvider.textColor,
+                    height: 42,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                          icon: const Icon(Icons.table_chart_outlined, size: 20, color: Colors.indigo),
+                          tooltip: isHindi ? 'पूरी कार्ट देखें' : 'View Cart Table',
+                          onPressed: () => _showCartDetailsSheet(themeProvider),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _cartItems.length,
+                            separatorBuilder: (ctx, i) => const SizedBox(width: 6),
+                            itemBuilder: (ctx, index) {
+                              final item = _cartItems[index];
+                              final rate = (item['price'] as num).toDouble();
+                              final stockRate = (item['stockRate'] as num?)?.toDouble() ?? rate;
+                              final isModified = (rate - stockRate).abs() > 0.001;
+
+                              return Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isModified ? Colors.amber.shade50 : themeProvider.buttonBgColor.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isModified ? Colors.amber.shade600 : themeProvider.buttonBgColor.withOpacity(0.3),
+                                    width: isModified ? 1.5 : 1.0,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 6),
-                              InkWell(
-                                onTap: () => _updateQuantity(index, -1, themeProvider),
-                                child: Icon(Icons.remove_circle_outline, size: 18, color: Colors.red.shade700),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                                child: Text(
-                                  '${item["qty"]}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                child: Row(
+                                  children: [
+                                    InkWell(
+                                      onTap: () => _showEditCartItemDialog(index, themeProvider),
+                                      child: Text(
+                                        item['name'],
+                                        style: TextStyle(
+                                          fontFamily: themeProvider.fontFamily,
+                                          fontSize: 12 * themeProvider.fontSizeScale,
+                                          fontWeight: FontWeight.bold,
+                                          color: themeProvider.textColor,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    InkWell(
+                                      onTap: () => _showEditCartItemDialog(index, themeProvider),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: isModified ? Colors.amber.shade100 : Colors.blue.shade50,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: isModified ? Colors.amber.shade700 : Colors.blue.shade200,
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              '₹${rate.toStringAsFixed(rate.truncateToDouble() == rate ? 0 : 2)}',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: isModified ? Colors.amber.shade900 : Colors.blue.shade900,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Icon(
+                                              Icons.edit,
+                                              size: 11,
+                                              color: isModified ? Colors.amber.shade900 : Colors.blue.shade700,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    InkWell(
+                                      onTap: () => _updateQuantity(index, -1, themeProvider),
+                                      child: Icon(Icons.remove_circle_outline, size: 18, color: Colors.red.shade700),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                      child: Text(
+                                        '${item["qty"]}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () => _updateQuantity(index, 1, themeProvider),
+                                      child: Icon(Icons.add_circle_outline, size: 18, color: Colors.green.shade700),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              InkWell(
-                                onTap: () => _updateQuantity(index, 1, themeProvider),
-                                child: Icon(Icons.add_circle_outline, size: 18, color: Colors.green.shade700),
-                              ),
-                            ],
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     ),
                   ),
 
@@ -1669,15 +2253,23 @@ class _PosScreenState extends State<PosScreen> {
                                       final parsedId = rawId is num ? rawId.toInt() : (int.tryParse(rawId?.toString() ?? '') ?? 0);
                                       final qtyVal = (item['qty'] as num?)?.toDouble() ?? 1.0;
                                       final priceVal = (item['price'] as num?)?.toDouble() ?? 0.0;
+                                      final stockRate = (item['stockRate'] as num?)?.toDouble() ?? priceVal;
+                                      final isModified = (priceVal - stockRate).abs() > 0.001;
+                                      final totalVal = priceVal * qtyVal;
                                       return {
                                         'id': parsedId > 0 ? parsedId : rawId,
                                         'productId': parsedId,
                                         'name': item['name'] ?? '',
                                         'productName': item['name'] ?? '',
                                         'price': priceVal,
+                                        'rate': priceVal,
                                         'unitPrice': priceVal,
                                         'qty': qtyVal,
                                         'quantity': qtyVal,
+                                        'total': totalVal,
+                                        'totalAmount': totalVal,
+                                        'stockRate': stockRate,
+                                        'isRateModified': isModified,
                                         'unit': item['unit'] ?? 'pcs',
                                         'isLoose': item['isLoose'] ?? false,
                                       };
@@ -1816,7 +2408,32 @@ class _PosScreenState extends State<PosScreen> {
                                   final taxSnapshot = taxAmount;
                                   final discountSnapshot = (subtotal + taxAmount - netPayable).clamp(0.0, double.infinity);
                                   final phoneSnapshot = _customerPhoneController.text;
-                                  final cartSnapshot = List<Map<String, dynamic>>.from(_cartItems);
+                                  final cartSnapshot = _cartItems.map((item) {
+                                    final rawId = item['id'];
+                                    final parsedId = rawId is num ? rawId.toInt() : (int.tryParse(rawId?.toString() ?? '') ?? 0);
+                                    final qtyVal = (item['qty'] as num?)?.toDouble() ?? 1.0;
+                                    final priceVal = (item['price'] as num?)?.toDouble() ?? 0.0;
+                                    final stockRate = (item['stockRate'] as num?)?.toDouble() ?? priceVal;
+                                    final isModified = (priceVal - stockRate).abs() > 0.001;
+                                    final totalVal = priceVal * qtyVal;
+                                    return {
+                                      'id': parsedId > 0 ? parsedId : rawId,
+                                      'productId': parsedId,
+                                      'name': item['name'] ?? '',
+                                      'productName': item['name'] ?? '',
+                                      'price': priceVal,
+                                      'rate': priceVal,
+                                      'unitPrice': priceVal,
+                                      'qty': qtyVal,
+                                      'quantity': qtyVal,
+                                      'total': totalVal,
+                                      'totalAmount': totalVal,
+                                      'stockRate': stockRate,
+                                      'isRateModified': isModified,
+                                      'unit': item['unit'] ?? 'pcs',
+                                      'isLoose': item['isLoose'] ?? false,
+                                    };
+                                  }).toList();
 
                                   _showUpiPaymentScannerModal(
                                     context: context,
