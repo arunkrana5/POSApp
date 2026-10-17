@@ -385,14 +385,22 @@ class _CustomersScreenState extends State<CustomersScreen> {
   void _showCustomerDetailModal(BuildContext context, Map<String, dynamic> c, bool isHindi) {
     final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
     final udhaarVal = (c['udhaar'] as num?)?.toDouble() ?? 0.0;
-    final String custId = c['id']?.toString() ?? c['name'] ?? '';
+    final String custId = (c['id'] != null && c['id'].toString() != '0') ? c['id'].toString() : (c['name'] ?? '');
 
     Future<Map<String, dynamic>> fetchLedgerData() async {
       try {
         final baseUrl = ApiConfig.baseUrl;
         final headers = await _getAuthHeaders();
+        final prefs = await SharedPreferences.getInstance();
+        final tId = prefs.getInt('tenant_id');
+        final tCode = prefs.getString('tenant_code');
         final encodedId = Uri.encodeComponent(custId);
-        final res = await http.get(Uri.parse('$baseUrl/customers/$encodedId/ledger'), headers: headers).timeout(const Duration(seconds: 8));
+        final qParams = <String>[];
+        if (tId != null && tId > 0) qParams.add('tenantId=$tId');
+        if (tCode != null && tCode.isNotEmpty) qParams.add('tenantCode=$tCode');
+        final qStr = qParams.isNotEmpty ? '?${qParams.join('&')}' : '';
+
+        final res = await http.get(Uri.parse('$baseUrl/customers/$encodedId/ledger$qStr'), headers: headers).timeout(const Duration(seconds: 8));
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
           if (data is Map<String, dynamic>) {
@@ -414,6 +422,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
       };
     }
 
+    final ledgerFuture = fetchLedgerData();
     String activeFilter = 'ALL';
 
     showModalBottomSheet(
@@ -520,7 +529,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
                         // FUTURE BUILDER FOR LEDGER TRANSACTIONS & SUMMARY
                         FutureBuilder<Map<String, dynamic>>(
-                          future: fetchLedgerData(),
+                          future: ledgerFuture,
                           builder: (fCtx, snapshot) {
                             if (snapshot.connectionState == ConnectionState.waiting) {
                               return const Center(child: Padding(padding: EdgeInsets.all(30), child: CircularProgressIndicator()));

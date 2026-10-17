@@ -28,9 +28,10 @@ class SyncProvider with ChangeNotifier {
     await loadPendingCount();
   }
 
-  Future<void> saveOfflineCustomer(String name, String phone) async {
-    await _syncEngine.saveCustomerOffline(name, phone);
+  Future<dynamic> saveOfflineCustomer(String name, String phone) async {
+    final res = await _syncEngine.saveCustomerOffline(name, phone);
     await loadPendingCount();
+    return res;
   }
 
   Future<void> saveOfflineCustomerPayment(String customerName, double amountPaid, double remainingUdhaar) async {

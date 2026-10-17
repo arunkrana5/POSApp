@@ -202,7 +202,7 @@ class SyncEngine {
     }
   }
 
-  Future<void> saveCustomerOffline(String name, String phone) async {
+  Future<dynamic> saveCustomerOffline(String name, String phone) async {
     final clientTxId = 'CUST-${DateTime.now().millisecondsSinceEpoch}';
     final payloadMap = <String, dynamic>{'name': name, 'phone': phone};
 
@@ -212,13 +212,20 @@ class SyncEngine {
       payloadMap['tenantCode'] = prefs.getString('tenant_code');
     } catch (_) {}
 
+    dynamic newId;
     try {
       final headers = await _getTenantHeaders();
-      await http.post(
+      final res = await http.post(
         Uri.parse('$apiBaseUrl/customers'),
         headers: headers,
         body: jsonEncode(payloadMap),
       ).timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        final data = jsonDecode(res.body);
+        if (data is Map && data['id'] != null) {
+          newId = data['id'];
+        }
+      }
     } catch (_) {}
 
     if (!kIsWeb) {
@@ -232,6 +239,7 @@ class SyncEngine {
         await SQLiteHelper.instance.addToSyncQueue(clientTxId, 'CUSTOMER', jsonEncode(payloadMap));
       } catch (_) {}
     }
+    return newId;
   }
 
   Future<void> saveCustomerPaymentOffline(String customerName, double amountPaid, double remainingUdhaar) async {

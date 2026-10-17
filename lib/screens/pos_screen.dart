@@ -2334,7 +2334,24 @@ class _PosScreenState extends State<PosScreen> {
                                     }
                                     
                                     final rawCustId = _customerIdMap[customerSnapshot];
-                                    final parsedCustId = rawCustId is num ? rawCustId.toInt() : int.tryParse(rawCustId?.toString() ?? '');
+                                    var parsedCustId = rawCustId is num ? rawCustId.toInt() : int.tryParse(rawCustId?.toString() ?? '');
+
+                                    if (parsedCustId == null && customerSnapshot != 'Walk-in Customer') {
+                                      try {
+                                        final allCust = await syncProvider.fetchCustomers();
+                                        final matched = allCust.firstWhere(
+                                          (c) => (c['name'] ?? '').toString().trim().toLowerCase() == customerSnapshot.trim().toLowerCase(),
+                                          orElse: () => {},
+                                        );
+                                        if (matched['id'] != null) {
+                                          final pId = int.tryParse(matched['id'].toString());
+                                          if (pId != null && pId > 0) {
+                                            parsedCustId = pId;
+                                            _customerIdMap[customerSnapshot] = pId;
+                                          }
+                                        }
+                                      } catch (_) {}
+                                    }
 
                                     await syncProvider.saveOfflineSale({
                                       'clientTransactionId': invoiceNo,
@@ -2530,13 +2547,21 @@ class _PosScreenState extends State<PosScreen> {
               if (nameController.text.isNotEmpty) {
                 final phone = phoneController.text.isNotEmpty ? phoneController.text : '+91 99000 00000';
                 final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-                await syncProvider.saveOfflineCustomer(nameController.text, phone);
+                final newId = await syncProvider.saveOfflineCustomer(nameController.text, phone);
 
                 setState(() {
-                  if (!_customerList.contains(nameController.text)) {
-                    _customerList.add(nameController.text);
+                  final custName = nameController.text.trim();
+                  if (!_customerList.contains(custName)) {
+                    _customerList.add(custName);
                   }
-                  _selectedCustomer = nameController.text;
+                  if (newId != null) {
+                    _customerIdMap[custName] = newId;
+                  }
+                  if (phone.isNotEmpty) {
+                    _customerPhoneMap[custName] = phone;
+                  }
+                  _selectedCustomer = custName;
+                  _customerPhoneController.text = phone;
                 });
 
                 if (mounted) {
