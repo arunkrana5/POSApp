@@ -23,81 +23,167 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _activeOnly = false;
-
-  // Generic Master Lists stored per MasterType
-  List<Map<String, dynamic>> _categories = [];
-  List<Map<String, dynamic>> _uoms = [];
-  List<Map<String, dynamic>> _itemTypes = [];
-  List<Map<String, dynamic>> _brands = [];
-  List<Map<String, dynamic>> _paymentModes = [];
-  List<Map<String, dynamic>> _taxes = [];
-  List<Map<String, dynamic>> _expenseCategories = [];
-
   bool _isLoading = false;
 
-  // Tab definitions: id, masterType, english label, hindi label, icon, theme color
-  static const List<Map<String, dynamic>> _tabConfigs = [
-    {
+  // Master records loaded dynamically from DB for the tenant
+  List<Map<String, dynamic>> _allLoadedMasters = [];
+  List<String> _distinctMasterTypes = [];
+  List<Map<String, dynamic>> _tabConfigs = [];
+
+  // Known metadata lookup for core types (preserves icons, Hindi translations, and brand colors)
+  static final Map<String, Map<String, dynamic>> _knownMasterMeta = {
+    'itemcategory': {
       'type': 'ItemCategory',
       'labelEn': 'Categories',
       'labelHi': 'श्रेणियां',
       'descEn': 'Grocery, Electronics, Clothing...',
       'icon': Icons.category_rounded,
-      'color': Color(0xFF6366F1), // Indigo
+      'color': const Color(0xFF6366F1), // Indigo
+      'sortOrder': 1,
     },
-    {
+    'unitofmeasurement': {
       'type': 'UnitOfMeasurement',
       'labelEn': 'UOM (Units)',
       'labelHi': 'मापक इकाइयाँ',
       'descEn': 'kg, gm, litre, ml, pcs, box...',
       'icon': Icons.straighten_rounded,
-      'color': Color(0xFFF59E0B), // Amber
+      'color': const Color(0xFFF59E0B), // Amber
+      'sortOrder': 2,
     },
-    {
+    'itemtype': {
       'type': 'ItemType',
       'labelEn': 'Item Types',
       'labelHi': 'सामान प्रकार',
       'descEn': 'Packed Goods, Loose Goods, Service...',
       'icon': Icons.widgets_rounded,
-      'color': Color(0xFF06B6D4), // Cyan
+      'color': const Color(0xFF06B6D4), // Cyan
+      'sortOrder': 3,
     },
-    {
+    'brand': {
       'type': 'Brand',
       'labelEn': 'Brands',
       'labelHi': 'ब्रांड्स',
       'descEn': 'Tata, Amul, Nestle, Britannia...',
       'icon': Icons.verified_rounded,
-      'color': Color(0xFF3B82F6), // Blue
+      'color': const Color(0xFF3B82F6), // Blue
+      'sortOrder': 4,
     },
-    {
+    'paymentmode': {
       'type': 'PaymentMode',
       'labelEn': 'Payment Modes',
       'labelHi': 'भुगतान साधन',
       'descEn': 'Cash, UPI, Card, Udhaar, NetBanking...',
       'icon': Icons.payments_rounded,
-      'color': Color(0xFF10B981), // Emerald
+      'color': const Color(0xFF10B981), // Emerald
+      'sortOrder': 5,
     },
-    {
+    'tax': {
       'type': 'Tax',
       'labelEn': 'Taxes / GST',
       'labelHi': 'टैक्स / GST',
       'descEn': 'GST 0%, GST 5%, GST 12%, GST 18%...',
       'icon': Icons.percent_rounded,
-      'color': Color(0xFFEC4899), // Pink
+      'color': const Color(0xFFEC4899), // Pink
+      'sortOrder': 6,
     },
-    {
+    'expensecategory': {
       'type': 'ExpenseCategory',
       'labelEn': 'Expense Categories',
       'labelHi': 'खर्च श्रेणियां',
       'descEn': 'Rent, Electricity, Salary, Transport...',
       'icon': Icons.account_balance_wallet_rounded,
-      'color': Color(0xFF8B5CF6), // Purple
+      'color': const Color(0xFF8B5CF6), // Purple
+      'sortOrder': 7,
     },
+  };
+
+  static const List<Color> _paletteColors = [
+    Color(0xFF6366F1), // Indigo
+    Color(0xFFF59E0B), // Amber
+    Color(0xFF06B6D4), // Cyan
+    Color(0xFF3B82F6), // Blue
+    Color(0xFF10B981), // Emerald
+    Color(0xFFEC4899), // Pink
+    Color(0xFF8B5CF6), // Purple
+    Color(0xFF14B8A6), // Teal
+    Color(0xFFF97316), // Orange
+    Color(0xFF64748B), // Slate
   ];
+
+  static const List<IconData> _paletteIcons = [
+    Icons.folder_special_rounded,
+    Icons.label_rounded,
+    Icons.layers_rounded,
+    Icons.inventory_2_rounded,
+    Icons.tune_rounded,
+    Icons.view_module_rounded,
+    Icons.bookmark_rounded,
+    Icons.grid_view_rounded,
+  ];
+
+  static const List<String> _defaultInitialTypes = [
+    'ItemCategory',
+    'UnitOfMeasurement',
+    'ItemType',
+    'Brand',
+    'PaymentMode',
+    'Tax',
+    'ExpenseCategory',
+  ];
+
+  static String _formatTypeLabel(String type) {
+    if (type.isEmpty) return '';
+    if (type.toUpperCase() == type) return type;
+    final spaced = type.replaceAllMapped(RegExp(r'(?<=[a-z])([A-Z])'), (m) => ' ${m.group(1)}');
+    final formatted = spaced.replaceAll('_', ' ').replaceAll('-', ' ').trim();
+    return formatted.isEmpty ? type : formatted;
+  }
+
+  int _getTypeSortOrder(String type) {
+    final lower = type.trim().toLowerCase();
+    if (_knownMasterMeta.containsKey(lower)) {
+      return _knownMasterMeta[lower]!['sortOrder'] as int;
+    }
+    return 100;
+  }
+
+  Map<String, dynamic> _buildConfigForType(String rawType, int index) {
+    final lower = rawType.trim().toLowerCase();
+    if (_knownMasterMeta.containsKey(lower)) {
+      final known = _knownMasterMeta[lower]!;
+      return {
+        'type': rawType,
+        'labelEn': known['labelEn'],
+        'labelHi': known['labelHi'],
+        'descEn': known['descEn'],
+        'icon': known['icon'],
+        'color': known['color'],
+      };
+    }
+
+    final formatted = _formatTypeLabel(rawType);
+    final color = _paletteColors[index % _paletteColors.length];
+    final icon = _paletteIcons[index % _paletteIcons.length];
+
+    return {
+      'type': rawType,
+      'labelEn': formatted,
+      'labelHi': formatted,
+      'descEn': '$formatted Master Records',
+      'icon': icon,
+      'color': color,
+    };
+  }
 
   @override
   void initState() {
     super.initState();
+    _distinctMasterTypes = List<String>.from(_defaultInitialTypes);
+    _tabConfigs = List.generate(
+      _distinctMasterTypes.length,
+      (i) => _buildConfigForType(_distinctMasterTypes[i], i),
+    );
+
     _tabController = TabController(
       length: _tabConfigs.length,
       vsync: this,
@@ -106,9 +192,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
           : 0,
     );
     _tabController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -152,37 +236,69 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     return fallback;
   }
 
-  void _setMastersFromList(List<Map<String, dynamic>> allMasters) {
+  void _setDynamicTabConfigs(List<String> types, List<Map<String, dynamic>> allMasters) {
     if (!mounted) return;
+
+    final Map<String, String> distinctMap = {};
+    for (var t in types) {
+      final trimmed = t.trim();
+      if (trimmed.isNotEmpty) {
+        final key = trimmed.toLowerCase();
+        if (!distinctMap.containsKey(key)) {
+          distinctMap[key] = trimmed;
+        }
+      }
+    }
+
+    for (var m in allMasters) {
+      final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).trim();
+      if (t.isNotEmpty) {
+        final key = t.toLowerCase();
+        if (!distinctMap.containsKey(key)) {
+          distinctMap[key] = t;
+        }
+      }
+    }
+
+    if (distinctMap.isEmpty) {
+      for (var t in _defaultInitialTypes) {
+        distinctMap[t.toLowerCase()] = t;
+      }
+    }
+
+    final sortedTypes = distinctMap.values.toList();
+    sortedTypes.sort((a, b) {
+      final orderA = _getTypeSortOrder(a);
+      final orderB = _getTypeSortOrder(b);
+      if (orderA != orderB) return orderA.compareTo(orderB);
+      return a.toLowerCase().compareTo(b.toLowerCase());
+    });
+
+    final newConfigs = List.generate(
+      sortedTypes.length,
+      (idx) => _buildConfigForType(sortedTypes[idx], idx),
+    );
+
+    final oldIndex = _tabController.index;
+    final lengthChanged = _tabController.length != newConfigs.length;
+
     setState(() {
-      _categories = allMasters.where((m) {
-        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
-        return t == 'itemcategory' || t == 'category' || t == 'categories';
-      }).toList();
-      _uoms = allMasters.where((m) {
-        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
-        return t == 'unitofmeasurement' || t == 'uom' || t == 'unit' || t == 'units';
-      }).toList();
-      _itemTypes = allMasters.where((m) {
-        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
-        return t == 'itemtype' || t == 'itemtypes' || t == 'format';
-      }).toList();
-      _brands = allMasters.where((m) {
-        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
-        return t == 'brand' || t == 'brands';
-      }).toList();
-      _paymentModes = allMasters.where((m) {
-        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
-        return t == 'paymentmode' || t == 'paymentmodes' || t == 'payment';
-      }).toList();
-      _taxes = allMasters.where((m) {
-        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
-        return t == 'tax' || t == 'taxes' || t == 'gst';
-      }).toList();
-      _expenseCategories = allMasters.where((m) {
-        final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).toLowerCase();
-        return t == 'expensecategory' || t == 'expensecategories' || t == 'expense' || t == 'expenses';
-      }).toList();
+      _allLoadedMasters = allMasters;
+      _distinctMasterTypes = sortedTypes;
+      _tabConfigs = newConfigs;
+
+      if (lengthChanged) {
+        _tabController.dispose();
+        final newIndex = (oldIndex >= 0 && oldIndex < newConfigs.length) ? oldIndex : 0;
+        _tabController = TabController(
+          length: newConfigs.length,
+          vsync: this,
+          initialIndex: newIndex,
+        );
+        _tabController.addListener(() {
+          if (mounted) setState(() {});
+        });
+      }
     });
   }
 
@@ -209,11 +325,12 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         'isActive': m.isActive,
         'IsActive': m.isActive,
       }).toList();
-      _setMastersFromList(all);
+      _setDynamicTabConfigs(masterProvider.masterTypes, all);
     }
 
     setState(() => _isLoading = true);
     List<Map<String, dynamic>> loadedMasters = [];
+    List<String> loadedTypes = [];
 
     try {
       final baseUrl = ApiConfig.baseUrl;
@@ -221,7 +338,20 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
       final tenantId = auth.tenantId ?? 0;
       final qParam = tenantId > 0 ? '?tenantId=$tenantId' : '';
 
-      // Step 1: Try primary /masters endpoint
+      // Step 1: Fetch distinct master types from DB for this tenant
+      try {
+        final typesRes = await http.get(Uri.parse('$baseUrl/masters/types$qParam'), headers: headers).timeout(const Duration(seconds: 8));
+        if (typesRes.statusCode == 200) {
+          final dynamic rawTypes = jsonDecode(typesRes.body);
+          if (rawTypes is List) {
+            loadedTypes = rawTypes.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+          }
+        }
+      } catch (e) {
+        debugPrint('Fetch /masters/types error: $e');
+      }
+
+      // Step 2: Try primary /masters endpoint
       try {
         final res = await http.get(Uri.parse('$baseUrl/masters$qParam'), headers: headers).timeout(const Duration(seconds: 10));
         if (res.statusCode == 200) {
@@ -234,7 +364,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         debugPrint('Primary /masters endpoint error: $e');
       }
 
-      // Step 2: Resilient fallback to /masters/all-dropdowns if primary had 0 records or error
+      // Step 3: Resilient fallback to /masters/all-dropdowns if primary had 0 records or error
       if (loadedMasters.isEmpty) {
         try {
           final fbRes = await http.get(Uri.parse('$baseUrl/masters/all-dropdowns$qParam'), headers: headers).timeout(const Duration(seconds: 8));
@@ -262,11 +392,10 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         }
       }
 
-      // Step 3: Populate state
-      if (loadedMasters.isNotEmpty) {
-        _setMastersFromList(loadedMasters);
+      // Step 4: Populate state with dynamic distinct types & masters
+      if (loadedMasters.isNotEmpty || loadedTypes.isNotEmpty) {
+        _setDynamicTabConfigs(loadedTypes, loadedMasters);
       } else if (masterProvider.hasFetched && masterProvider.allMasters.isNotEmpty) {
-        // Fallback to in-memory MasterProvider items
         final all = masterProvider.allMasters.map((m) => {
           'id': m.id,
           'ID': m.id,
@@ -284,10 +413,10 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
           'isActive': m.isActive,
           'IsActive': m.isActive,
         }).toList();
-        _setMastersFromList(all);
+        _setDynamicTabConfigs(masterProvider.masterTypes, all);
       }
 
-      // Step 4: Keep MasterProvider background cache sync'd
+      // Step 5: Keep MasterProvider background cache sync'd
       try {
         masterProvider.fetchAllMasters(
           auth.accessToken ?? '',
@@ -443,15 +572,12 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     ]);
     if (name.isNotEmpty && name.toLowerCase() != 'unnamed') return name;
 
-    // Fallback 1: Code / Symbol
     final code = _resolveMasterCode(item);
     if (code.isNotEmpty) return code;
 
-    // Fallback 2: Description
     final desc = _getValStr(item, ['description', 'Description', 'desc', 'Desc']);
     if (desc.isNotEmpty) return desc;
 
-    // Fallback 3: Master ID
     final id = item['id'] ?? item['ID'] ?? item['Id'] ?? '';
     return id.toString().isNotEmpty ? 'Master Record #$id' : 'Master Record';
   }
@@ -469,25 +595,27 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     ]);
   }
 
+  List<Map<String, dynamic>> _getListForType(String masterType) {
+    final lower = masterType.trim().toLowerCase();
+    return _allLoadedMasters.where((m) {
+      final t = _getValStr(m, ['masterType', 'MasterType', 'type', 'Type']).trim().toLowerCase();
+      if (t == lower) return true;
+      if (lower == 'itemcategory') return t == 'category' || t == 'categories';
+      if (lower == 'unitofmeasurement') return t == 'uom' || t == 'unit' || t == 'units';
+      if (lower == 'itemtype') return t == 'itemtypes' || t == 'format';
+      if (lower == 'brand') return t == 'brands';
+      if (lower == 'paymentmode') return t == 'paymentmodes' || t == 'payment';
+      if (lower == 'tax') return t == 'taxes' || t == 'gst';
+      if (lower == 'expensecategory') return t == 'expensecategories' || t == 'expense' || t == 'expenses';
+      return false;
+    }).toList();
+  }
+
   List<Map<String, dynamic>> _getListForTab(int index) {
-    switch (index) {
-      case 0:
-        return _categories;
-      case 1:
-        return _uoms;
-      case 2:
-        return _itemTypes;
-      case 3:
-        return _brands;
-      case 4:
-        return _paymentModes;
-      case 5:
-        return _taxes;
-      case 6:
-        return _expenseCategories;
-      default:
-        return _categories;
+    if (index >= 0 && index < _tabConfigs.length) {
+      return _getListForType(_tabConfigs[index]['type'] as String);
     }
+    return [];
   }
 
   // =========================================================================
@@ -597,8 +725,12 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryColor = themeProvider.primaryColor;
 
-    final currentTabIndex = _tabController.index;
-    final currentTabConfig = _tabConfigs[currentTabIndex];
+    final currentTabIndex = (_tabConfigs.isNotEmpty && _tabController.index < _tabConfigs.length)
+        ? _tabController.index
+        : 0;
+    final currentTabConfig = _tabConfigs.isNotEmpty
+        ? _tabConfigs[currentTabIndex]
+        : _buildConfigForType('ItemCategory', 0);
     final currentList = _getListForTab(currentTabIndex);
 
     return Scaffold(
@@ -615,7 +747,9 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.white),
             ),
             Text(
-              isHindi ? '7 कोर मास्टर वर्गीकरण (Common Masters)' : '7 Core Classifications (Unified Masters)',
+              isHindi
+                  ? '${_tabConfigs.length} मास्टर वर्गीकरण (Dynamic Masters)'
+                  : '${_tabConfigs.length} Master Classifications (Dynamic Masters)',
               style: TextStyle(fontSize: 11, color: Colors.white.withOpacity(0.85), fontWeight: FontWeight.normal),
             ),
           ],
@@ -637,7 +771,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
       body: Column(
         children: [
           // =========================================================
-          // 1. ENTERPRISE HORIZONTAL SCROLLABLE MASTER PILLS
+          // 1. ENTERPRISE HORIZONTAL SCROLLABLE MASTER PILLS (DYNAMIC)
           // =========================================================
           Container(
             width: double.infinity,
@@ -784,22 +918,29 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
           ),
 
           // =========================================================
-          // 3. TAB CONTENT LIST (CARDS VIEW)
+          // 3. TAB CONTENT LIST (CARDS VIEW DYNAMIC FOR ALL MASTERS)
           // =========================================================
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : TabBarView(
                     controller: _tabController,
-                    children: [
-                      _buildMasterList(_categories, 'ItemCategory', isHindi, isDark, primaryColor, const Color(0xFF6366F1), Icons.category_rounded),
-                      _buildMasterList(_uoms, 'UnitOfMeasurement', isHindi, isDark, primaryColor, const Color(0xFFF59E0B), Icons.straighten_rounded),
-                      _buildMasterList(_itemTypes, 'ItemType', isHindi, isDark, primaryColor, const Color(0xFF06B6D4), Icons.widgets_rounded),
-                      _buildMasterList(_brands, 'Brand', isHindi, isDark, primaryColor, const Color(0xFF3B82F6), Icons.verified_rounded),
-                      _buildMasterList(_paymentModes, 'PaymentMode', isHindi, isDark, primaryColor, const Color(0xFF10B981), Icons.payments_rounded),
-                      _buildMasterList(_taxes, 'Tax', isHindi, isDark, primaryColor, const Color(0xFFEC4899), Icons.percent_rounded),
-                      _buildMasterList(_expenseCategories, 'ExpenseCategory', isHindi, isDark, primaryColor, const Color(0xFF8B5CF6), Icons.account_balance_wallet_rounded),
-                    ],
+                    children: List.generate(_tabConfigs.length, (idx) {
+                      final config = _tabConfigs[idx];
+                      final type = config['type'] as String;
+                      final list = _getListForType(type);
+                      final categoryColor = config['color'] as Color;
+                      final categoryIcon = config['icon'] as IconData;
+                      return _buildMasterList(
+                        list,
+                        type,
+                        isHindi,
+                        isDark,
+                        primaryColor,
+                        categoryColor,
+                        categoryIcon,
+                      );
+                    }),
                   ),
           ),
         ],
@@ -906,7 +1047,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
         itemCount: list.length,
         itemBuilder: (ctx, idx) {
           final item = list[idx];
-          final id = item['id'] as int;
+          final id = (item['id'] ?? item['ID']) as int;
           final name = _resolveMasterName(item);
           final code = _resolveMasterCode(item);
           final desc = (item['description'] ?? '').toString();
@@ -1076,7 +1217,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   }
 
   // =========================================================================
-  // ENTERPRISE ADD / EDIT MASTER FORM MODAL
+  // ENTERPRISE ADD / EDIT MASTER FORM MODAL WITH DYNAMIC MASTER TYPES
   // =========================================================================
   void _showMasterFormModal(BuildContext context, Map<String, dynamic>? item) {
     final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
@@ -1086,16 +1227,30 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     final isEdit = item != null;
     final primaryColor = themeProvider.primaryColor;
 
-    final tabIndex = _tabController.index;
-    final tabConfig = _tabConfigs[tabIndex];
-    final currentMasterType = tabConfig['type'] as String;
-    final tabTitle = isHindi ? tabConfig['labelHi'] : tabConfig['labelEn'];
+    final currentTabIndex = _tabConfigs.isNotEmpty ? _tabController.index.clamp(0, _tabConfigs.length - 1) : 0;
+    final currentTabConfig = _tabConfigs.isNotEmpty ? _tabConfigs[currentTabIndex] : null;
+    final defaultMasterType = currentTabConfig != null ? (currentTabConfig['type'] as String) : 'ItemCategory';
+
+    String selectedType = item != null
+        ? _getValStr(item, ['masterType', 'MasterType'], fallback: defaultMasterType)
+        : defaultMasterType;
+
+    bool isCustomType = false;
+    final customTypeCtrl = TextEditingController();
+
+    // Ensure selectedType is in options
+    List<String> typeOptions = List<String>.from(_distinctMasterTypes);
+    if (selectedType.isNotEmpty && !typeOptions.any((t) => t.toLowerCase() == selectedType.toLowerCase())) {
+      typeOptions.add(selectedType);
+    }
+    if (typeOptions.isEmpty) {
+      typeOptions = List<String>.from(_defaultInitialTypes);
+    }
 
     final nameCtrl = TextEditingController(text: item != null ? _resolveMasterName(item) : '');
     final codeCtrl = TextEditingController(text: item != null ? _resolveMasterCode(item) : '');
     final descCtrl = TextEditingController(text: item != null ? _getValStr(item, ['description', 'Description']) : '');
     final priorityCtrl = TextEditingController(text: item != null ? _getValStr(item, ['priority', 'Priority'], fallback: '0') : '0');
-    final typeCtrl = TextEditingController(text: item != null ? _getValStr(item, ['masterType', 'MasterType'], fallback: currentMasterType) : currentMasterType);
 
     bool isSubmitting = false;
 
@@ -1105,6 +1260,9 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (modalCtx) => StatefulBuilder(
         builder: (ctx, setModalState) {
+          final effectiveType = isCustomType ? customTypeCtrl.text.trim() : selectedType;
+          final titleType = effectiveType.isNotEmpty ? _formatTypeLabel(effectiveType) : (isHindi ? 'मास्टर' : 'Master');
+
           return Padding(
             padding: EdgeInsets.only(
               bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 16,
@@ -1124,8 +1282,8 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                       Expanded(
                         child: Text(
                           isEdit
-                              ? (isHindi ? '$tabTitle संपादित करें (V_Masters)' : 'Edit $tabTitle')
-                              : (isHindi ? 'नया $tabTitle जोड़ें (V_Masters)' : 'Add New $tabTitle'),
+                              ? (isHindi ? '$titleType संपादित करें' : 'Edit $titleType')
+                              : (isHindi ? 'नया $titleType जोड़ें' : 'Add New $titleType'),
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -1133,22 +1291,98 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                   ),
                   const Divider(height: 24),
 
-                  // Master Type Field
-                  TextField(
-                    controller: typeCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Master Type (Domain Classification)',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  // Dynamic Master Type Selector Dropdown
+                  DropdownButtonFormField<String>(
+                    value: isCustomType ? '__NEW_TYPE__' : selectedType,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: isHindi ? 'मास्टर प्रकार (Master Type) *' : 'Master Type (Classification) *',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      prefixIcon: const Icon(Icons.category_outlined, size: 20),
                     ),
+                    items: [
+                      ...typeOptions.map((t) {
+                        final meta = _knownMasterMeta[t.toLowerCase()];
+                        final label = meta != null
+                            ? (isHindi ? meta['labelHi'] : meta['labelEn'])
+                            : _formatTypeLabel(t);
+                        final icon = meta != null ? meta['icon'] as IconData : Icons.label_outline_rounded;
+                        final color = meta != null ? meta['color'] as Color : primaryColor;
+
+                        return DropdownMenuItem<String>(
+                          value: t,
+                          child: Row(
+                            children: [
+                              Icon(icon, size: 16, color: color),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  label == t ? t : '$t ($label)',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      DropdownMenuItem<String>(
+                        value: '__NEW_TYPE__',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add_circle_outline, size: 16, color: Colors.blue),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                isHindi ? '+ नया मास्टर प्रकार जोड़ें...' : '+ Add New Master Type...',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 14),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onChanged: isEdit
+                        ? null // In edit mode, Master Type is immutable to preserve foreign relations
+                        : (val) {
+                            if (val == '__NEW_TYPE__') {
+                              setModalState(() {
+                                isCustomType = true;
+                              });
+                            } else if (val != null) {
+                              setModalState(() {
+                                isCustomType = false;
+                                selectedType = val;
+                              });
+                            }
+                          },
                   ),
+
+                  // If user selected "+ Add New Master Type...", show custom type input
+                  if (isCustomType) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: customTypeCtrl,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        labelText: isHindi ? 'नए मास्टर प्रकार का नाम दर्ज करें *' : 'Enter New Master Type Name *',
+                        hintText: 'e.g. SupplierType, Warehouse, Department',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.edit_note_rounded, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                  ],
                   const SizedBox(height: 12),
 
                   // Name Field
                   TextField(
                     controller: nameCtrl,
                     decoration: InputDecoration(
-                      labelText: '$tabTitle Name / Master Name *',
+                      labelText: isHindi ? '$titleType नाम *' : '$titleType Name *',
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
@@ -1159,7 +1393,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                   TextField(
                     controller: codeCtrl,
                     decoration: InputDecoration(
-                      labelText: '$tabTitle Code / Short Symbol',
+                      labelText: isHindi ? '$titleType कोड / संक्षिप्त संकेत' : '$titleType Code / Short Symbol',
                       border: const OutlineInputBorder(),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
@@ -1169,10 +1403,10 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                   // Description
                   TextField(
                     controller: descCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Description (Optional)',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: InputDecoration(
+                      labelText: isHindi ? 'विवरण (वैकल्पिक)' : 'Description (Optional)',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1181,10 +1415,10 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                   TextField(
                     controller: priorityCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Display Priority Order (0 = Default)',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: InputDecoration(
+                      labelText: isHindi ? 'प्राथमिकता क्रम (0 = डिफ़ॉल्ट)' : 'Display Priority Order (0 = Default)',
+                      border: const OutlineInputBorder(),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -1201,9 +1435,15 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                       onPressed: isSubmitting
                           ? null
                           : () async {
+                              final finalMasterType = isCustomType ? customTypeCtrl.text.trim() : selectedType.trim();
+                              if (finalMasterType.isEmpty) {
+                                ToastHelper.showError(context, isHindi ? 'मास्टर प्रकार आवश्यक है!' : 'Master Type is required!');
+                                return;
+                              }
+
                               final nameText = nameCtrl.text.trim();
                               if (nameText.isEmpty) {
-                                ToastHelper.showError(context, 'Master Name is required!');
+                                ToastHelper.showError(context, isHindi ? 'मास्टर नाम आवश्यक है!' : 'Master Name is required!');
                                 return;
                               }
 
@@ -1211,12 +1451,11 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
 
                               try {
                                 final baseUrl = ApiConfig.baseUrl;
-                                final mType = typeCtrl.text.trim().isEmpty ? currentMasterType : typeCtrl.text.trim();
                                 final mCode = codeCtrl.text.trim();
 
                                 Map<String, dynamic> body = {
                                   'tenantId': auth.tenantId ?? 1,
-                                  'masterType': mType,
+                                  'masterType': finalMasterType,
                                   'masterName': nameText,
                                   'masterCode': mCode,
                                   'description': descCtrl.text.trim(),
@@ -1232,9 +1471,15 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                                 if (!modalCtx.mounted) return;
 
                                 if (res.statusCode == 200 || res.statusCode == 201) {
-                                  ToastHelper.showSuccess(modalCtx, '$tabTitle saved successfully into V_Masters!');
+                                  ToastHelper.showSuccess(modalCtx, '$titleType saved successfully into V_Masters!');
                                   Navigator.pop(modalCtx);
-                                  _loadAllMasters();
+                                  await _loadAllMasters();
+
+                                  // Automatically switch to the newly created/updated master type tab!
+                                  final newTypeIdx = _tabConfigs.indexWhere((c) => (c['type'] as String).toLowerCase() == finalMasterType.toLowerCase());
+                                  if (newTypeIdx >= 0 && mounted) {
+                                    _tabController.animateTo(newTypeIdx);
+                                  }
                                 } else {
                                   String errorMsg = 'Failed to save master record.';
                                   try {

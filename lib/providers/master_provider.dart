@@ -130,6 +130,7 @@ class MasterProvider with ChangeNotifier {
   bool _hasFetched = false;
 
   List<MasterItem> _allMasters = [];
+  List<String> _masterTypes = [];
   List<MasterItem> _categories = [];
   List<MasterItem> _uoms = [];
   List<MasterItem> _itemTypes = [];
@@ -143,6 +144,16 @@ class MasterProvider with ChangeNotifier {
   bool get hasFetched => _hasFetched;
 
   List<MasterItem> get allMasters => _allMasters;
+  List<String> get masterTypes {
+    if (_masterTypes.isNotEmpty) return _masterTypes;
+    final types = _allMasters
+        .map((m) => m.masterType.trim())
+        .where((t) => t.isNotEmpty)
+        .toSet()
+        .toList();
+    types.sort();
+    return types;
+  }
   List<MasterItem> get categories => _categories;
   List<MasterItem> get uoms => _uoms;
   List<MasterItem> get itemTypes => _itemTypes;
@@ -418,6 +429,24 @@ class MasterProvider with ChangeNotifier {
             final t = m.masterType.toLowerCase();
             return t == 'expensecategory' || t == 'expensecategories' || t == 'expense' || t == 'expenses';
           }).toList();
+        }
+
+        // Fetch distinct types for this tenant dynamically from /masters/types
+        try {
+          final typesUri = Uri.parse('$baseUrl/masters/types$qParam');
+          final typesResponse = await http.get(typesUri, headers: headers).timeout(const Duration(seconds: 8));
+          if (typesResponse.statusCode == 200) {
+            final dynamic rawTypes = jsonDecode(typesResponse.body);
+            if (rawTypes is List) {
+              _masterTypes = rawTypes.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+            }
+          }
+        } catch (_) {}
+
+        if (_masterTypes.isEmpty && _allMasters.isNotEmpty) {
+          final types = _allMasters.map((m) => m.masterType.trim()).where((t) => t.isNotEmpty).toSet().toList();
+          types.sort();
+          _masterTypes = types;
         }
 
         _hasFetched = true;
