@@ -89,7 +89,7 @@ class InvoicePrinter {
   }
 
   /// Triggers print directly for a specific format
-  static void printInvoice({
+  static Future<void> printInvoice({
     required PrintFormat format,
     required String tenantName,
     required String appTitle,
@@ -105,7 +105,7 @@ class InvoicePrinter {
     double discountAmount = 0.0,
     required double grandTotal,
     required List<dynamic> items,
-  }) {
+  }) async {
     final String htmlContent = format == PrintFormat.a4
         ? generateA4InvoiceHtml(
             tenantName: tenantName,
@@ -139,7 +139,7 @@ class InvoicePrinter {
             items: items,
           );
 
-    PrinterHelper.printHtml(htmlContent);
+    await PrinterHelper.printHtml(htmlContent);
   }
 
   /// Generates Standard A4 GST Tax Invoice HTML
@@ -722,13 +722,13 @@ class InvoicePrinter {
     ''';
   }
 
-  static void printCustomerLedger({
+  static Future<void> printCustomerLedger({
     required String tenantName,
     required String customerName,
     required String customerPhone,
     required double currentBalance,
     required List<dynamic> transactions,
-  }) {
+  }) async {
     final html = generateCustomerLedgerHtml(
       tenantName: tenantName,
       customerName: customerName,
@@ -736,7 +736,7 @@ class InvoicePrinter {
       currentBalance: currentBalance,
       transactions: transactions,
     );
-    PrinterHelper.printHtml(html);
+    await PrinterHelper.printHtml(html);
   }
 }
 
@@ -781,6 +781,7 @@ class _InvoicePreviewSheet extends StatefulWidget {
 
 class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
   PrintFormat _selectedFormat = PrintFormat.a4;
+  bool _isPrinting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -983,30 +984,47 @@ class _InvoicePreviewSheetState extends State<_InvoicePreviewSheet> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 2,
                     ),
-                    icon: const Icon(Icons.print_rounded, size: 20),
+                    icon: _isPrinting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.print_rounded, size: 20),
                     label: Text(
-                      _selectedFormat == PrintFormat.a4 ? 'PRINT A4 INVOICE' : 'PRINT THERMAL RECEIPT',
+                      _isPrinting
+                          ? 'GENERATING PRINT...'
+                          : (_selectedFormat == PrintFormat.a4 ? 'PRINT A4 INVOICE' : 'PRINT THERMAL RECEIPT'),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5),
                     ),
-                    onPressed: () {
-                      InvoicePrinter.printInvoice(
-                        format: _selectedFormat,
-                        tenantName: widget.tenantName,
-                        appTitle: widget.appTitle,
-                        logoUrl: widget.logoUrl,
-                        supportPhone: widget.supportPhone,
-                        invoiceNo: widget.invoiceNo,
-                        customerName: widget.customerName,
-                        customerPhone: widget.customerPhone,
-                        paymentMode: widget.paymentMode,
-                        createdAt: widget.createdAt,
-                        subtotal: effectiveSubtotal,
-                        taxAmount: widget.taxAmount,
-                        discountAmount: effectiveDiscount,
-                        grandTotal: widget.grandTotal,
-                        items: widget.items,
-                      );
-                    },
+                    onPressed: _isPrinting
+                        ? null
+                        : () async {
+                            setState(() => _isPrinting = true);
+                            try {
+                              await InvoicePrinter.printInvoice(
+                                format: _selectedFormat,
+                                tenantName: widget.tenantName,
+                                appTitle: widget.appTitle,
+                                logoUrl: widget.logoUrl,
+                                supportPhone: widget.supportPhone,
+                                invoiceNo: widget.invoiceNo,
+                                customerName: widget.customerName,
+                                customerPhone: widget.customerPhone,
+                                paymentMode: widget.paymentMode,
+                                createdAt: widget.createdAt,
+                                subtotal: effectiveSubtotal,
+                                taxAmount: widget.taxAmount,
+                                discountAmount: effectiveDiscount,
+                                grandTotal: widget.grandTotal,
+                                items: widget.items,
+                              );
+                            } finally {
+                              if (mounted) {
+                                setState(() => _isPrinting = false);
+                              }
+                            }
+                          },
                   ),
                 ),
               ],

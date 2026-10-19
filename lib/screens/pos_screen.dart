@@ -96,7 +96,7 @@ class _PosScreenState extends State<PosScreen> {
         setState(() {
           for (var c in customersToProcess) {
             final n = c['name']?.toString() ?? '';
-            final p = c['phone']?.toString() ?? '';
+            final p = (c['phone'] ?? c['mobile'] ?? '').toString();
             final id = c['id'];
             if (n.isNotEmpty) {
               if (!_customerList.contains(n)) {
@@ -109,6 +109,9 @@ class _PosScreenState extends State<PosScreen> {
                 _customerIdMap[n] = id;
               }
             }
+          }
+          if (_selectedCustomer != 'Walk-in Customer' && _customerPhoneController.text.isEmpty) {
+            _customerPhoneController.text = _customerPhoneMap[_selectedCustomer] ?? '';
           }
         });
       }
@@ -873,8 +876,12 @@ class _PosScreenState extends State<PosScreen> {
     required double grandTotal,
     required String paymentMode,
   }) {
-    final phoneCtrl = TextEditingController(text: customerPhone);
+    final String initialPhone = (customerPhone.isNotEmpty && customerPhone != '9876543210')
+        ? customerPhone
+        : (_customerPhoneMap[customerName] ?? '');
+    final phoneCtrl = TextEditingController(text: initialPhone);
 
+    bool isPrintingAction = false;
     bool isSendingWhatsApp = false;
 
     final calcDisc = discountAmount > 0.001
@@ -885,7 +892,34 @@ class _PosScreenState extends State<PosScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (modalCtx, setModalState) => AlertDialog(
+        builder: (modalCtx, setModalState) {
+          if (phoneCtrl.text.isEmpty && customerName != 'Walk-in Customer') {
+            Future.microtask(() async {
+              try {
+                final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                final customers = await syncProvider.fetchCustomers();
+                var matched = customers.firstWhere(
+                  (c) => (c['name'] ?? '').toString().trim().toLowerCase() == customerName.trim().toLowerCase(),
+                  orElse: () => {},
+                );
+                if (matched.isEmpty) {
+                  final dbCusts = await SQLiteHelper.instance.getCustomers();
+                  matched = dbCusts.firstWhere(
+                    (c) => (c['name'] ?? '').toString().trim().toLowerCase() == customerName.trim().toLowerCase(),
+                    orElse: () => {},
+                  );
+                }
+                final p = (matched['phone'] ?? matched['mobile'] ?? '').toString().trim();
+                if (p.isNotEmpty && phoneCtrl.text.isEmpty && modalCtx.mounted) {
+                  phoneCtrl.text = p;
+                  _customerPhoneMap[customerName] = p;
+                  setModalState(() {});
+                }
+              } catch (_) {}
+            });
+          }
+
+          return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Stack(
             children: [
@@ -1069,27 +1103,40 @@ class _PosScreenState extends State<PosScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        icon: const Icon(Icons.print_rounded, size: 18),
-                        label: Text(isHindi ? 'प्रिंट रसीद' : 'Print Receipt'),
-                        onPressed: () {
-                          InvoicePrinter.showPrintPreviewModal(
-                            context,
-                            tenantName: themeProvider.tenantName,
-                            appTitle: themeProvider.appTitle,
-                            logoUrl: themeProvider.logoUrl,
-                            supportPhone: themeProvider.supportPhone,
-                            invoiceNo: invoiceNo,
-                            customerName: customerName,
-                            customerPhone: phoneCtrl.text.trim(),
-                            paymentMode: paymentMode,
-                            createdAt: DateTime.now().toString().split('.')[0],
-                            subtotal: subtotal > 0 ? subtotal : (grandTotal + calcDisc),
-                            taxAmount: taxAmount,
-                            discountAmount: calcDisc,
-                            grandTotal: grandTotal,
-                            items: items,
-                          );
-                        },
+                        icon: isPrintingAction
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.print_rounded, size: 18),
+                        label: Text(
+                          isPrintingAction ? (isHindi ? 'लोड हो रहा है...' : 'Opening...') : (isHindi ? 'प्रिंट रसीद' : 'Print Receipt'),
+                        ),
+                        onPressed: isPrintingAction
+                            ? null
+                            : () {
+                                setModalState(() => isPrintingAction = true);
+                                try {
+                                  InvoicePrinter.showPrintPreviewModal(
+                                    context,
+                                    tenantName: themeProvider.tenantName,
+                                    appTitle: themeProvider.appTitle,
+                                    logoUrl: themeProvider.logoUrl,
+                                    supportPhone: themeProvider.supportPhone,
+                                    invoiceNo: invoiceNo,
+                                    customerName: customerName,
+                                    customerPhone: phoneCtrl.text.trim(),
+                                    paymentMode: paymentMode,
+                                    createdAt: DateTime.now().toString().split('.')[0],
+                                    subtotal: subtotal > 0 ? subtotal : (grandTotal + calcDisc),
+                                    taxAmount: taxAmount,
+                                    discountAmount: calcDisc,
+                                    grandTotal: grandTotal,
+                                    items: items,
+                                  );
+                                } finally {
+                                  if (modalCtx.mounted) {
+                                    setModalState(() => isPrintingAction = false);
+                                  }
+                                }
+                              },
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1189,10 +1236,11 @@ class _PosScreenState extends State<PosScreen> {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
@@ -1284,6 +1332,30 @@ class _PosScreenState extends State<PosScreen> {
                                     _customerPhoneController.text = _customerPhoneMap[val] ?? '';
                                   }
                                 });
+
+                                if (val != 'Walk-in Customer' && _customerPhoneController.text.isEmpty) {
+                                  final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                                  syncProvider.fetchCustomers().then((custs) async {
+                                    var matched = custs.firstWhere(
+                                      (c) => (c['name'] ?? '').toString().trim().toLowerCase() == val.trim().toLowerCase(),
+                                      orElse: () => {},
+                                    );
+                                    if (matched.isEmpty) {
+                                      final dbCusts = await SQLiteHelper.instance.getCustomers();
+                                      matched = dbCusts.firstWhere(
+                                        (c) => (c['name'] ?? '').toString().trim().toLowerCase() == val.trim().toLowerCase(),
+                                        orElse: () => {},
+                                      );
+                                    }
+                                    final p = (matched['phone'] ?? matched['mobile'] ?? '').toString().trim();
+                                    if (p.isNotEmpty && _selectedCustomer == val && mounted) {
+                                      setState(() {
+                                        _customerPhoneController.text = p;
+                                        _customerPhoneMap[val] = p;
+                                      });
+                                    }
+                                  }).catchError((_) {});
+                                }
                               }
                             },
                           ),

@@ -3,11 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../config/api_config.dart';
+import '../database/sqlite_helper.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
+import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
+import '../utils/invoice_printer.dart';
+import '../utils/whatsapp_helper.dart';
 import '../widgets/analytics_charts_widget.dart';
 import '../widgets/app_drawer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -105,106 +110,498 @@ class _ReportsScreenState extends State<ReportsScreen> {
     setState(() => _isLoading = false);
   }
 
-  void _showReceiptDialog(Map<String, dynamic> sale, bool isHindi) {
-    final invoiceNo = sale['id']?.toString() ?? 'INV';
-    final customer = sale['customerName']?.toString() ?? 'Walk-in Customer';
-    final amount = (sale['totalAmount'] as num?)?.toDouble() ?? 0.0;
-    final mode = sale['paymentMode']?.toString() ?? 'Cash';
-    final time = sale['createdAt']?.toString() ?? '';
-    final items = (sale['items'] as List<dynamic>?) ?? [];
+  void _showProfessionalInvoiceModal(Map<String, dynamic> sale) {
+    final localeProvider = Provider.of<LocaleProvider>(context, listen: false);
+    final isHindi = localeProvider.isHindi;
+    final themeProvider = Provider.of<TenantThemeProvider>(context, listen: false);
+
+    final invoiceNo = sale['id']?.toString() ?? 'INV-${DateTime.now().millisecondsSinceEpoch}';
+    final customerName = sale['customerName']?.toString() ?? 'Walk-in Customer';
+    final dynamic customerId = sale['customerId'];
+    final paymentMode = sale['paymentMode']?.toString() ?? 'Cash';
+    final createdAt = sale['createdAt']?.toString() ?? DateTime.now().toString().split('.')[0];
+    final grandTotal = (sale['totalAmount'] ?? sale['amount'] as num?)?.toDouble() ?? 0.0;
+
+    final itemsList = (sale['items'] as List<dynamic>?) ?? [];
+
+    double calculatedItemsGross = 0.0;
+    for (var it in itemsList) {
+      if (it is Map) {
+        final qty = (it['quantity'] ?? it['qty'] ?? 1) as num;
+        final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
+        final total = (it['totalPrice'] ?? it['totalAmount'] ?? (qty.toDouble() * price.toDouble())) as num;
+        calculatedItemsGross += total.toDouble();
+      }
+    }
+
+    final double rawGross = (sale['grossAmount'] ?? sale['subtotal'] ?? sale['subTotal'] as num?)?.toDouble() ?? calculatedItemsGross;
+    final double rawDiscount = (sale['discountAmount'] ?? sale['discount'] as num?)?.toDouble() ?? 0.0;
+    final double rawTax = (sale['taxAmount'] as num?)?.toDouble() ?? 0.0;
+
+    double effectiveGross = rawGross;
+    double effectiveDiscount = rawDiscount;
+
+    if (effectiveDiscount <= 0.001 && rawGross > grandTotal) {
+      effectiveDiscount = rawGross - grandTotal;
+    }
+    if (effectiveGross < grandTotal + effectiveDiscount) {
+      effectiveGross = grandTotal + effectiveDiscount;
+    }
+
+    final rawPhone = sale['customerPhone'] ?? sale['customerMobile'] ?? sale['phone'] ?? sale['mobile'];
+    final initialPhone = (rawPhone != null && rawPhone.toString().trim() != '9876543210')
+        ? rawPhone.toString().trim()
+        : '';
+
+    final phoneCtrl = TextEditingController(text: initialPhone);
+    bool isPrintingAction = false;
+    bool isSendingWhatsApp = false;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Column(
-          children: [
-            const Icon(Icons.check_circle_rounded, color: Colors.green, size: 48),
-            const SizedBox(height: 8),
-            Text(isHindi ? 'डिजिटल रसीद' : 'Invoice Receipt', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text(invoiceNo, style: const TextStyle(fontSize: 13, color: Colors.grey, fontFamily: 'monospace')),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Divider(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(isHindi ? 'ग्राहक:' : 'Customer:', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(customer),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(isHindi ? 'भुगतान मोड़:' : 'Payment Mode:', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(mode, style: TextStyle(fontWeight: FontWeight.bold, color: mode == 'Udhaar' ? Colors.red : Colors.green)),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(isHindi ? 'समय:' : 'Date & Time:', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(time, style: const TextStyle(fontSize: 12)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text('Items Breakdown:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-              const SizedBox(height: 4),
-              if (items.isEmpty)
-                Text(isHindi ? '1x सामान्य सामान - ₹ $amount' : '1x Store Merchandise - ₹ $amount')
-              else
-                ...items.map((it) {
-                  final name = it['productName'] ?? it['name'] ?? 'Item';
-                  final qty = it['quantity'] ?? it['qty'] ?? 1;
-                  final price = it['unitPrice'] ?? it['price'] ?? 0;
-                  final tot = it['totalAmount'] ?? (qty * price);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(child: Text('$qty x $name', style: const TextStyle(fontSize: 13))),
-                        Text('₹ $tot', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      ],
-                    ),
+      barrierDismissible: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          // Asynchronously resolve phone from Customer Master if empty
+          if (phoneCtrl.text.isEmpty && customerName != 'Walk-in Customer') {
+            Future.microtask(() async {
+              try {
+                final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                final customers = await syncProvider.fetchCustomers();
+                Map<String, dynamic>? matched;
+
+                if (customerId != null) {
+                  matched = customers.firstWhere(
+                    (c) => c['id']?.toString() == customerId.toString(),
+                    orElse: () => {},
                   );
-                }),
-              const Divider(),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                }
+                if ((matched == null || matched.isEmpty) && customerName.isNotEmpty) {
+                  matched = customers.firstWhere(
+                    (c) => (c['name'] ?? '').toString().trim().toLowerCase() == customerName.trim().toLowerCase(),
+                    orElse: () => {},
+                  );
+                }
+
+                if (matched == null || matched.isEmpty) {
+                  final dbCustomers = await SQLiteHelper.instance.getCustomers();
+                  if (customerId != null) {
+                    matched = dbCustomers.firstWhere(
+                      (c) => c['id']?.toString() == customerId.toString(),
+                      orElse: () => {},
+                    );
+                  }
+                  if ((matched == null || matched.isEmpty) && customerName.isNotEmpty) {
+                    matched = dbCustomers.firstWhere(
+                      (c) => (c['name'] ?? '').toString().trim().toLowerCase() == customerName.trim().toLowerCase(),
+                      orElse: () => {},
+                    );
+                  }
+                }
+
+                if (matched != null && matched.isNotEmpty) {
+                  final foundPhone = (matched['phone'] ?? matched['mobile'] ?? '').toString().trim();
+                  if (foundPhone.isNotEmpty && phoneCtrl.text.isEmpty && modalCtx.mounted) {
+                    phoneCtrl.text = foundPhone;
+                    setModalState(() {});
+                  }
+                }
+              } catch (_) {}
+            });
+          }
+
+          final isUdhaar = paymentMode.toLowerCase() == 'udhaar';
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Container(
+              width: 600,
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(isHindi ? 'कुल राशि:' : 'Grand Total:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  Text('₹ ${amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
+                  // Header with Title & Explicit Close Cut Icon (X)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.receipt_long_rounded, color: themeProvider.primaryColor, size: 28),
+                          const SizedBox(width: 8),
+                          Text(
+                            isHindi ? 'टैक्स इनवॉइस रसीद' : 'Tax Invoice Receipt',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Colors.red, size: 28),
+                        tooltip: isHindi ? 'बंद करें' : 'Close Invoice',
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 16, thickness: 1.5),
+
+                  // Printable Invoice Content Area
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Store Branding Header
+                          Center(
+                            child: Column(
+                              children: [
+                                if (themeProvider.logoUrl.isNotEmpty)
+                                  Image.network(themeProvider.logoUrl, height: 48, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+                                Text(
+                                  themeProvider.tenantName.isNotEmpty ? themeProvider.tenantName : "VILLAGE POS STORE",
+                                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                                ),
+                                Text(
+                                  "${themeProvider.appTitle.isNotEmpty ? themeProvider.appTitle : 'Village POS'} • Billing & POS Solutions",
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                ),
+                                if (themeProvider.supportPhone.isNotEmpty)
+                                  Text("Ph: ${themeProvider.supportPhone}", style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Meta details: Invoice No, Customer, Date, Payment Mode
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text("Inv #: $invoiceNo", style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                                    Text("Date: $createdAt", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text("Customer: $customerName", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isUdhaar ? Colors.red.shade100 : Colors.green.shade100,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        isUdhaar ? "UDHAAR / DUE" : "PAID ($paymentMode)",
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: isUdhaar ? Colors.red.shade900 : Colors.green.shade900,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Itemized Purchase Table
+                          Table(
+                            border: TableBorder.all(color: Colors.grey.shade300, width: 1),
+                            columnWidths: const {
+                              0: FlexColumnWidth(3),
+                              1: FlexColumnWidth(1),
+                              2: FlexColumnWidth(1.5),
+                              3: FlexColumnWidth(1.5),
+                            },
+                            children: [
+                              TableRow(
+                                decoration: BoxDecoration(color: Colors.grey.shade200),
+                                children: const [
+                                  Padding(padding: EdgeInsets.all(6), child: Text("Item", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                                  Padding(padding: EdgeInsets.all(6), child: Text("Qty", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.center)),
+                                  Padding(padding: EdgeInsets.all(6), child: Text("Rate", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.right)),
+                                  Padding(padding: EdgeInsets.all(6), child: Text("Total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), textAlign: TextAlign.right)),
+                                ],
+                              ),
+                              if (itemsList.isEmpty)
+                                TableRow(
+                                  children: [
+                                    const Padding(padding: EdgeInsets.all(6), child: Text("Store Merchandise", style: TextStyle(fontSize: 12))),
+                                    const Padding(padding: EdgeInsets.all(6), child: Text("1", style: TextStyle(fontSize: 12), textAlign: TextAlign.center)),
+                                    Padding(padding: const EdgeInsets.all(6), child: Text("₹${grandTotal.toStringAsFixed(2)}", style: const TextStyle(fontSize: 12), textAlign: TextAlign.right)),
+                                    Padding(padding: const EdgeInsets.all(6), child: Text("₹${grandTotal.toStringAsFixed(2)}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+                                  ],
+                                )
+                              else
+                                ...itemsList.map((it) {
+                                  final name = it['productName'] ?? it['name'] ?? 'Product Item';
+                                  final qty = (it['quantity'] ?? it['qty'] ?? 1);
+                                  final price = (it['unitPrice'] ?? it['price'] ?? 0.0) as num;
+                                  final total = (it['totalPrice'] ?? it['totalAmount'] ?? (qty * price)) as num;
+                                  return TableRow(
+                                    children: [
+                                      Padding(padding: const EdgeInsets.all(6), child: Text(name.toString(), style: const TextStyle(fontSize: 12))),
+                                      Padding(padding: const EdgeInsets.all(6), child: Text(qty.toString(), style: const TextStyle(fontSize: 12), textAlign: TextAlign.center)),
+                                      Padding(padding: const EdgeInsets.all(6), child: Text("₹${price.toStringAsFixed(2)}", style: const TextStyle(fontSize: 12), textAlign: TextAlign.right)),
+                                      Padding(padding: const EdgeInsets.all(6), child: Text("₹${total.toStringAsFixed(2)}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.right)),
+                                    ],
+                                  );
+                                }),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Bill Financial Breakdown Card (Gross Amount, Discount, Net Amount)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.green.shade200),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text("Gross Amount (Subtotal):", style: TextStyle(fontSize: 13, color: Colors.black87)),
+                                    Text("₹${effectiveGross.toStringAsFixed(2)}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                                if (effectiveDiscount > 0.001) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text("Discount / Off:", style: TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.bold)),
+                                      Text("- ₹${effectiveDiscount.toStringAsFixed(2)}", style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.bold)),
+                                    ],
+                                  ),
+                                ],
+                                if (rawTax > 0.001) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text("Tax Amount:", style: TextStyle(fontSize: 13, color: Colors.black87)),
+                                      Text("+ ₹${rawTax.toStringAsFixed(2)}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ],
+                                const Divider(height: 12),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      "NET AMOUNT (Grand Total):",
+                                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                                    ),
+                                    Text(
+                                      "₹${grandTotal.toStringAsFixed(2)}",
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          const Divider(),
+
+                          // Customer Mobile Input for Instant WhatsApp share & Print autofill
+                          TextField(
+                            controller: phoneCtrl,
+                            keyboardType: TextInputType.phone,
+                            decoration: InputDecoration(
+                              labelText: isHindi ? 'ग्राहक व्हाट्सएप नंबर' : 'Customer WhatsApp Mobile',
+                              hintText: 'Autofilled from Customer Master',
+                              prefixIcon: const Icon(Icons.phone, color: Colors.green),
+                              border: const OutlineInputBorder(),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Action Buttons: Print PDF & WhatsApp Share
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            side: BorderSide(color: themeProvider.primaryColor, width: 1.5),
+                          ),
+                          icon: isPrintingAction
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(Icons.print_rounded, size: 20, color: themeProvider.primaryColor),
+                          label: Text(
+                            isPrintingAction ? (isHindi ? 'लोड हो रहा है...' : 'Opening...') : (isHindi ? 'इनवॉइस प्रिंट / PDF' : 'Print Invoice / PDF'),
+                            style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
+                          ),
+                          onPressed: isPrintingAction
+                              ? null
+                              : () {
+                                  setModalState(() => isPrintingAction = true);
+                                  try {
+                                    InvoicePrinter.showPrintPreviewModal(
+                                      context,
+                                      tenantName: themeProvider.tenantName,
+                                      appTitle: themeProvider.appTitle,
+                                      logoUrl: themeProvider.logoUrl,
+                                      supportPhone: themeProvider.supportPhone,
+                                      invoiceNo: invoiceNo,
+                                      customerName: customerName,
+                                      customerPhone: phoneCtrl.text.trim(),
+                                      paymentMode: paymentMode,
+                                      createdAt: createdAt,
+                                      subtotal: effectiveGross,
+                                      taxAmount: rawTax,
+                                      discountAmount: effectiveDiscount,
+                                      grandTotal: grandTotal,
+                                      items: itemsList.isNotEmpty
+                                          ? itemsList
+                                          : [
+                                              {
+                                                'name': 'Store Purchase',
+                                                'qty': 1,
+                                                'price': grandTotal,
+                                                'totalPrice': grandTotal,
+                                              }
+                                            ],
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Print preview error: $e'), backgroundColor: Colors.red),
+                                    );
+                                  } finally {
+                                    if (modalCtx.mounted) {
+                                      setModalState(() => isPrintingAction = false);
+                                    }
+                                  }
+                                },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF25D366),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          icon: isSendingWhatsApp
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.send_rounded, size: 20),
+                          label: Text(
+                            isSendingWhatsApp ? (isHindi ? 'भेज रहा है...' : 'Sending...') : 'WhatsApp Share',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: isSendingWhatsApp
+                              ? null
+                              : () async {
+                                  final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+                                  if (cleanPhone.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Please enter a valid customer mobile number to share WhatsApp invoice')),
+                                    );
+                                    return;
+                                  }
+
+                                  setModalState(() => isSendingWhatsApp = true);
+
+                                  final messageText = WhatsAppHelper.formatInvoiceMessage(
+                                    tenantName: themeProvider.tenantName,
+                                    invoiceNo: invoiceNo,
+                                    customerName: customerName,
+                                    paymentMode: paymentMode,
+                                    createdAt: createdAt,
+                                    subtotal: effectiveGross,
+                                    discountAmount: effectiveDiscount,
+                                    taxAmount: rawTax,
+                                    grandTotal: grandTotal,
+                                    items: itemsList.isNotEmpty
+                                        ? itemsList
+                                        : [
+                                            {
+                                              'name': 'Store Purchase',
+                                              'qty': 1,
+                                              'price': grandTotal,
+                                              'totalPrice': grandTotal,
+                                            }
+                                          ],
+                                  );
+
+                                  try {
+                                    final prefs = await SharedPreferences.getInstance();
+                                    final tId = prefs.getInt('tenant_id') ?? 1;
+                                    final token = prefs.getString('auth_token') ?? '';
+
+                                    final response = await http.post(
+                                      Uri.parse('${ApiConfig.baseUrl}/sales/send-whatsapp'),
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+                                      },
+                                      body: jsonEncode({
+                                        'tenantId': tId,
+                                        'phone': cleanPhone,
+                                        'message': messageText,
+                                      }),
+                                    ).timeout(const Duration(seconds: 8));
+
+                                    if (response.statusCode == 200) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('WhatsApp invoice sent successfully to +91 $cleanPhone!'),
+                                            backgroundColor: const Color(0xFF25D366),
+                                          ),
+                                        );
+                                      }
+                                    } else {
+                                      WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
+                                    }
+                                  } catch (_) {
+                                    WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
+                                  } finally {
+                                    if (modalCtx.mounted) {
+                                      setModalState(() => isSendingWhatsApp = false);
+                                    }
+                                  }
+                                },
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(isHindi ? 'बंद करें' : 'Close'),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
-            icon: const Icon(Icons.share_rounded, size: 18),
-            label: Text(isHindi ? 'रसीद प्रिंट / शेयर' : 'Print / Share'),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(isHindi ? 'रसीद तैयार हो गई है!' : 'Digital receipt generated & ready!')),
-              );
-            },
-          ),
-        ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -337,7 +734,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: ListTile(
-                        onTap: () => _showReceiptDialog(sale, isHindi),
+                        onTap: () => _showProfessionalInvoiceModal(sale),
                         leading: CircleAvatar(
                           backgroundColor: mode == 'Udhaar' ? Colors.red.shade100 : Colors.green.shade100,
                           child: Icon(

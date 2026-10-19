@@ -4,7 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
+import '../database/sqlite_helper.dart';
 import '../providers/locale_provider.dart';
+import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../utils/invoice_printer.dart';
 import '../utils/whatsapp_helper.dart';
@@ -91,6 +93,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
 
     final invoiceNo = sale['id']?.toString() ?? 'INV-${DateTime.now().millisecondsSinceEpoch}';
     final customerName = sale['customerName']?.toString() ?? 'Walk-in Customer';
+    final dynamic customerId = sale['customerId'];
     final paymentMode = sale['paymentMode']?.toString() ?? 'Cash';
     final grandTotal = (sale['totalAmount'] as num?)?.toDouble() ?? 0.0;
     final createdAt = sale['createdAt']?.toString() ?? DateTime.now().toString().split('.')[0];
@@ -118,12 +121,69 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
       effectiveGross = grandTotal + effectiveDiscount;
     }
 
-    final phoneCtrl = TextEditingController(text: (sale['customerPhone'] != null && sale['customerPhone'].toString() != '9876543210') ? sale['customerPhone'].toString() : '');
+    final rawPhone = sale['customerPhone'] ?? sale['customerMobile'] ?? sale['phone'] ?? sale['mobile'];
+    final initialPhone = (rawPhone != null && rawPhone.toString().trim() != '9876543210')
+        ? rawPhone.toString().trim()
+        : '';
+
+    final phoneCtrl = TextEditingController(text: initialPhone);
+    bool isPrintingAction = false;
+    bool isSendingWhatsApp = false;
 
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => Dialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (modalCtx, setModalState) {
+          // Asynchronously resolve phone from Customer Master if empty
+          if (phoneCtrl.text.isEmpty && customerName != 'Walk-in Customer') {
+            Future.microtask(() async {
+              try {
+                final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+                final customers = await syncProvider.fetchCustomers();
+                Map<String, dynamic>? matched;
+
+                if (customerId != null) {
+                  matched = customers.firstWhere(
+                    (c) => c['id']?.toString() == customerId.toString(),
+                    orElse: () => {},
+                  );
+                }
+                if ((matched == null || matched.isEmpty) && customerName.isNotEmpty) {
+                  matched = customers.firstWhere(
+                    (c) => (c['name'] ?? '').toString().trim().toLowerCase() == customerName.trim().toLowerCase(),
+                    orElse: () => {},
+                  );
+                }
+
+                if (matched == null || matched.isEmpty) {
+                  final dbCustomers = await SQLiteHelper.instance.getCustomers();
+                  if (customerId != null) {
+                    matched = dbCustomers.firstWhere(
+                      (c) => c['id']?.toString() == customerId.toString(),
+                      orElse: () => {},
+                    );
+                  }
+                  if ((matched == null || matched.isEmpty) && customerName.isNotEmpty) {
+                    matched = dbCustomers.firstWhere(
+                      (c) => (c['name'] ?? '').toString().trim().toLowerCase() == customerName.trim().toLowerCase(),
+                      orElse: () => {},
+                    );
+                  }
+                }
+
+                if (matched != null && matched.isNotEmpty) {
+                  final foundPhone = (matched['phone'] ?? matched['mobile'] ?? '').toString().trim();
+                  if (foundPhone.isNotEmpty && phoneCtrl.text.isEmpty && modalCtx.mounted) {
+                    phoneCtrl.text = foundPhone;
+                    setModalState(() {});
+                  }
+                }
+              } catch (_) {}
+            });
+          }
+
+          return Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Container(
@@ -343,33 +403,67 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Action Buttons: Print A4 & WhatsApp Share
+              // Action Buttons: Print PDF & WhatsApp Share
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
-                      icon: const Icon(Icons.print_rounded, size: 20),
-                      label: Text(isHindi ? 'प्रिंट' : 'Print'),
-                      onPressed: () {
-                        InvoicePrinter.showPrintPreviewModal(
-                          context,
-                          tenantName: themeProvider.tenantName,
-                          appTitle: themeProvider.appTitle,
-                          logoUrl: themeProvider.logoUrl,
-                          supportPhone: themeProvider.supportPhone,
-                          invoiceNo: invoiceNo,
-                          customerName: customerName,
-                          customerPhone: phoneCtrl.text.trim(),
-                          paymentMode: paymentMode,
-                          createdAt: createdAt,
-                          subtotal: effectiveGross,
-                          taxAmount: rawTax,
-                          discountAmount: effectiveDiscount,
-                          grandTotal: grandTotal,
-                          items: itemsList,
-                        );
-                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(color: themeProvider.primaryColor, width: 1.5),
+                      ),
+                      icon: isPrintingAction
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(Icons.print_rounded, size: 20, color: themeProvider.primaryColor),
+                      label: Text(
+                        isPrintingAction ? (isHindi ? 'लोड हो रहा है...' : 'Opening...') : (isHindi ? 'प्रिंट / PDF' : 'Print / PDF'),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
+                      ),
+                      onPressed: isPrintingAction
+                          ? null
+                          : () {
+                              setModalState(() => isPrintingAction = true);
+                              try {
+                                InvoicePrinter.showPrintPreviewModal(
+                                  context,
+                                  tenantName: themeProvider.tenantName,
+                                  appTitle: themeProvider.appTitle,
+                                  logoUrl: themeProvider.logoUrl,
+                                  supportPhone: themeProvider.supportPhone,
+                                  invoiceNo: invoiceNo,
+                                  customerName: customerName,
+                                  customerPhone: phoneCtrl.text.trim(),
+                                  paymentMode: paymentMode,
+                                  createdAt: createdAt,
+                                  subtotal: effectiveGross,
+                                  taxAmount: rawTax,
+                                  discountAmount: effectiveDiscount,
+                                  grandTotal: grandTotal,
+                                  items: itemsList.isNotEmpty
+                                      ? itemsList
+                                      : [
+                                          {
+                                            'name': 'Store Purchase',
+                                            'qty': 1,
+                                            'price': grandTotal,
+                                            'totalPrice': grandTotal,
+                                          }
+                                        ],
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Print preview error: $e'), backgroundColor: Colors.red),
+                                );
+                              } finally {
+                                if (modalCtx.mounted) {
+                                  setModalState(() => isPrintingAction = false);
+                                }
+                              }
+                            },
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -380,64 +474,90 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      icon: const Icon(Icons.send_rounded, size: 20),
-                      label: const Text('WhatsApp Share'),
-                      onPressed: () async {
-                        final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
-                        if (cleanPhone.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please enter a valid customer mobile number to share WhatsApp invoice')),
-                          );
-                          return;
-                        }
+                      icon: isSendingWhatsApp
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.send_rounded, size: 20),
+                      label: Text(
+                        isSendingWhatsApp ? (isHindi ? 'भेज रहा है...' : 'Sending...') : 'WhatsApp Share',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: isSendingWhatsApp
+                          ? null
+                          : () async {
+                              final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+                              if (cleanPhone.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Please enter a valid customer mobile number to share WhatsApp invoice')),
+                                );
+                                return;
+                              }
 
-                        final messageText = WhatsAppHelper.formatInvoiceMessage(
-                          tenantName: themeProvider.tenantName,
-                          invoiceNo: invoiceNo,
-                          customerName: customerName,
-                          paymentMode: paymentMode,
-                          createdAt: createdAt,
-                          subtotal: effectiveGross,
-                          discountAmount: effectiveDiscount,
-                          taxAmount: rawTax,
-                          grandTotal: grandTotal,
-                          items: itemsList,
-                        );
+                              setModalState(() => isSendingWhatsApp = true);
 
-                        try {
-                          final prefs = await SharedPreferences.getInstance();
-                          final tId = prefs.getInt('tenant_id') ?? 1;
-                          final token = prefs.getString('auth_token') ?? '';
-
-                          final headers = <String, String>{'Content-Type': 'application/json'};
-                          if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
-
-                          final response = await http.post(
-                            Uri.parse('${ApiConfig.baseUrl}/sales/send-whatsapp'),
-                            headers: headers,
-                            body: jsonEncode({
-                              'tenantId': tId,
-                              'phone': cleanPhone,
-                              'message': messageText,
-                            }),
-                          ).timeout(const Duration(seconds: 12));
-
-                          if (response.statusCode == 200) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('✅ Cloud Server WhatsApp message sent directly to +91 $cleanPhone!'),
-                                  backgroundColor: const Color(0xFF25D366),
-                                ),
+                              final messageText = WhatsAppHelper.formatInvoiceMessage(
+                                tenantName: themeProvider.tenantName,
+                                invoiceNo: invoiceNo,
+                                customerName: customerName,
+                                paymentMode: paymentMode,
+                                createdAt: createdAt,
+                                subtotal: effectiveGross,
+                                discountAmount: effectiveDiscount,
+                                taxAmount: rawTax,
+                                grandTotal: grandTotal,
+                                items: itemsList.isNotEmpty
+                                    ? itemsList
+                                    : [
+                                        {
+                                          'name': 'Store Purchase',
+                                          'qty': 1,
+                                          'price': grandTotal,
+                                          'totalPrice': grandTotal,
+                                        }
+                                      ],
                               );
-                            }
-                          } else {
-                            WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
-                          }
-                        } catch (_) {
-                          WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
-                        }
-                      },
+
+                              try {
+                                final prefs = await SharedPreferences.getInstance();
+                                final tId = prefs.getInt('tenant_id') ?? 1;
+                                final token = prefs.getString('auth_token') ?? '';
+
+                                final headers = <String, String>{'Content-Type': 'application/json'};
+                                if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
+
+                                final response = await http.post(
+                                  Uri.parse('${ApiConfig.baseUrl}/sales/send-whatsapp'),
+                                  headers: headers,
+                                  body: jsonEncode({
+                                    'tenantId': tId,
+                                    'phone': cleanPhone,
+                                    'message': messageText,
+                                  }),
+                                ).timeout(const Duration(seconds: 12));
+
+                                if (response.statusCode == 200) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('✅ Cloud Server WhatsApp message sent directly to +91 $cleanPhone!'),
+                                        backgroundColor: const Color(0xFF25D366),
+                                      ),
+                                    );
+                                  }
+                                } else {
+                                  WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
+                                }
+                              } catch (_) {
+                                WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
+                              } finally {
+                                if (modalCtx.mounted) {
+                                  setModalState(() => isSendingWhatsApp = false);
+                                }
+                              }
+                            },
                     ),
                   ),
                 ],
@@ -445,8 +565,10 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
             ],
           ),
         ),
-      ),
-    );
+      );
+    },
+  ),
+);
   }
 
   @override

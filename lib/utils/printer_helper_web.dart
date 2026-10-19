@@ -3,7 +3,7 @@ import 'dart:js_interop';
 @JS('printHtml')
 external void _printHtmlJS(JSString content);
 
-void printHtmlWeb(String htmlContent) {
+Future<void> printHtmlWeb(String htmlContent) async {
   try {
     _printHtmlJS(htmlContent.toJS);
   } catch (e) {

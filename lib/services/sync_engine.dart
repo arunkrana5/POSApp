@@ -103,7 +103,7 @@ class SyncEngine {
               await SQLiteHelper.instance.saveCustomer({
                 'id': c['id']?.toString() ?? '0',
                 'name': c['name'] ?? '',
-                'phone': c['phone'] ?? '',
+                'phone': c['phone'] ?? c['mobile'] ?? '',
                 'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
                 'lastTx': c['lastTx'] ?? 'Registered',
               });
