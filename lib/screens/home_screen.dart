@@ -11,6 +11,7 @@ import '../providers/theme_provider.dart';
 import '../providers/notification_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/notification_bell_icon.dart';
+import '../widgets/pos_analytics_charts.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -427,12 +428,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- Chart 1: Sales Revenue Trend Card ---
+  // --- Chart 1: Sales Revenue Trend Card (Interactive Area/Line Chart) ---
   Widget _buildTrendChartCard(bool isHindi, TenantThemeProvider themeProvider) {
-    final double maxDaily = _dailyTrend.isNotEmpty
-        ? _dailyTrend.map<double>((d) => ((d['total'] as num?)?.toDouble() ?? 0.0)).reduce(max)
-        : 1.0;
-    final effectiveMax = maxDaily > 0 ? maxDaily : 1.0;
+    final points = _dailyTrend.map((d) {
+      final date = d['date']?.toString() ?? '';
+      final day = d['day']?.toString() ?? (date.length >= 5 ? date.substring(5) : date);
+      final total = ((d['total'] as num?)?.toDouble() ?? 0.0);
+      final count = (d['count'] as num?)?.toInt() ?? 0;
+      return TrendDataPoint(date: date, day: day, total: total, count: count);
+    }).toList();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -467,89 +471,30 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
-
-          if (_dailyTrend.isEmpty)
-            SizedBox(
-              height: 140,
-              child: Center(
-                child: Text(
-                  isHindi ? 'इस अवधि में कोई बिक्री रिकॉर्ड नहीं है' : 'No sales activity recorded in this period',
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
-                ),
-              ),
-            )
-          else
-            SizedBox(
-              height: 140,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: _dailyTrend.map((d) {
-                  final day = d['day']?.toString() ?? d['date']?.toString().substring(5) ?? '';
-                  final total = ((d['total'] as num?)?.toDouble() ?? 0.0);
-                  final count = d['count'] ?? 1;
-                  final ratio = (total / effectiveMax).clamp(0.08, 1.0);
-                  final kStr = total >= 1000 ? '${(total / 1000).toStringAsFixed(1)}k' : total.toStringAsFixed(0);
-
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 3),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            total > 0 ? '₹$kStr' : '',
-                            style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 3),
-                          Tooltip(
-                            message: '$day: ₹${total.toStringAsFixed(2)} ($count bills)',
-                            child: Container(
-                              height: 95 * ratio,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [
-                                    themeProvider.primaryColor,
-                                    themeProvider.primaryColor.withOpacity(0.5),
-                                  ],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            day,
-                            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
+          const SizedBox(height: 10),
+          InteractiveAreaLineChart(
+            points: points,
+            primaryColor: themeProvider.primaryColor,
+            height: 200,
+          ),
         ],
       ),
     );
   }
 
-  // --- Chart 2: Payment Collection Split Card ---
+  // --- Chart 2: Payment Collection Split Card (Interactive Donut Chart) ---
   Widget _buildPaymentSplitCard(bool isHindi, TenantThemeProvider themeProvider) {
     final double totalSplit = _cashSales + _upiSales + _udhaarSales;
-    final double effectiveTotal = totalSplit > 0 ? totalSplit : (_totalRevenue > 0 ? _totalRevenue : 1.0);
+    final double effectiveTotal = totalSplit > 0 ? totalSplit : (_totalRevenue > 0 ? _totalRevenue : 0.0);
 
-    final cashRatio = (_cashSales / effectiveTotal).clamp(0.0, 1.0);
-    final upiRatio = (_upiSales / effectiveTotal).clamp(0.0, 1.0);
-    final udhaarRatio = (_udhaarSales / effectiveTotal).clamp(0.0, 1.0);
-
-    final cashPct = (cashRatio * 100).toStringAsFixed(0);
-    final upiPct = (upiRatio * 100).toStringAsFixed(0);
-    final udhaarPct = (udhaarRatio * 100).toStringAsFixed(0);
+    final slices = [
+      if (_cashSales > 0 || (effectiveTotal == 0 && _cashSales == 0 && _upiSales == 0 && _udhaarSales == 0))
+        DonutSlice(label: 'Cash', value: _cashSales, color: const Color(0xFF10B981)),
+      if (_upiSales > 0)
+        DonutSlice(label: 'UPI', value: _upiSales, color: const Color(0xFF3B82F6)),
+      if (_udhaarSales > 0)
+        DonutSlice(label: 'Udhaar', value: _udhaarSales, color: const Color(0xFFEF4444)),
+    ];
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -566,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.pie_chart_rounded, size: 18, color: const Color(0xFF10B981)),
+                  const Icon(Icons.pie_chart_rounded, size: 18, color: Color(0xFF10B981)),
                   const SizedBox(width: 6),
                   Text(
                     isHindi ? 'भुगतान माध्यम विभाजन' : 'Payment Mode Split',
@@ -580,79 +525,24 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
-
-          // Multi-segmented bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: SizedBox(
-              height: 12,
-              child: Row(
-                children: [
-                  if (cashRatio > 0)
-                    Expanded(
-                      flex: (cashRatio * 100).toInt(),
-                      child: Container(color: const Color(0xFF10B981)),
-                    ),
-                  if (upiRatio > 0)
-                    Expanded(
-                      flex: (upiRatio * 100).toInt(),
-                      child: Container(color: const Color(0xFF3B82F6)),
-                    ),
-                  if (udhaarRatio > 0)
-                    Expanded(
-                      flex: (udhaarRatio * 100).toInt(),
-                      child: Container(color: const Color(0xFFEF4444)),
-                    ),
-                  if (totalSplit <= 0)
-                    Expanded(
-                      flex: 100,
-                      child: Container(color: Colors.grey.shade200),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          // Legend Chips
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildLegendPill('Cash', '₹ ${_cashSales.toStringAsFixed(0)}', '$cashPct%', const Color(0xFF10B981)),
-              _buildLegendPill('UPI', '₹ ${_upiSales.toStringAsFixed(0)}', '$upiPct%', const Color(0xFF3B82F6)),
-              _buildLegendPill('Udhaar', '₹ ${_udhaarSales.toStringAsFixed(0)}', '$udhaarPct%', const Color(0xFFEF4444)),
-            ],
+          const SizedBox(height: 12),
+          InteractiveDonutChart(
+            slices: slices,
+            size: 165,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLegendPill(String label, String amt, String pct, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-            const SizedBox(width: 4),
-            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600)),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Text('$amt ($pct)', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: color)),
-      ],
-    );
-  }
-
-  // --- Chart 3: Top Selling Fast Movers (Ranked Horizontal Bars) ---
+  // --- Chart 3: Top Selling Fast Movers (Interactive Ranked Horizontal Bars) ---
   Widget _buildTopSellingCard(bool isHindi, TenantThemeProvider themeProvider) {
-    final double maxRevenue = _topSellingProducts.isNotEmpty
-        ? (_topSellingProducts.map<double>((p) => ((p['revenue'] as num?)?.toDouble() ?? 0.0)).reduce(max))
-        : 1.0;
-    final effectiveMax = maxRevenue > 0 ? maxRevenue : 1.0;
+    final rankedItems = _topSellingProducts.map((p) {
+      final name = p['name']?.toString() ?? 'Item';
+      final qty = (p['quantity'] as num?)?.toInt() ?? 0;
+      final revenue = ((p['revenue'] as num?)?.toDouble() ?? 0.0);
+      return RankedItemData(name: name, quantity: qty, revenue: revenue);
+    }).toList();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -688,101 +578,23 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           const SizedBox(height: 12),
-
-          if (_topSellingProducts.isEmpty)
-            SizedBox(
-              height: 120,
-              child: Center(
-                child: Text(
-                  isHindi ? 'कोई उत्पाद बिक्री नहीं' : 'No items sold in this period',
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
-                ),
-              ),
-            )
-          else
-            Column(
-              children: _topSellingProducts.take(4).toList().asMap().entries.map((entry) {
-                final index = entry.key;
-                final prod = entry.value;
-                final name = prod['name']?.toString() ?? 'Item';
-                final qty = prod['quantity'] ?? 0;
-                final revenue = ((prod['revenue'] as num?)?.toDouble() ?? 0.0);
-                final ratio = (revenue / effectiveMax).clamp(0.06, 1.0);
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: index == 0 ? Colors.amber.shade100 : Colors.grey.shade100,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                '#${index + 1}',
-                                style: TextStyle(
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: index == 0 ? Colors.amber.shade900 : Colors.grey.shade700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              name,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(
-                            '$qty sold',
-                            style: TextStyle(fontSize: 9.5, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '₹ ${revenue.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 11.5,
-                              color: themeProvider.primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(3),
-                        child: LinearProgressIndicator(
-                          value: ratio,
-                          backgroundColor: Colors.grey.shade100,
-                          color: index == 0 ? Colors.amber.shade600 : themeProvider.primaryColor,
-                          minHeight: 5,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
+          InteractiveRankedBarList(
+            items: rankedItems,
+            primaryColor: Colors.amber.shade700,
+          ),
         ],
       ),
     );
   }
 
-  // --- Chart 4: Category Inventory Stock Valuation ---
+  // --- Chart 4: Category Inventory Stock Valuation (Interactive Vertical Bar Chart) ---
   Widget _buildCategoryValuationCard(bool isHindi, TenantThemeProvider themeProvider) {
-    final double maxVal = _categorySummary.isNotEmpty
-        ? (_categorySummary.map<double>((c) => ((c['totalValue'] as num?)?.toDouble() ?? 0.0)).reduce(max))
-        : 1.0;
-    final effectiveMax = maxVal > 0 ? maxVal : 1.0;
+    final categoryData = _categorySummary.map((c) {
+      final cat = c['category']?.toString() ?? 'General';
+      final val = ((c['totalValue'] as num?)?.toDouble() ?? 0.0);
+      final count = (c['productCount'] as num?)?.toInt() ?? 0;
+      return CategoryBarData(category: cat, value: val, count: count);
+    }).toList();
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -799,7 +611,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.inventory_2_rounded, size: 18, color: const Color(0xFF0D9488)),
+                  const Icon(Icons.inventory_2_rounded, size: 18, color: Color(0xFF0D9488)),
                   const SizedBox(width: 6),
                   Text(
                     isHindi ? 'श्रेणी अनुसार स्टॉक मूल्यांकन' : 'Category Stock Valuation',
@@ -817,62 +629,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-
-          if (_categorySummary.isEmpty)
-            SizedBox(
-              height: 120,
-              child: Center(
-                child: Text(
-                  isHindi ? 'कोई श्रेणी स्टॉक उपलब्ध नहीं' : 'No category stock holding recorded',
-                  style: const TextStyle(color: Colors.grey, fontSize: 11),
-                ),
-              ),
-            )
-          else
-            Column(
-              children: _categorySummary.take(4).map((cat) {
-                final name = cat['category']?.toString() ?? 'General';
-                final totalVal = ((cat['totalValue'] as num?)?.toDouble() ?? 0.0);
-                final skus = cat['productCount'] ?? 0;
-                final ratio = (totalVal / effectiveMax).clamp(0.06, 1.0);
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5)),
-                              const SizedBox(width: 6),
-                              Text('($skus SKUs)', style: TextStyle(fontSize: 9.5, color: Colors.grey.shade600)),
-                            ],
-                          ),
-                          Text(
-                            '₹ ${totalVal.toStringAsFixed(0)}',
-                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5, color: Color(0xFF0D9488)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(3),
-                        child: LinearProgressIndicator(
-                          value: ratio,
-                          backgroundColor: Colors.grey.shade100,
-                          color: const Color(0xFF14B8A6),
-                          minHeight: 5,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
+          const SizedBox(height: 10),
+          InteractiveCategoryBarChart(
+            data: categoryData,
+            height: 190,
+            barColor: const Color(0xFF0D9488),
+          ),
         ],
       ),
     );
