@@ -13,6 +13,7 @@ import '../database/sqlite_helper.dart';
 import '../widgets/app_drawer.dart';
 import '../utils/toast_helper.dart';
 import '../providers/master_provider.dart';
+import '../widgets/paginated_server_dropdown.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -79,22 +80,10 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _loadCustomers() async {
     try {
-      final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-      final fetchedCustomers = await syncProvider.fetchCustomers();
-
-      final List<Map<String, dynamic>> customersToProcess = [];
-      if (fetchedCustomers.isNotEmpty) {
-        customersToProcess.addAll(fetchedCustomers);
-      } else {
-        final dbCustomers = await SQLiteHelper.instance.getCustomers();
-        if (dbCustomers.isNotEmpty) {
-          customersToProcess.addAll(dbCustomers);
-        }
-      }
-
-      if (customersToProcess.isNotEmpty) {
+      final dbCustomers = await SQLiteHelper.instance.getCustomers();
+      if (dbCustomers.isNotEmpty && mounted) {
         setState(() {
-          for (var c in customersToProcess) {
+          for (var c in dbCustomers) {
             final n = c['name']?.toString() ?? '';
             final p = (c['phone'] ?? c['mobile'] ?? '').toString();
             final id = c['id'];
@@ -1255,11 +1244,6 @@ class _PosScreenState extends State<PosScreen> {
             (p['rackNumber'] != null && p['rackNumber'].toString().toLowerCase().contains(_searchQuery.toLowerCase())))
         .toList();
 
-    if (!_customerList.contains(_selectedCustomer)) {
-      _customerList.add(_selectedCustomer);
-    }
-    final uniqueCustomers = _customerList.toSet().toList();
-
     final taxAmount = themeProvider.enableTaxCalculation
         ? _subtotal * (themeProvider.defaultTaxPercent / 100.0)
         : 0.0;
@@ -1311,52 +1295,27 @@ class _PosScreenState extends State<PosScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: uniqueCustomers.contains(_selectedCustomer) ? _selectedCustomer : uniqueCustomers.first,
-                            decoration: InputDecoration(
-                              labelText: isHindi ? 'ग्राहक चुनें' : 'Select Customer',
-                              prefixIcon: const Icon(Icons.person_rounded, size: 20),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            items: uniqueCustomers
-                                .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 14))))
-                                .toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _selectedCustomer = val;
-                                  if (val == 'Walk-in Customer') {
-                                    _customerPhoneController.text = '';
-                                  } else {
-                                    _customerPhoneController.text = _customerPhoneMap[val] ?? '';
-                                  }
-                                });
-
-                                if (val != 'Walk-in Customer' && _customerPhoneController.text.isEmpty) {
-                                  final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-                                  syncProvider.fetchCustomers().then((custs) async {
-                                    var matched = custs.firstWhere(
-                                      (c) => (c['name'] ?? '').toString().trim().toLowerCase() == val.trim().toLowerCase(),
-                                      orElse: () => {},
-                                    );
-                                    if (matched.isEmpty) {
-                                      final dbCusts = await SQLiteHelper.instance.getCustomers();
-                                      matched = dbCusts.firstWhere(
-                                        (c) => (c['name'] ?? '').toString().trim().toLowerCase() == val.trim().toLowerCase(),
-                                        orElse: () => {},
-                                      );
-                                    }
-                                    final p = (matched['phone'] ?? matched['mobile'] ?? '').toString().trim();
-                                    if (p.isNotEmpty && _selectedCustomer == val && mounted) {
-                                      setState(() {
-                                        _customerPhoneController.text = p;
-                                        _customerPhoneMap[val] = p;
-                                      });
-                                    }
-                                  }).catchError((_) {});
+                          child: PaginatedServerDropdown.customers(
+                            label: isHindi ? 'ग्राहक' : 'Customer',
+                            hint: isHindi ? 'ग्राहक चुनें' : 'Select Customer',
+                            selectedId: _customerIdMap[_selectedCustomer],
+                            selectedTitle: _selectedCustomer,
+                            includeWalkIn: true,
+                            allowClear: true,
+                            prefixIcon: const Icon(Icons.person_rounded, size: 20),
+                            onChanged: (cust, id, title) {
+                              setState(() {
+                                if (title == null || title.isEmpty || id == null || id == 0 || title == 'Walk-in Customer') {
+                                  _selectedCustomer = 'Walk-in Customer';
+                                  _customerPhoneController.text = '';
+                                } else {
+                                  _selectedCustomer = title;
+                                  final phone = (cust?['phone'] ?? cust?['mobile'] ?? '').toString();
+                                  _customerPhoneController.text = phone;
+                                  _customerIdMap[title] = id;
+                                  _customerPhoneMap[title] = phone;
                                 }
-                              }
+                              });
                             },
                           ),
                         ),

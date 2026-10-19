@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -6,7 +7,6 @@ import 'package:provider/provider.dart';
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
-import '../providers/master_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/master_dropdown.dart';
@@ -26,13 +26,22 @@ class _ItemsScreenState extends State<ItemsScreen> {
   final List<String> _dynamicItemTypes = ['Packed Goods', 'Loose Goods', 'Service / Custom'];
   final List<String> _dynamicBrands = ['General / Local', 'Amul', 'Tata Consumer', 'Nestle'];
 
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  final int _pageSize = 25;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  int _totalCount = 0;
+  Timer? _debounceTimer;
+
   String _searchQuery = '';
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchItems();
+    _scrollController.addListener(_onScroll);
+    _fetchItems(reset: true);
     if (widget.autoOpenAddModal) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -43,8 +52,31 @@ class _ItemsScreenState extends State<ItemsScreen> {
     }
   }
 
-  Future<void> _fetchItems() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoading && !_isLoadingMore && _hasMore) {
+        _fetchItems(reset: false);
+      }
+    }
+  }
+
+  Future<void> _fetchItems({bool reset = false}) async {
+    if (reset) {
+      _currentPage = 1;
+      _hasMore = true;
+      if (mounted) setState(() => _isLoading = true);
+    } else {
+      if (!_hasMore || _isLoadingMore) return;
+      if (mounted) setState(() => _isLoadingMore = true);
+    }
+
     try {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       final token = auth.accessToken ?? '';
@@ -58,66 +90,99 @@ class _ItemsScreenState extends State<ItemsScreen> {
         if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
       };
 
-      // Fetch dynamic master dropdowns
-      try {
-        final dropRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/masters/all-dropdowns'), headers: headers).timeout(const Duration(seconds: 4));
-        if (dropRes.statusCode == 200) {
-          final dropData = jsonDecode(dropRes.body);
-          if (dropData is Map<String, dynamic>) {
-            final catList = (dropData['categories'] as List?)?.map((c) => (c['name'] ?? c['categoryName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
-            final uomList = (dropData['uoms'] as List?)?.map((u) => (u['symbol'] ?? u['name'] ?? u['uomName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
-            final typeList = (dropData['itemTypes'] as List?)?.map((t) => (t['name'] ?? t['itemTypeName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
-            final brandList = (dropData['brands'] as List?)?.map((b) => (b['name'] ?? b['brandName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+      // Fetch dynamic master dropdowns on reset
+      if (reset) {
+        try {
+          final dropRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/masters/all-dropdowns'), headers: headers).timeout(const Duration(seconds: 4));
+          if (dropRes.statusCode == 200) {
+            final dropData = jsonDecode(dropRes.body);
+            if (dropData is Map<String, dynamic>) {
+              final catList = (dropData['categories'] as List?)?.map((c) => (c['name'] ?? c['categoryName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+              final uomList = (dropData['uoms'] as List?)?.map((u) => (u['symbol'] ?? u['name'] ?? u['uomName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+              final typeList = (dropData['itemTypes'] as List?)?.map((t) => (t['name'] ?? t['itemTypeName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
+              final brandList = (dropData['brands'] as List?)?.map((b) => (b['name'] ?? b['brandName'] ?? '').toString()).where((s) => s.isNotEmpty).toList() ?? [];
 
-            if (catList.isNotEmpty) {
-              _dynamicCategories.clear();
-              _dynamicCategories.addAll(catList);
-            }
-            if (uomList.isNotEmpty) {
-              _dynamicUoms.clear();
-              _dynamicUoms.addAll(uomList);
-            }
-            if (typeList.isNotEmpty) {
-              _dynamicItemTypes.clear();
-              _dynamicItemTypes.addAll(typeList);
-            }
-            if (brandList.isNotEmpty) {
-              _dynamicBrands.clear();
-              _dynamicBrands.addAll(brandList);
+              if (catList.isNotEmpty) {
+                _dynamicCategories.clear();
+                _dynamicCategories.addAll(catList);
+              }
+              if (uomList.isNotEmpty) {
+                _dynamicUoms.clear();
+                _dynamicUoms.addAll(uomList);
+              }
+              if (typeList.isNotEmpty) {
+                _dynamicItemTypes.clear();
+                _dynamicItemTypes.addAll(typeList);
+              }
+              if (brandList.isNotEmpty) {
+                _dynamicBrands.clear();
+                _dynamicBrands.addAll(brandList);
+              }
             }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
+      }
 
-      final qStr = tenantId > 0 ? '?tenantId=$tenantId' : '';
-      final url = Uri.parse('${ApiConfig.baseUrl}/Items$qStr');
+      final queryParams = <String, String>{
+        'page': _currentPage.toString(),
+        'pageSize': _pageSize.toString(),
+        'paged': 'true',
+      };
+      if (tenantId > 0) queryParams['tenantId'] = tenantId.toString();
+      if (tenantCode.isNotEmpty) queryParams['tenantCode'] = tenantCode;
+      if (_searchQuery.trim().isNotEmpty) queryParams['search'] = _searchQuery.trim();
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/Items').replace(queryParameters: queryParams);
       final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 10));
       if (res.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(res.body);
-        _masterItems.clear();
-        if (data.isNotEmpty) {
+        final dynamic raw = jsonDecode(res.body);
+        final List<dynamic> data = raw is List ? raw : (raw['items'] as List? ?? []);
+        final int total = raw is Map && raw['totalCount'] != null ? raw['totalCount'] as int : (_masterItems.length + data.length);
+        final bool serverHasMore = raw is Map && raw['hasMore'] != null ? raw['hasMore'] as bool : (data.length >= _pageSize);
+
+        final List<Map<String, dynamic>> newItems = [];
+        for (var item in data) {
+          newItems.add({
+            'id': (item['id'] ?? item['ID'] ?? '').toString(),
+            'itemCode': item['itemCode'] ?? item['ItemCode'] ?? '',
+            'name': item['name'] ?? item['Name'] ?? '',
+            'category': item['category'] ?? item['Category'] ?? 'Groceries',
+            'categoryId': item['categoryId'] ?? item['CategoryId'],
+            'uom': item['unit'] ?? item['Unit'] ?? 'pcs',
+            'unitId': item['unitId'] ?? item['UnitId'],
+            'format': item['format'] ?? item['Format'] ?? 'Packed',
+            'itemTypeId': item['itemTypeId'] ?? item['ItemTypeId'],
+            'brand': item['brand'] ?? item['Brand'] ?? '',
+            'brandId': item['brandId'] ?? item['BrandId'],
+            'description': item['description'] ?? item['Description'] ?? '',
+          });
+        }
+
+        if (mounted) {
           setState(() {
-            for (var item in data) {
-              _masterItems.add({
-                'id': (item['id'] ?? item['ID'] ?? '').toString(),
-                'itemCode': item['itemCode'] ?? item['ItemCode'] ?? '',
-                'name': item['name'] ?? item['Name'] ?? '',
-                'category': item['category'] ?? item['Category'] ?? 'Groceries',
-                'categoryId': item['categoryId'] ?? item['CategoryId'],
-                'uom': item['unit'] ?? item['Unit'] ?? 'pcs',
-                'unitId': item['unitId'] ?? item['UnitId'],
-                'format': item['format'] ?? item['Format'] ?? 'Packed',
-                'itemTypeId': item['itemTypeId'] ?? item['ItemTypeId'],
-                'brand': item['brand'] ?? item['Brand'] ?? '',
-                'brandId': item['brandId'] ?? item['BrandId'],
-                'description': item['description'] ?? item['Description'] ?? '',
-              });
+            if (reset) {
+              _masterItems.clear();
             }
+            final existingIds = _masterItems.map((i) => i['id']).toSet();
+            for (var item in newItems) {
+              if (!existingIds.contains(item['id'])) {
+                _masterItems.add(item);
+                existingIds.add(item['id']);
+              }
+            }
+            _totalCount = total;
+            _hasMore = serverHasMore;
+            _currentPage++;
           });
         }
       }
     } catch (_) {}
-    if (mounted) setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+      });
+    }
   }
 
   @override
@@ -125,25 +190,20 @@ class _ItemsScreenState extends State<ItemsScreen> {
     final isHindi = Provider.of<LocaleProvider>(context).isHindi;
     final themeProvider = Provider.of<TenantThemeProvider>(context);
 
-    final filteredMaster = _masterItems
-        .where((item) =>
-            item['name'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            item['itemCode'].toString().toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            (item['category'] != null && item['category'].toString().toLowerCase().contains(_searchQuery.toLowerCase())))
-        .toList();
+    final displayList = _masterItems;
 
     return Scaffold(
       backgroundColor: themeProvider.pageBgColor,
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(
-          isHindi ? 'सामान' : 'Items',
+          isHindi ? 'सामान ($_totalCount)' : 'Items ($_totalCount)',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: _fetchItems,
+            onPressed: () => _fetchItems(reset: true),
           ),
         ],
       ),
@@ -171,7 +231,13 @@ class _ItemsScreenState extends State<ItemsScreen> {
                         borderSide: BorderSide(color: Colors.grey.shade300),
                       ),
                     ),
-                    onChanged: (val) => setState(() => _searchQuery = val),
+                    onChanged: (val) {
+                      _searchQuery = val;
+                      _debounceTimer?.cancel();
+                      _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+                        _fetchItems(reset: true);
+                      });
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -279,25 +345,55 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   );
                 }
 
-                if (isDesktop) {
-                  return GridView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      mainAxisExtent: 96,
+                if (displayList.isEmpty && !_isLoading) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Text(
+                        isHindi ? 'कोई आइटम नहीं मिला' : 'No items found matching query',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                      ),
                     ),
-                    itemCount: filteredMaster.length,
-                    itemBuilder: (ctx, index) => buildItemCard(filteredMaster[index]),
                   );
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  itemCount: filteredMaster.length,
-                  separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                  itemBuilder: (ctx, index) => buildItemCard(filteredMaster[index]),
+                if (isDesktop) {
+                  return RefreshIndicator(
+                    onRefresh: () => _fetchItems(reset: true),
+                    child: GridView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: 96,
+                      ),
+                      itemCount: displayList.length + (_isLoadingMore ? 1 : 0),
+                      itemBuilder: (ctx, index) {
+                        if (index == displayList.length) {
+                          return const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator(strokeWidth: 2)));
+                        }
+                        return buildItemCard(displayList[index]);
+                      },
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () => _fetchItems(reset: true),
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    itemCount: displayList.length + (_isLoadingMore ? 1 : 0),
+                    separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                    itemBuilder: (ctx, index) {
+                      if (index == displayList.length) {
+                        return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)));
+                      }
+                      return buildItemCard(displayList[index]);
+                    },
+                  ),
                 );
               },
             ),

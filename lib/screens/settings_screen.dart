@@ -62,7 +62,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final auth = Provider.of<AuthProvider>(context);
     final localeProvider = Provider.of<LocaleProvider>(context);
     final isHindi = localeProvider.isHindi;
-    final syncProvider = Provider.of<SyncProvider>(context);
     final themeProvider = Provider.of<TenantThemeProvider>(context);
 
     final tenantName = (auth.tenantName != null && auth.tenantName!.isNotEmpty)

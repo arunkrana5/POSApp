@@ -69,58 +69,88 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final baseUrl = ApiConfig.baseUrl.isNotEmpty ? ApiConfig.baseUrl : 'https://villageshop-api.onrender.com/api';
 
-      double salesSum = 0.0;
-      List<Map<String, dynamic>> salesList = [];
-
-      // Fetch Sales Independently
+      // Try fast server-side SQL aggregate metrics endpoint
+      bool aggregateFetched = false;
       try {
-        final resSales = await http.get(Uri.parse('$baseUrl/sales$qStr'), headers: headers).timeout(const Duration(seconds: 10));
-        if (resSales.statusCode == 200) {
-          final List<dynamic> sData = jsonDecode(resSales.body);
-          salesList = sData.map((s) => Map<String, dynamic>.from(s)).toList();
-          for (var s in salesList) {
-            salesSum += (s['totalAmount'] as num?)?.toDouble() ?? 0.0;
+        final resMetrics = await http.get(Uri.parse('$baseUrl/reports/dashboard-metrics$qStr'), headers: headers).timeout(const Duration(seconds: 5));
+        if (resMetrics.statusCode == 200) {
+          final mData = jsonDecode(resMetrics.body);
+          if (mData is Map<String, dynamic>) {
+            final tRevenue = (mData['todayRevenue'] as num?)?.toDouble() ?? (mData['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+            final tUdhaar = (mData['totalUdhaar'] as num?)?.toDouble() ?? 0.0;
+            final lStock = (mData['lowStockCount'] as num?)?.toInt() ?? 0;
+            final rSales = List<Map<String, dynamic>>.from(mData['recentSales'] ?? []);
+
+            if (mounted) {
+              setState(() {
+                _todaySales = tRevenue;
+                _totalUdhaar = tUdhaar;
+                _lowStockCount = lStock;
+                _todayProfit = tRevenue * 0.15;
+                _recentTransactions = rSales;
+              });
+            }
+            aggregateFetched = true;
           }
         }
       } catch (_) {}
 
-      // Fetch Customers / Udhaar Independently
-      double udhaarSum = 0.0;
-      try {
-        final resCust = await http.get(Uri.parse('$baseUrl/customers$qStr'), headers: headers).timeout(const Duration(seconds: 10));
-        if (resCust.statusCode == 200) {
-          final List<dynamic> cData = jsonDecode(resCust.body);
-          for (var c in cData) {
-            udhaarSum += (c['udhaar'] as num?)?.toDouble() ?? 0.0;
-          }
-        }
-      } catch (_) {}
+      if (!aggregateFetched) {
+        // Fallback to individual endpoints if aggregate endpoint is unreachable
+        double salesSum = 0.0;
+        List<Map<String, dynamic>> salesList = [];
 
-      // Fetch Products / Low Stock Count Independently
-      int lowStock = 0;
-      try {
-        final resProd = await http.get(Uri.parse('$baseUrl/products$qStr'), headers: headers).timeout(const Duration(seconds: 10));
-        if (resProd.statusCode == 200) {
-          final List<dynamic> pData = jsonDecode(resProd.body);
-          for (var p in pData) {
-            final stock = (p['currentStock'] as num?)?.toInt() ?? 0;
-            final minStock = (p['minimumStock'] as num?)?.toInt() ?? 5;
-            if (stock <= minStock) lowStock++;
+        try {
+          final resSales = await http.get(Uri.parse('$baseUrl/sales$qStr'), headers: headers).timeout(const Duration(seconds: 8));
+          if (resSales.statusCode == 200) {
+            final dynamic raw = jsonDecode(resSales.body);
+            final List<dynamic> sData = raw is List ? raw : (raw['items'] as List? ?? []);
+            salesList = sData.map((s) => Map<String, dynamic>.from(s)).toList();
+            for (var s in salesList) {
+              salesSum += (s['totalAmount'] as num?)?.toDouble() ?? 0.0;
+            }
           }
-        }
-      } catch (_) {}
+        } catch (_) {}
 
-      if (mounted) {
-        setState(() {
-          _todaySales = salesSum;
-          _totalUdhaar = udhaarSum;
-          _lowStockCount = lowStock;
-          _todayProfit = salesSum * 0.15; // 15% estimated profit margin
-          _recentTransactions = salesList.take(6).toList();
-          _salesList = salesList;
-        });
+        double udhaarSum = 0.0;
+        try {
+          final resCust = await http.get(Uri.parse('$baseUrl/customers$qStr'), headers: headers).timeout(const Duration(seconds: 8));
+          if (resCust.statusCode == 200) {
+            final dynamic raw = jsonDecode(resCust.body);
+            final List<dynamic> cData = raw is List ? raw : (raw['items'] as List? ?? []);
+            for (var c in cData) {
+              udhaarSum += (c['udhaar'] as num?)?.toDouble() ?? 0.0;
+            }
+          }
+        } catch (_) {}
+
+        int lowStock = 0;
+        try {
+          final resProd = await http.get(Uri.parse('$baseUrl/Stock$qStr'), headers: headers).timeout(const Duration(seconds: 8));
+          if (resProd.statusCode == 200) {
+            final dynamic raw = jsonDecode(resProd.body);
+            final List<dynamic> pData = raw is List ? raw : (raw['items'] as List? ?? []);
+            for (var p in pData) {
+              final stock = (p['currentStock'] as num?)?.toInt() ?? 0;
+              final minStock = (p['minimumStock'] as num?)?.toInt() ?? 5;
+              if (stock <= minStock) lowStock++;
+            }
+          }
+        } catch (_) {}
+
+        if (mounted) {
+          setState(() {
+            _todaySales = salesSum;
+            _totalUdhaar = udhaarSum;
+            _lowStockCount = lowStock;
+            _todayProfit = salesSum * 0.15;
+            _recentTransactions = salesList.take(6).toList();
+            _salesList = salesList;
+          });
+        }
       }
     } catch (_) {}
+
     if (mounted) {
       setState(() => _isLoadingMetrics = false);
     }
@@ -134,8 +164,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final themeProvider = Provider.of<TenantThemeProvider>(context);
 
     final isHindi = localeProvider.isHindi;
-    final tenantName = authProvider.tenantName;
-    final username = authProvider.username;
 
     return Scaffold(
       backgroundColor: themeProvider.pageBgColor,

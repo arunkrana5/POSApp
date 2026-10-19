@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -22,8 +23,16 @@ class SalesHistoryScreen extends StatefulWidget {
 
 class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   bool _isLoading = false;
-  List<Map<String, dynamic>> _salesList = [];
+  final List<Map<String, dynamic>> _salesList = [];
   String _searchQuery = '';
+
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  final int _pageSize = 25;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  int _totalCount = 0;
+  Timer? _debounceTimer;
 
   double _totalRevenue = 0.0;
   double _cashRevenue = 0.0;
@@ -32,11 +41,35 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchSalesHistory();
+    _scrollController.addListener(_onScroll);
+    _fetchSalesHistory(reset: true);
   }
 
-  Future<void> _fetchSalesHistory() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoading && !_isLoadingMore && _hasMore) {
+        _fetchSalesHistory(reset: false);
+      }
+    }
+  }
+
+  Future<void> _fetchSalesHistory({bool reset = false}) async {
+    if (reset) {
+      _currentPage = 1;
+      _hasMore = true;
+      if (mounted) setState(() => _isLoading = true);
+    } else {
+      if (!_hasMore || _isLoadingMore) return;
+      if (mounted) setState(() => _isLoadingMore = true);
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final tId = prefs.getInt('tenant_id');
@@ -48,42 +81,71 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
       if (tId != null && tId > 0) headers['X-Tenant-Id'] = tId.toString();
       if (tCode != null && tCode.isNotEmpty) headers['X-Tenant-Code'] = tCode;
 
-      final queryParams = <String>[];
-      if (tId != null && tId > 0) queryParams.add('tenantId=$tId');
-      if (tCode != null && tCode.isNotEmpty) queryParams.add('tenantCode=$tCode');
-      final qStr = queryParams.isNotEmpty ? '?${queryParams.join('&')}' : '';
+      // Fetch aggregated revenue statistics from backend reports on reset
+      if (reset) {
+        try {
+          final qParams = <String>[];
+          if (tId != null && tId > 0) qParams.add('tenantId=$tId');
+          if (tCode != null && tCode.isNotEmpty) qParams.add('tenantCode=$tCode');
+          final qMetric = qParams.isNotEmpty ? '?${qParams.join('&')}' : '';
+          final mRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/reports/dashboard-metrics$qMetric'), headers: headers).timeout(const Duration(seconds: 5));
+          if (mRes.statusCode == 200) {
+            final mData = jsonDecode(mRes.body);
+            if (mData is Map<String, dynamic>) {
+              final cSale = (mData['cashSales'] as num?)?.toDouble() ?? 0.0;
+              final uSale = (mData['upiSales'] as num?)?.toDouble() ?? 0.0;
+              final udSale = (mData['udhaarSales'] as num?)?.toDouble() ?? 0.0;
+              _totalRevenue = cSale + uSale + udSale;
+              _cashRevenue = cSale;
+              _udhaarRevenue = udSale;
+            }
+          }
+        } catch (_) {}
+      }
 
-      final res = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/sales$qStr'),
-        headers: headers,
-      ).timeout(const Duration(seconds: 15));
+      final queryParams = <String, String>{
+        'page': _currentPage.toString(),
+        'pageSize': _pageSize.toString(),
+        'paged': 'true',
+      };
+      if (tId != null && tId > 0) queryParams['tenantId'] = tId.toString();
+      if (tCode != null && tCode.isNotEmpty) queryParams['tenantCode'] = tCode;
+      if (_searchQuery.trim().isNotEmpty) queryParams['search'] = _searchQuery.trim();
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/sales').replace(queryParameters: queryParams);
+      final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 15));
 
       if (res.statusCode == 200) {
-        final List<dynamic> jsonList = jsonDecode(res.body);
+        final dynamic raw = jsonDecode(res.body);
+        final List<dynamic> jsonList = raw is List ? raw : (raw['items'] as List? ?? []);
+        final int total = raw is Map && raw['totalCount'] != null ? raw['totalCount'] as int : (_salesList.length + jsonList.length);
+        final bool serverHasMore = raw is Map && raw['hasMore'] != null ? raw['hasMore'] as bool : (jsonList.length >= _pageSize);
+
         final List<Map<String, dynamic>> loadedSales = jsonList.map((j) => Map<String, dynamic>.from(j)).toList();
 
-        double totalRev = 0.0;
-        double cashRev = 0.0;
-        double udhaarRev = 0.0;
-
-        for (var s in loadedSales) {
-          final amt = (s['totalAmount'] as num?)?.toDouble() ?? 0.0;
-          final mode = s['paymentMode']?.toString() ?? 'Cash';
-
-          totalRev += amt;
-          if (mode == 'Cash') cashRev += amt;
-          if (mode == 'Udhaar') udhaarRev += amt;
+        if (mounted) {
+          setState(() {
+            if (reset) {
+              _salesList.clear();
+            }
+            final existingIds = _salesList.map((s) => s['id']).toSet();
+            for (var item in loadedSales) {
+              if (!existingIds.contains(item['id'])) {
+                _salesList.add(item);
+                existingIds.add(item['id']);
+              }
+            }
+            _totalCount = total;
+            _hasMore = serverHasMore;
+            _currentPage++;
+          });
         }
-
-        setState(() {
-          _salesList = loadedSales;
-          _totalRevenue = totalRev;
-          _cashRevenue = cashRev;
-          _udhaarRevenue = udhaarRev;
-        });
       }
     } catch (_) {}
-    setState(() => _isLoading = false);
+    if (mounted) setState(() {
+      _isLoading = false;
+      _isLoadingMore = false;
+    });
   }
 
   void _showProfessionalInvoiceModal(Map<String, dynamic> sale) {
@@ -587,14 +649,24 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isHindi ? 'बिक्री इतिहास' : 'Sales History'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(isHindi ? 'बिक्री इतिहास' : 'Sales History', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            if (_totalCount > 0)
+              Text(
+                isHindi ? 'कुल इनवॉइस: $_totalCount' : 'Total Invoices: $_totalCount',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
+              ),
+          ],
+        ),
         backgroundColor: themeProvider.primaryColor,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Sales',
-            onPressed: _fetchSalesHistory,
+            onPressed: () => _fetchSalesHistory(reset: true),
           ),
         ],
       ),
@@ -666,7 +738,13 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
-              onChanged: (v) => setState(() => _searchQuery = v),
+              onChanged: (v) {
+                _debounceTimer?.cancel();
+                _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+                  setState(() => _searchQuery = v);
+                  _fetchSalesHistory(reset: true);
+                });
+              },
             ),
           ),
 
@@ -688,12 +766,21 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           ],
                         ),
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(14),
-                        itemCount: filtered.length,
-                        separatorBuilder: (ctx, i) => const SizedBox(height: 10),
-                        itemBuilder: (ctx, idx) {
-                          final sale = filtered[idx];
+                    : RefreshIndicator(
+                        onRefresh: () => _fetchSalesHistory(reset: true),
+                        child: ListView.separated(
+                          controller: _scrollController,
+                          padding: const EdgeInsets.all(14),
+                          itemCount: filtered.length + (_isLoadingMore ? 1 : 0),
+                          separatorBuilder: (ctx, i) => const SizedBox(height: 10),
+                          itemBuilder: (ctx, idx) {
+                            if (idx == filtered.length) {
+                              return const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(child: CircularProgressIndicator()),
+                              );
+                            }
+                            final sale = filtered[idx];
                           final invNo = sale['id']?.toString() ?? 'INV';
                           final cust = sale['customerName']?.toString() ?? 'Walk-in Customer';
                           final amt = (sale['totalAmount'] as num?)?.toDouble() ?? 0.0;
@@ -796,6 +883,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                           );
                         },
                       ),
+                    ),
           ),
         ],
       ),

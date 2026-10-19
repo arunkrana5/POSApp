@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/master_dropdown.dart';
+import '../widgets/paginated_server_dropdown.dart';
 import '../database/sqlite_helper.dart';
 import '../utils/image_picker_helper.dart';
 import '../utils/toast_helper.dart';
@@ -45,16 +47,40 @@ class StockScreen extends StatefulWidget {
 }
 
 class _StockScreenState extends State<StockScreen> {
-  List<Map<String, dynamic>> _products = [];
+  final List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _availableItems = [];
   String _searchQuery = '';
   bool _isLoading = false;
 
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  final int _pageSize = 25;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  int _totalCount = 0;
+  Timer? _debounceTimer;
+
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    _scrollController.addListener(_onScroll);
+    _loadProducts(reset: true);
     _fetchItems();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoading && !_isLoadingMore && _hasMore) {
+        _loadProducts(reset: false);
+      }
+    }
   }
 
   Future<void> _fetchItems() async {
@@ -111,46 +137,163 @@ class _StockScreenState extends State<StockScreen> {
     } catch (_) {}
   }
 
-  Future<void> _loadProducts() async {
-    if (mounted) setState(() => _isLoading = true);
+  Future<void> _loadProducts({bool reset = false}) async {
+    if (reset) {
+      _currentPage = 1;
+      _hasMore = true;
+      if (mounted) setState(() => _isLoading = true);
+    } else {
+      if (!_hasMore || _isLoadingMore) return;
+      if (mounted) setState(() => _isLoadingMore = true);
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final auth = Provider.of<AuthProvider>(context, listen: false);
       final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty)
           ? auth.accessToken!
           : (prefs.getString('auth_token') ?? '');
-      final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-      final fetchedProducts = await syncProvider.fetchProducts(token);
+      final tenantId = (auth.tenantId != null && auth.tenantId! > 0)
+          ? auth.tenantId!
+          : (prefs.getInt('tenant_id') ?? 0);
+      final tenantCode = (auth.tenantCode != null && auth.tenantCode!.isNotEmpty)
+          ? auth.tenantCode!
+          : (prefs.getString('tenant_code') ?? '');
 
-      final List<Map<String, dynamic>> loadedList = fetchedProducts.map((p) => {
-        'id': p.id.toString(),
-        'itemId': p.itemId?.toString() ?? '',
-        'productCode': p.productCode,
-        'name': p.name,
-        'category': p.category.isNotEmpty ? p.category : 'General',
-        'brand': p.brand,
-        'price': p.sellingPrice > 0 ? p.sellingPrice : p.mrp,
-        'mrp': p.mrp,
-        'purchasePrice': p.purchasePrice,
-        'gstPercent': p.gstPercent,
-        'stock': p.currentStock.toInt(),
-        'minimumStock': p.minimumStock.toInt(),
-        'unit': p.unit.isNotEmpty ? p.unit : 'pcs',
-        'batchNumber': p.batchNumber,
-        'rackNumber': p.rackNumber,
-        'expiryDate': p.expiryDate,
-        'hsnCode': p.hsnCode,
-        'barcode': p.barcode.isNotEmpty ? p.barcode : '890${(100000000 + Random().nextInt(899999999))}',
-        'imageUrl': p.imageUrl ?? '',
-      }).toList();
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+        if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
+      };
 
-      if (mounted) {
-        setState(() {
-          _products = loadedList;
-        });
+      final queryParams = <String, String>{
+        'page': _currentPage.toString(),
+        'pageSize': _pageSize.toString(),
+        'paged': 'true',
+      };
+      if (tenantId > 0) queryParams['tenantId'] = tenantId.toString();
+      if (tenantCode.isNotEmpty) queryParams['tenantCode'] = tenantCode;
+      if (_searchQuery.trim().isNotEmpty) queryParams['search'] = _searchQuery.trim();
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/Stock').replace(queryParameters: queryParams);
+      final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 12));
+
+      if (res.statusCode == 200) {
+        final dynamic raw = jsonDecode(res.body);
+        final List<dynamic> data = raw is List ? raw : (raw['items'] as List? ?? []);
+        final int total = raw is Map && raw['totalCount'] != null ? raw['totalCount'] as int : (_products.length + data.length);
+        final bool serverHasMore = raw is Map && raw['hasMore'] != null ? raw['hasMore'] as bool : (data.length >= _pageSize);
+
+        final List<Map<String, dynamic>> loadedList = data.map((p) => {
+          'id': (p['id'] ?? p['ID'] ?? '').toString(),
+          'itemId': (p['itemId'] ?? p['ItemId'] ?? '').toString(),
+          'productCode': p['productCode'] ?? p['ProductCode'] ?? '',
+          'name': p['name'] ?? p['Name'] ?? '',
+          'category': (p['category'] ?? p['Category'] ?? '').toString().isNotEmpty ? (p['category'] ?? p['Category']).toString() : 'General',
+          'brand': p['brand'] ?? p['Brand'] ?? '',
+          'price': (p['sellingPrice'] ?? p['SellingPrice'] ?? p['price'] ?? 0) > 0 ? (p['sellingPrice'] ?? p['SellingPrice'] ?? p['price']) : (p['mrp'] ?? p['MRP'] ?? 0),
+          'mrp': p['mrp'] ?? p['MRP'] ?? 0,
+          'purchasePrice': p['purchasePrice'] ?? p['PurchasePrice'] ?? 0,
+          'gstPercent': p['gstPercent'] ?? p['GSTPercent'] ?? 0,
+          'stock': ((p['currentStock'] ?? p['CurrentStock'] ?? p['stock'] ?? 0) as num).toInt(),
+          'minimumStock': ((p['minimumStock'] ?? p['MinimumStock'] ?? 0) as num).toInt(),
+          'unit': (p['unit'] ?? p['Unit'] ?? '').toString().isNotEmpty ? (p['unit'] ?? p['Unit']).toString() : 'pcs',
+          'batchNumber': p['batchNumber'] ?? p['BatchNumber'] ?? '',
+          'rackNumber': p['rackNumber'] ?? p['RackNumber'] ?? '',
+          'expiryDate': p['expiryDate'] ?? p['ExpiryDate'],
+          'hsnCode': p['hsnCode'] ?? p['HSNCode'] ?? '',
+          'barcode': (p['barcode'] ?? p['Barcode'] ?? '').toString(),
+          'imageUrl': p['imageUrl'] ?? p['ImageUrl'] ?? '',
+        }).toList();
+
+        if (mounted) {
+          setState(() {
+            if (reset) {
+              _products.clear();
+            }
+            final existingIds = _products.map((i) => i['id']).toSet();
+            for (var item in loadedList) {
+              if (!existingIds.contains(item['id'])) {
+                _products.add(item);
+                existingIds.add(item['id']);
+              }
+            }
+            _totalCount = total;
+            _hasMore = serverHasMore;
+            _currentPage++;
+          });
+        }
+      } else {
+        if (reset && _products.isEmpty) {
+          final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+          final fetchedProducts = await syncProvider.fetchProducts(token);
+          if (mounted) {
+            setState(() {
+              _products.clear();
+              _products.addAll(fetchedProducts.map((p) => {
+                'id': p.id.toString(),
+                'itemId': p.itemId?.toString() ?? '',
+                'productCode': p.productCode,
+                'name': p.name,
+                'category': p.category.isNotEmpty ? p.category : 'General',
+                'brand': p.brand,
+                'price': p.sellingPrice > 0 ? p.sellingPrice : p.mrp,
+                'mrp': p.mrp,
+                'purchasePrice': p.purchasePrice,
+                'gstPercent': p.gstPercent,
+                'stock': p.currentStock.toInt(),
+                'minimumStock': p.minimumStock.toInt(),
+                'unit': p.unit.isNotEmpty ? p.unit : 'pcs',
+                'batchNumber': p.batchNumber,
+                'rackNumber': p.rackNumber,
+                'expiryDate': p.expiryDate,
+                'hsnCode': p.hsnCode,
+                'barcode': p.barcode,
+                'imageUrl': p.imageUrl,
+              }));
+            });
+          }
+        }
       }
-    } catch (_) {}
-    if (mounted) setState(() => _isLoading = false);
+    } catch (_) {
+      if (reset && _products.isEmpty) {
+        try {
+          final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+          final fetchedProducts = await syncProvider.fetchProducts();
+          if (mounted) {
+            setState(() {
+              _products.clear();
+              _products.addAll(fetchedProducts.map((p) => {
+                'id': p.id.toString(),
+                'itemId': p.itemId?.toString() ?? '',
+                'productCode': p.productCode,
+                'name': p.name,
+                'category': p.category.isNotEmpty ? p.category : 'General',
+                'brand': p.brand,
+                'price': p.sellingPrice > 0 ? p.sellingPrice : p.mrp,
+                'mrp': p.mrp,
+                'purchasePrice': p.purchasePrice,
+                'gstPercent': p.gstPercent,
+                'stock': p.currentStock.toInt(),
+                'minimumStock': p.minimumStock.toInt(),
+                'unit': p.unit.isNotEmpty ? p.unit : 'pcs',
+                'batchNumber': p.batchNumber,
+                'rackNumber': p.rackNumber,
+                'expiryDate': p.expiryDate,
+                'hsnCode': p.hsnCode,
+                'barcode': p.barcode,
+                'imageUrl': p.imageUrl,
+              }));
+            });
+          }
+        } catch (_) {}
+      }
+    }
+    if (mounted) setState(() {
+      _isLoading = false;
+      _isLoadingMore = false;
+    });
   }
 
   Future<String?> _pickAndCompressProductImage() async {
@@ -172,9 +315,19 @@ class _StockScreenState extends State<StockScreen> {
       backgroundColor: themeProvider.pageBgColor,
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: Text(
-          isHindi ? 'स्टॉक इन' : 'Stock In',
-          style: const TextStyle(fontWeight: FontWeight.bold),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isHindi ? 'स्टॉक इन' : 'Stock In',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            if (_totalCount > 0)
+              Text(
+                isHindi ? 'कुल सामान: $_totalCount' : 'Total Items: $_totalCount',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.normal),
+              ),
+          ],
         ),
       ),
       body: Align(
@@ -202,7 +355,11 @@ class _StockScreenState extends State<StockScreen> {
                       ),
                     ),
                     onChanged: (val) {
-                      setState(() => _searchQuery = val);
+                      _debounceTimer?.cancel();
+                      _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+                        setState(() => _searchQuery = val);
+                        _loadProducts(reset: true);
+                      });
                     },
                   ),
                 ),
@@ -376,25 +533,36 @@ class _StockScreenState extends State<StockScreen> {
                             );
                           }
 
-                          if (isDesktop) {
-                            return GridView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 10,
-                                mainAxisSpacing: 10,
-                                mainAxisExtent: 96,
-                              ),
-                              itemCount: filtered.length,
-                              itemBuilder: (ctx, index) => buildStockCard(filtered[index]),
-                            );
-                          }
-
-                          return ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                            itemCount: filtered.length,
-                            separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                            itemBuilder: (ctx, index) => buildStockCard(filtered[index]),
+                          return RefreshIndicator(
+                            onRefresh: () => _loadProducts(reset: true),
+                            child: isDesktop
+                                ? GridView.builder(
+                                    controller: _scrollController,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      crossAxisSpacing: 10,
+                                      mainAxisSpacing: 10,
+                                      mainAxisExtent: 96,
+                                    ),
+                                    itemCount: filtered.length,
+                                    itemBuilder: (ctx, index) => buildStockCard(filtered[index]),
+                                  )
+                                : ListView.separated(
+                                    controller: _scrollController,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                    itemCount: filtered.length + (_isLoadingMore ? 1 : 0),
+                                    separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                                    itemBuilder: (ctx, index) {
+                                      if (index == filtered.length) {
+                                        return const Padding(
+                                          padding: EdgeInsets.symmetric(vertical: 16),
+                                          child: Center(child: CircularProgressIndicator()),
+                                        );
+                                      }
+                                      return buildStockCard(filtered[index]);
+                                    },
+                                  ),
                           );
                         },
                       ),
@@ -508,65 +676,21 @@ class _StockScreenState extends State<StockScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Dropdown for selecting catalog item
-                    if (_availableItems.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.amber.shade300),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline, color: Colors.amber, size: 22),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                isHindi
-                                    ? 'अभी कोई सामान मौजूद नहीं है। नया सामान बनाएं!'
-                                    : 'No items add an item first!',
-                                style: TextStyle(fontSize: 12, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        value: (selectedCatalogItem != null && _availableItems.any((i) => i['id'].toString() == selectedCatalogItem!['id'].toString()))
-                            ? selectedCatalogItem!['id'].toString()
-                            : null,
-                        hint: Text(isHindi ? '--  सामान चुनें --' : '-- Select Item --'),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        items: _availableItems.map((item) {
-                          return DropdownMenuItem<String>(
-                            value: item['id'].toString(),
-                            child: Text(
-                              '${item['name']} (${item['category']} • ${item['uom']})',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            final found = _availableItems.firstWhere((i) => i['id'].toString() == val, orElse: () => {});
-                            if (found.isNotEmpty) {
-                              setModalState(() {
-                                selectedCatalogItem = found;
-                              });
-                            }
-                          }
-                        },
-                      ),
+                    PaginatedServerDropdown.items(
+                      label: isHindi ? 'सामान चुनें' : 'Select Item',
+                      hint: isHindi ? '-- सामान चुनें --' : '-- Select Item --',
+                      selectedId: selectedCatalogItem?['id'],
+                      selectedTitle: selectedCatalogItem?['name'],
+                      isRequired: false,
+                      onChanged: (item, id, title) {
+                        setModalState(() {
+                          selectedCatalogItem = item;
+                        });
+                      },
+                    ),
                     const SizedBox(height: 12),
+
+
 
                     // Inputs Section - Show when item is selected
                     if (selectedCatalogItem == null)
@@ -922,7 +1046,7 @@ class _StockScreenState extends State<StockScreen> {
                                   }
                                   if (ctx.mounted) Navigator.pop(ctx);
                                   ToastHelper.showSuccess(context, isHindi ? 'स्टॉक आइटम अपडेट किया गया!' : 'Stock item updated successfully!');
-                                  _loadProducts();
+                                  _loadProducts(reset: true);
                                 } else {
                                   final err = 'Failed to update stock: Status ${resPut.statusCode} ${resPut.body}';
                                   setModalState(() => modalErrorMsg = err);
@@ -957,7 +1081,7 @@ class _StockScreenState extends State<StockScreen> {
 
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 ToastHelper.showSuccess(context, isHindi ? 'स्टॉक इन सफलतापूर्वक दर्ज हो गया!' : 'Stock in entry saved successfully!');
-                                _loadProducts();
+                                _loadProducts(reset: true);
                               } else {
                                 final err = 'Failed to save stock: Status ${res.statusCode} ${res.body}';
                                 setModalState(() => modalErrorMsg = err);

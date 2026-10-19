@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -928,17 +929,23 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                     children: List.generate(_tabConfigs.length, (idx) {
                       final config = _tabConfigs[idx];
                       final type = config['type'] as String;
-                      final list = _getListForType(type);
                       final categoryColor = config['color'] as Color;
                       final categoryIcon = config['icon'] as IconData;
-                      return _buildMasterList(
-                        list,
-                        type,
-                        isHindi,
-                        isDark,
-                        primaryColor,
-                        categoryColor,
-                        categoryIcon,
+                      return MasterTabListView(
+                        key: ValueKey('master_tab_${type}_$idx'),
+                        masterType: type,
+                        categoryColor: categoryColor,
+                        categoryIcon: categoryIcon,
+                        isHindi: isHindi,
+                        isDark: isDark,
+                        primaryColor: primaryColor,
+                        searchQuery: _searchQuery,
+                        activeOnly: _activeOnly,
+                        onAddRecord: () => _showMasterFormModal(context, null),
+                        onEdit: (item) => _showMasterFormModal(context, item),
+                        onDelete: (id, name) => _softDeleteMaster(id, name, isHindi),
+                        onToggleActive: (id, active) => _toggleActive(id, active),
+                        onAuditDetails: (item) => _showAuditDetails(context, item),
                       );
                     }),
                   ),
@@ -955,263 +962,6 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
         onPressed: () => _showMasterFormModal(context, null),
-      ),
-    );
-  }
-
-  // =========================================================================
-  // ENTERPRISE MASTER LIST BUILDER WITH BEAUTIFUL CARDS
-  // =========================================================================
-  Widget _buildMasterList(
-    List<Map<String, dynamic>> rawList,
-    String masterType,
-    bool isHindi,
-    bool isDark,
-    Color primaryColor,
-    Color categoryColor,
-    IconData categoryIcon,
-  ) {
-    var list = rawList.where((item) {
-      final name = _resolveMasterName(item).toLowerCase();
-      final code = _resolveMasterCode(item).toLowerCase();
-      final desc = (item['description'] ?? '').toString().toLowerCase();
-      final isActive = item['isActive'] == true;
-
-      if (_activeOnly && !isActive) return false;
-      if (_searchQuery.isNotEmpty && !name.contains(_searchQuery) && !code.contains(_searchQuery) && !desc.contains(_searchQuery)) {
-        return false;
-      }
-      return true;
-    }).toList();
-
-    if (list.isEmpty) {
-      return Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 76,
-                height: 76,
-                decoration: BoxDecoration(
-                  color: categoryColor.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: categoryColor.withOpacity(0.25), width: 1.5),
-                ),
-                child: Icon(categoryIcon, size: 38, color: categoryColor),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                isHindi ? 'कोई $masterType रिकॉर्ड नहीं मिला' : 'No $masterType Records Found',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : const Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isHindi
-                    ? 'नीचे दिए गए बटन से नया रिकॉर्ड जोड़ें या ऊपर से ताज़ा करें।'
-                    : 'Get started by creating your first record in this master catalog.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 2,
-                ),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: Text(
-                  isHindi ? '+ नया रिकॉर्ड जोड़ें' : '+ Add $masterType Record',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                onPressed: () => _showMasterFormModal(context, null),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadAllMasters,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        itemCount: list.length,
-        itemBuilder: (ctx, idx) {
-          final item = list[idx];
-          final id = (item['id'] ?? item['ID']) as int;
-          final name = _resolveMasterName(item);
-          final code = _resolveMasterCode(item);
-          final desc = (item['description'] ?? '').toString();
-          final isActive = item['isActive'] == true;
-          final priority = item['priority'] ?? 0;
-
-          return Card(
-            elevation: 1,
-            margin: const EdgeInsets.only(bottom: 8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-              ),
-            ),
-            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              leading: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: isActive ? categoryColor.withOpacity(0.12) : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isActive ? categoryColor.withOpacity(0.3) : Colors.grey.shade300,
-                  ),
-                ),
-                child: Icon(
-                  categoryIcon,
-                  color: isActive ? categoryColor : Colors.grey.shade500,
-                  size: 22,
-                ),
-              ),
-              title: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        decoration: isActive ? TextDecoration.none : TextDecoration.lineThrough,
-                        color: isActive
-                            ? (isDark ? Colors.white : const Color(0xFF0F172A))
-                            : Colors.grey.shade500,
-                      ),
-                    ),
-                  ),
-                  if (code.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: categoryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: categoryColor.withOpacity(0.3)),
-                      ),
-                      child: Text(
-                        code,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: categoryColor,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (desc.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      desc,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      // Active/Inactive Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isActive ? Colors.green.shade50 : Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: isActive ? Colors.green.shade200 : Colors.red.shade200),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: isActive ? Colors.green.shade700 : Colors.red.shade700,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isActive ? 'ACTIVE' : 'INACTIVE',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: isActive ? Colors.green.shade800 : Colors.red.shade800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('Priority: $priority', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                      const Spacer(),
-                      // Audit details button
-                      InkWell(
-                        onTap: () => _showAuditDetails(context, item),
-                        child: Text(
-                          'Audit Info',
-                          style: TextStyle(fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Switch(
-                    value: isActive,
-                    activeColor: Colors.green,
-                    onChanged: (val) => _toggleActive(id, isActive),
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (val) {
-                      if (val == 'edit') {
-                        _showMasterFormModal(context, item);
-                      } else if (val == 'delete') {
-                        _softDeleteMaster(id, name, isHindi);
-                      }
-                    },
-                    itemBuilder: (ctx) => [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Row(children: [Icon(Icons.edit, size: 18, color: primaryColor), const SizedBox(width: 8), Text(isHindi ? 'संपादित करें' : 'Edit')]),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(children: [const Icon(Icons.delete, size: 18, color: Colors.red), const SizedBox(width: 8), Text(isHindi ? 'हटाएं' : 'Delete')]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
       ),
     );
   }
@@ -1509,6 +1259,423 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                             ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class MasterTabListView extends StatefulWidget {
+  final String masterType;
+  final Color categoryColor;
+  final IconData categoryIcon;
+  final bool isHindi;
+  final bool isDark;
+  final Color primaryColor;
+  final String searchQuery;
+  final bool activeOnly;
+  final VoidCallback onAddRecord;
+  final Function(Map<String, dynamic>) onEdit;
+  final Future<void> Function(int, String) onDelete;
+  final Future<void> Function(int, bool) onToggleActive;
+  final Function(Map<String, dynamic>) onAuditDetails;
+
+  const MasterTabListView({
+    super.key,
+    required this.masterType,
+    required this.categoryColor,
+    required this.categoryIcon,
+    required this.isHindi,
+    required this.isDark,
+    required this.primaryColor,
+    required this.searchQuery,
+    required this.activeOnly,
+    required this.onAddRecord,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onToggleActive,
+    required this.onAuditDetails,
+  });
+
+  @override
+  State<MasterTabListView> createState() => _MasterTabListViewState();
+}
+
+class _MasterTabListViewState extends State<MasterTabListView> {
+  final ScrollController _scrollController = ScrollController();
+  final List<Map<String, dynamic>> _items = [];
+  int _currentPage = 1;
+  final int _pageSize = 25;
+  bool _hasMore = true;
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  int _totalCount = 0;
+  int get totalCount => _totalCount;
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+    _fetchItems(reset: true);
+  }
+
+  @override
+  void didUpdateWidget(covariant MasterTabListView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.searchQuery != oldWidget.searchQuery || widget.activeOnly != oldWidget.activeOnly) {
+      _debounceTimer?.cancel();
+      _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+        if (mounted) _fetchItems(reset: true);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoading && !_isLoadingMore && _hasMore) {
+        _fetchItems(reset: false);
+      }
+    }
+  }
+
+  Future<void> _fetchItems({bool reset = false}) async {
+    if (reset) {
+      _currentPage = 1;
+      _hasMore = true;
+      if (mounted) setState(() => _isLoading = true);
+    } else {
+      if (!_hasMore || _isLoadingMore) return;
+      if (mounted) setState(() => _isLoadingMore = true);
+    }
+
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final token = auth.accessToken ?? '';
+      final tenantId = auth.tenantId ?? 0;
+      final tenantCode = auth.tenantCode ?? '';
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+        if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
+      };
+
+      final queryParams = <String, String>{
+        'page': _currentPage.toString(),
+        'pageSize': _pageSize.toString(),
+        'paged': 'true',
+        'masterType': widget.masterType,
+      };
+      if (tenantId > 0) queryParams['tenantId'] = tenantId.toString();
+      if (tenantCode.isNotEmpty) queryParams['tenantCode'] = tenantCode;
+      if (widget.searchQuery.trim().isNotEmpty) queryParams['search'] = widget.searchQuery.trim();
+      if (widget.activeOnly) queryParams['activeOnly'] = 'true';
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/masters').replace(queryParameters: queryParams);
+      final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        final dynamic raw = jsonDecode(res.body);
+        final List<dynamic> data = raw is List ? raw : (raw['items'] as List? ?? []);
+        final int total = raw is Map && raw['totalCount'] != null ? raw['totalCount'] as int : (_items.length + data.length);
+        final bool serverHasMore = raw is Map && raw['hasMore'] != null ? raw['hasMore'] as bool : (data.length >= _pageSize);
+
+        final List<Map<String, dynamic>> loaded = List<Map<String, dynamic>>.from(data);
+
+        if (mounted) {
+          setState(() {
+            if (reset) {
+              _items.clear();
+            }
+            final existingIds = _items.map((i) => i['id'] ?? i['ID']).toSet();
+            for (var item in loaded) {
+              final id = item['id'] ?? item['ID'];
+              if (!existingIds.contains(id)) {
+                _items.add(item);
+                existingIds.add(id);
+              }
+            }
+            _totalCount = total;
+            _hasMore = serverHasMore;
+            _currentPage++;
+          });
+        }
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+      });
+    }
+  }
+
+  String _resolveMasterName(Map<String, dynamic> item) {
+    for (var k in ['masterName', 'MasterName', 'name', 'Name', 'categoryName', 'uomName', 'brandName', 'taxName']) {
+      if (item[k] != null && item[k].toString().trim().isNotEmpty) return item[k].toString().trim();
+    }
+    return 'Master #${item['id'] ?? item['ID'] ?? ''}';
+  }
+
+  String _resolveMasterCode(Map<String, dynamic> item) {
+    for (var k in ['masterCode', 'MasterCode', 'code', 'Code', 'symbol', 'Symbol']) {
+      if (item[k] != null && item[k].toString().trim().isNotEmpty) return item[k].toString().trim();
+    }
+    return '';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading && _items.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_items.isEmpty) {
+      return Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: widget.categoryColor.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: widget.categoryColor.withOpacity(0.25), width: 1.5),
+                ),
+                child: Icon(widget.categoryIcon, size: 38, color: widget.categoryColor),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                widget.isHindi ? 'कोई ${widget.masterType} रिकॉर्ड नहीं मिला' : 'No ${widget.masterType} Records Found',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.isHindi
+                    ? 'नीचे दिए गए बटन से नया रिकॉर्ड जोड़ें या ऊपर से ताज़ा करें।'
+                    : 'Get started by creating your first record in this master catalog.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 2,
+                ),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(
+                  widget.isHindi ? '+ नया रिकॉर्ड जोड़ें' : '+ Add ${widget.masterType} Record',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                onPressed: widget.onAddRecord,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => _fetchItems(reset: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        itemCount: _items.length + (_isLoadingMore ? 1 : 0),
+        itemBuilder: (ctx, idx) {
+          if (idx == _items.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final item = _items[idx];
+          final id = (item['id'] ?? item['ID']) as int;
+          final name = _resolveMasterName(item);
+          final code = _resolveMasterCode(item);
+          final desc = (item['description'] ?? '').toString();
+          final isActive = item['isActive'] == true;
+          final priority = item['priority'] ?? 0;
+
+          return Card(
+            elevation: 1,
+            margin: const EdgeInsets.only(bottom: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: widget.isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+              ),
+            ),
+            color: widget.isDark ? const Color(0xFF1E293B) : Colors.white,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              leading: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isActive ? widget.categoryColor.withOpacity(0.12) : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isActive ? widget.categoryColor.withOpacity(0.3) : Colors.grey.shade300,
+                  ),
+                ),
+                child: Icon(
+                  widget.categoryIcon,
+                  color: isActive ? widget.categoryColor : Colors.grey.shade500,
+                  size: 22,
+                ),
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        decoration: isActive ? TextDecoration.none : TextDecoration.lineThrough,
+                        color: isActive
+                            ? (widget.isDark ? Colors.white : const Color(0xFF0F172A))
+                            : Colors.grey.shade500,
+                      ),
+                    ),
+                  ),
+                  if (code.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: widget.categoryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: widget.categoryColor.withOpacity(0.3)),
+                      ),
+                      child: Text(
+                        code,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: widget.categoryColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (desc.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      desc,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isActive ? Colors.green.shade50 : Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: isActive ? Colors.green.shade200 : Colors.red.shade200),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isActive ? Colors.green.shade700 : Colors.red.shade700,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              isActive ? 'ACTIVE' : 'INACTIVE',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isActive ? Colors.green.shade800 : Colors.red.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('Priority: $priority', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                      const Spacer(),
+                      InkWell(
+                        onTap: () => widget.onAuditDetails(item),
+                        child: Text(
+                          'Audit Info',
+                          style: TextStyle(fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Switch(
+                    value: isActive,
+                    activeColor: Colors.green,
+                    onChanged: (val) async {
+                      await widget.onToggleActive(id, isActive);
+                      _fetchItems(reset: true);
+                    },
+                  ),
+                  PopupMenuButton<String>(
+                    onSelected: (val) async {
+                      if (val == 'edit') {
+                        widget.onEdit(item);
+                      } else if (val == 'delete') {
+                        await widget.onDelete(id, name);
+                        _fetchItems(reset: true);
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(children: [Icon(Icons.edit, size: 18, color: widget.primaryColor), const SizedBox(width: 8), Text(widget.isHindi ? 'संपादित करें' : 'Edit')]),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(children: [const Icon(Icons.delete, size: 18, color: Colors.red), const SizedBox(width: 8), Text(widget.isHindi ? 'हटाएं' : 'Delete')]),
+                      ),
+                    ],
                   ),
                 ],
               ),

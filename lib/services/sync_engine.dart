@@ -57,7 +57,8 @@ class SyncEngine {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final List<dynamic> jsonList = jsonDecode(response.body);
+        final dynamic raw = jsonDecode(response.body);
+        final List<dynamic> jsonList = raw is List ? raw : (raw['items'] as List? ?? []);
         final List<Product> products = jsonList.map((j) => Product.fromJson(j as Map<String, dynamic>)).toList();
         if (products.isNotEmpty && !kIsWeb) {
           try {
@@ -95,8 +96,10 @@ class SyncEngine {
       ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final List<dynamic> jsonList = jsonDecode(response.body);
+        final dynamic raw = jsonDecode(response.body);
+        final List<dynamic> jsonList = raw is List ? raw : (raw['items'] as List? ?? []);
         final List<Map<String, dynamic>> customers = jsonList.map((j) => Map<String, dynamic>.from(j as Map)).toList();
+
         if (customers.isNotEmpty && !kIsWeb) {
           try {
             for (var c in customers) {

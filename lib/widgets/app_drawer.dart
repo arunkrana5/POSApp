@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/sync_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/theme_provider.dart';
 
@@ -26,7 +25,6 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
-    final syncProvider = Provider.of<SyncProvider>(context);
     final localeProvider = Provider.of<LocaleProvider>(context);
     final themeProvider = Provider.of<TenantThemeProvider>(context);
 

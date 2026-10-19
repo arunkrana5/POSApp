@@ -28,7 +28,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
   double _todayRevenue = 0.0;
   double _cashCollected = 0.0;
   double _udhaarGiven = 0.0;
-  Map<String, int> _topSellingItems = {};
 
   @override
   void initState() {
@@ -103,7 +102,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
           _todayRevenue = todayRev;
           _cashCollected = cashTot;
           _udhaarGiven = udhaarTot;
-          _topSellingItems = topItems;
         });
       }
     } catch (_) {}

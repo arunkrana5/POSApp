@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import '../config/api_config.dart';
+import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
@@ -20,26 +22,108 @@ class CustomersScreen extends StatefulWidget {
 }
 
 class _CustomersScreenState extends State<CustomersScreen> {
-  List<Map<String, dynamic>> _customers = [];
-
+  final List<Map<String, dynamic>> _customers = [];
   String _searchQuery = '';
   bool _isLoading = false;
+
+  final ScrollController _scrollController = ScrollController();
+  int _currentPage = 1;
+  final int _pageSize = 25;
+  bool _hasMore = true;
+  bool _isLoadingMore = false;
+  int _totalCount = 0;
+  double _serverTotalUdhaar = 0.0;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
     super.initState();
-    _loadCustomers();
+    _scrollController.addListener(_onScroll);
+    _loadCustomers(reset: true);
   }
 
-  Future<void> _loadCustomers() async {
-    setState(() => _isLoading = true);
-    try {
-      final syncProvider = Provider.of<SyncProvider>(context, listen: false);
-      final fetchedCustomers = await syncProvider.fetchCustomers();
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
 
-      if (fetchedCustomers.isNotEmpty) {
-        final List<Map<String, dynamic>> loaded = fetchedCustomers.map((c) => {
-          'id': c['id']?.toString() ?? '0',
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoading && !_isLoadingMore && _hasMore) {
+        _loadCustomers(reset: false);
+      }
+    }
+  }
+
+  Future<void> _loadCustomers({bool reset = false}) async {
+    if (reset) {
+      _currentPage = 1;
+      _hasMore = true;
+      if (mounted) setState(() => _isLoading = true);
+    } else {
+      if (!_hasMore || _isLoadingMore) return;
+      if (mounted) setState(() => _isLoadingMore = true);
+    }
+
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final prefs = await SharedPreferences.getInstance();
+      final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty)
+          ? auth.accessToken!
+          : (prefs.getString('auth_token') ?? '');
+      final tenantId = (auth.tenantId != null && auth.tenantId! > 0)
+          ? auth.tenantId!
+          : (prefs.getInt('tenant_id') ?? 0);
+      final tenantCode = (auth.tenantCode != null && auth.tenantCode!.isNotEmpty)
+          ? auth.tenantCode!
+          : (prefs.getString('tenant_code') ?? '');
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (tenantId > 0) 'X-Tenant-Id': tenantId.toString(),
+        if (tenantCode.isNotEmpty) 'X-Tenant-Code': tenantCode,
+      };
+
+      // Fetch dashboard metrics for accurate totalUdhaar across store on reset
+      if (reset) {
+        try {
+          final qParams = <String>[];
+          if (tenantId > 0) qParams.add('tenantId=$tenantId');
+          if (tenantCode.isNotEmpty) qParams.add('tenantCode=$tenantCode');
+          final qMetric = qParams.isNotEmpty ? '?${qParams.join('&')}' : '';
+          final mRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/reports/dashboard-metrics$qMetric'), headers: headers).timeout(const Duration(seconds: 5));
+          if (mRes.statusCode == 200) {
+            final mData = jsonDecode(mRes.body);
+            if (mData is Map<String, dynamic>) {
+              _serverTotalUdhaar = (mData['totalUdhaar'] ?? mData['udhaarSales'] as num?)?.toDouble() ?? 0.0;
+            }
+          }
+        } catch (_) {}
+      }
+
+      final queryParams = <String, String>{
+        'page': _currentPage.toString(),
+        'pageSize': _pageSize.toString(),
+        'paged': 'true',
+      };
+      if (tenantId > 0) queryParams['tenantId'] = tenantId.toString();
+      if (tenantCode.isNotEmpty) queryParams['tenantCode'] = tenantCode;
+      if (_searchQuery.trim().isNotEmpty) queryParams['search'] = _searchQuery.trim();
+
+      final url = Uri.parse('${ApiConfig.baseUrl}/customers').replace(queryParameters: queryParams);
+      final res = await http.get(url, headers: headers).timeout(const Duration(seconds: 12));
+
+      if (res.statusCode == 200) {
+        final dynamic raw = jsonDecode(res.body);
+        final List<dynamic> data = raw is List ? raw : (raw['items'] as List? ?? []);
+        final int total = raw is Map && raw['totalCount'] != null ? raw['totalCount'] as int : (_customers.length + data.length);
+        final bool serverHasMore = raw is Map && raw['hasMore'] != null ? raw['hasMore'] as bool : (data.length >= _pageSize);
+
+        final List<Map<String, dynamic>> newItems = data.map((c) => {
+          'id': (c['id'] ?? c['ID'] ?? '0').toString(),
           'name': c['name'] ?? '',
           'phone': c['phone'] ?? '',
           'email': c['email'] ?? '',
@@ -55,36 +139,82 @@ class _CustomersScreenState extends State<CustomersScreen> {
           'lastTx': c['lastTx'] ?? 'Registered Today',
         }).toList();
 
-        setState(() {
-          _customers = loaded;
-        });
-      } else {
-        final dbCustomers = await SQLiteHelper.instance.getCustomers();
-        if (dbCustomers.isNotEmpty) {
-          final List<Map<String, dynamic>> loaded = dbCustomers.map((c) => {
-            'id': c['id']?.toString() ?? '0',
-            'name': c['name'] ?? '',
-            'phone': c['phone'] ?? '',
-            'email': c['email'] ?? '',
-            'whatsapp': c['whatsapp'] ?? '',
-            'fatherName': c['fatherName'] ?? '',
-            'address': c['address'] ?? '',
-            'village': c['village'] ?? '',
-            'po': c['po'] ?? '',
-            'ps': c['ps'] ?? '',
-            'dist': c['dist'] ?? '',
-            'pincode': c['pincode'] ?? '',
-            'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
-            'lastTx': c['lastTx'] ?? 'Today',
-          }).toList();
-
+        if (mounted) {
           setState(() {
-            _customers = loaded;
+            if (reset) {
+              _customers.clear();
+            }
+            final existingIds = _customers.map((i) => i['id']).toSet();
+            for (var item in newItems) {
+              if (!existingIds.contains(item['id'])) {
+                _customers.add(item);
+                existingIds.add(item['id']);
+              }
+            }
+            _totalCount = total;
+            _hasMore = serverHasMore;
+            _currentPage++;
           });
         }
+      } else {
+        if (reset && _customers.isEmpty) {
+          final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+          final fetchedCustomers = await syncProvider.fetchCustomers();
+          if (mounted && fetchedCustomers.isNotEmpty) {
+            setState(() {
+              _customers.clear();
+              _customers.addAll(fetchedCustomers.map((c) => {
+                'id': c['id']?.toString() ?? '0',
+                'name': c['name'] ?? '',
+                'phone': c['phone'] ?? '',
+                'email': c['email'] ?? '',
+                'whatsapp': c['whatsapp'] ?? '',
+                'fatherName': c['fatherName'] ?? '',
+                'address': c['address'] ?? '',
+                'village': c['village'] ?? '',
+                'po': c['po'] ?? '',
+                'ps': c['ps'] ?? '',
+                'dist': c['dist'] ?? '',
+                'pincode': c['pincode'] ?? '',
+                'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
+                'lastTx': c['lastTx'] ?? 'Registered Today',
+              }));
+            });
+          }
+        }
       }
-    } catch (_) {}
-    setState(() => _isLoading = false);
+    } catch (_) {
+      if (reset && _customers.isEmpty) {
+        try {
+          final dbCustomers = await SQLiteHelper.instance.getCustomers();
+          if (mounted && dbCustomers.isNotEmpty) {
+            setState(() {
+              _customers.clear();
+              _customers.addAll(dbCustomers.map((c) => {
+                'id': c['id']?.toString() ?? '0',
+                'name': c['name'] ?? '',
+                'phone': c['phone'] ?? '',
+                'email': c['email'] ?? '',
+                'whatsapp': c['whatsapp'] ?? '',
+                'fatherName': c['fatherName'] ?? '',
+                'address': c['address'] ?? '',
+                'village': c['village'] ?? '',
+                'po': c['po'] ?? '',
+                'ps': c['ps'] ?? '',
+                'dist': c['dist'] ?? '',
+                'pincode': c['pincode'] ?? '',
+                'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
+                'lastTx': c['lastTx'] ?? 'Today',
+              }));
+            });
+          }
+        } catch (_) {}
+      }
+    }
+    if (mounted) setState(() {
+      _isLoading = false;
+      _isLoadingMore = false;
+    });
   }
 
   @override
@@ -96,7 +226,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             c['phone'].toString().contains(_searchQuery))
         .toList();
 
-    final totalUdhaar = _customers.fold(0.0, (sum, c) => sum + ((c['udhaar'] as num?)?.toDouble() ?? 0.0));
+    final totalUdhaar = _serverTotalUdhaar > 0 ? _serverTotalUdhaar : _customers.fold(0.0, (sum, c) => sum + ((c['udhaar'] as num?)?.toDouble() ?? 0.0));
 
     final themeProvider = Provider.of<TenantThemeProvider>(context);
     return Scaffold(
@@ -104,7 +234,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
       drawer: const AppDrawer(),
       appBar: AppBar(
         title: Text(
-          isHindi ? 'ग्राहक खाता' : 'Customer Ledger',
+          isHindi ? 'ग्राहक खाता ($_totalCount)' : 'Customer Ledger ($_totalCount)',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
@@ -179,7 +309,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 ),
               ),
               onChanged: (val) {
-                setState(() => _searchQuery = val);
+                _debounceTimer?.cancel();
+                _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+                  setState(() => _searchQuery = val);
+                  _loadCustomers(reset: true);
+                });
               },
             ),
           ),
@@ -269,25 +403,36 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         );
                       }
 
-                      if (isDesktop) {
-                        return GridView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            mainAxisExtent: 78,
-                          ),
-                          itemCount: filteredCustomers.length,
-                          itemBuilder: (ctx, index) => buildCustomerCard(filteredCustomers[index]),
-                        );
-                      }
-
-                      return ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        itemCount: filteredCustomers.length,
-                        separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                        itemBuilder: (ctx, index) => buildCustomerCard(filteredCustomers[index]),
+                      return RefreshIndicator(
+                        onRefresh: () => _loadCustomers(reset: true),
+                        child: isDesktop
+                            ? GridView.builder(
+                                controller: _scrollController,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 10,
+                                  mainAxisSpacing: 10,
+                                  mainAxisExtent: 78,
+                                ),
+                                itemCount: filteredCustomers.length,
+                                itemBuilder: (ctx, index) => buildCustomerCard(filteredCustomers[index]),
+                              )
+                            : ListView.separated(
+                                controller: _scrollController,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                itemCount: filteredCustomers.length + (_isLoadingMore ? 1 : 0),
+                                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
+                                itemBuilder: (ctx, index) {
+                                  if (index == filteredCustomers.length) {
+                                    return const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 16),
+                                      child: Center(child: CircularProgressIndicator()),
+                                    );
+                                  }
+                                  return buildCustomerCard(filteredCustomers[index]);
+                                },
+                              ),
                       );
                     },
                   ),
@@ -358,6 +503,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       backgroundColor: Colors.green.shade700,
                     ),
                   );
+                  _loadCustomers(reset: true);
                 }
               }
             },
@@ -1190,6 +1336,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                           body: jsonEncode(record),
                         ).timeout(const Duration(seconds: 8));
                       }
+                      _loadCustomers(reset: true);
                     } catch (_) {}
                   },
                   child: Text(
