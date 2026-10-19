@@ -2,9 +2,25 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
 
+/// Reusable Common Paginated Dropdown contract alias
+typedef CommonPaginatedDropdown<T> = PaginatedServerDropdown<T>;
 
+/// Standard Server-Paginated Dropdown Component
+/// Features:
+/// - Initially loads exactly 5 records from backend
+/// - Responsive popup (Centered Dialog on Desktop/Tablet/Web, BottomSheet on Mobile)
+/// - Integrated search with 300ms debounce
+/// - Race condition protection (older responses cannot overwrite newer results)
+/// - Visible 'Show More (+5)' button when additional pages exist
+/// - Appends records without duplicate IDs
+/// - Preserves selected item and highlights it with checkmark
+/// - Clear loading, empty, and retry error states
+/// - FormField validator and required indicator support
+/// - Dependent dropdown support (resets child on parentFilter change)
+/// - Secure multi-tenant headers (X-Tenant-Id, X-Tenant-Code, Bearer token)
 class PaginatedServerDropdown<T> extends StatefulWidget {
   final String? label;
   final String? hint;
@@ -45,6 +61,32 @@ class PaginatedServerDropdown<T> extends StatefulWidget {
     this.prefixIcon,
     this.validator,
   });
+
+  /// Helper to resolve tenant headers and query parameters safely from SharedPreferences
+  static Future<Map<String, String>> resolveAuthHeaders(Map<String, String> params) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final tId = prefs.getInt('tenant_id') ?? 1;
+      final tCode = prefs.getString('tenant_code') ?? '';
+      final token = prefs.getString('auth_token') ?? '';
+
+      if (tId > 0 && !params.containsKey('tenantId')) {
+        params['tenantId'] = tId.toString();
+      }
+      if (tCode.isNotEmpty && !params.containsKey('tenantCode')) {
+        params['tenantCode'] = tCode;
+      }
+
+      return <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        if (tId > 0) 'X-Tenant-Id': tId.toString(),
+        if (tCode.isNotEmpty) 'X-Tenant-Code': tCode,
+      };
+    } catch (_) {
+      return {'Content-Type': 'application/json'};
+    }
+  }
 
   /// Factory constructor for masters (ItemCategory, Brand, UnitOfMeasurement, etc.)
   static PaginatedServerDropdown<Map<String, dynamic>> master({
@@ -94,8 +136,10 @@ class PaginatedServerDropdown<T> extends StatefulWidget {
           params['parentId'] = parentFilter.toString();
         }
 
+        final headers = await resolveAuthHeaders(params);
         final uri = Uri.parse('$baseUrl/masters').replace(queryParameters: params);
-        final res = await http.get(uri).timeout(const Duration(seconds: 8));
+        final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 8));
+
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
           if (data is Map<String, dynamic> && data.containsKey('items')) {
@@ -121,7 +165,7 @@ class PaginatedServerDropdown<T> extends StatefulWidget {
     );
   }
 
-  /// Factory constructor for items master
+  /// Factory constructor for items catalog
   static PaginatedServerDropdown<Map<String, dynamic>> items({
     Key? key,
     String? label = 'Item',
@@ -151,7 +195,12 @@ class PaginatedServerDropdown<T> extends StatefulWidget {
       onChanged: onChanged,
       itemId: (item) => item['id'] ?? item['ID'],
       itemTitle: (item) => (item['name'] ?? item['ItemName'] ?? '').toString(),
-      itemSubtitle: (item) => '${item['itemCode'] ?? ''} • ${item['category'] ?? ''} • ${item['unit'] ?? 'pcs'}',
+      itemSubtitle: (item) {
+        final code = item['itemCode'] ?? item['ItemCode'] ?? '';
+        final cat = item['category'] ?? item['Category'] ?? '';
+        final unit = item['unit'] ?? item['Unit'] ?? 'pcs';
+        return '$code • $cat • $unit';
+      },
       fetchPage: ({required int page, required int pageSize, required String search, dynamic parentFilter}) async {
         final baseUrl = ApiConfig.baseUrl;
         final params = <String, String>{
@@ -166,8 +215,10 @@ class PaginatedServerDropdown<T> extends StatefulWidget {
           params['categoryId'] = parentFilter.toString();
         }
 
+        final headers = await resolveAuthHeaders(params);
         final uri = Uri.parse('$baseUrl/Items').replace(queryParameters: params);
-        final res = await http.get(uri).timeout(const Duration(seconds: 8));
+        final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 8));
+
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
           if (data is Map<String, dynamic> && data.containsKey('items')) {
@@ -220,7 +271,11 @@ class PaginatedServerDropdown<T> extends StatefulWidget {
       onChanged: onChanged,
       itemId: (c) => c['id'] ?? c['ID'],
       itemTitle: (c) => (c['name'] ?? '').toString(),
-      itemSubtitle: (c) => '${c['phone'] ?? c['mobile'] ?? ''} ${c['village'] != null && c['village'].toString().isNotEmpty ? '• ${c['village']}' : ''}',
+      itemSubtitle: (c) {
+        final phone = c['phone'] ?? c['mobile'] ?? '';
+        final village = c['village']?.toString() ?? '';
+        return phone.isNotEmpty ? '$phone ${village.isNotEmpty ? "• $village" : ""}' : village;
+      },
       fetchPage: ({required int page, required int pageSize, required String search, dynamic parentFilter}) async {
         final baseUrl = ApiConfig.baseUrl;
         final params = <String, String>{
@@ -232,8 +287,10 @@ class PaginatedServerDropdown<T> extends StatefulWidget {
           params['search'] = search.trim();
         }
 
+        final headers = await resolveAuthHeaders(params);
         final uri = Uri.parse('$baseUrl/customers').replace(queryParameters: params);
-        final res = await http.get(uri).timeout(const Duration(seconds: 8));
+        final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 8));
+
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body);
           List<Map<String, dynamic>> list = [];
@@ -303,7 +360,7 @@ class _PaginatedServerDropdownState<T> extends State<PaginatedServerDropdown<T>>
       _currentTitle = widget.selectedTitle;
     }
     if (widget.parentFilter != oldWidget.parentFilter) {
-      // Clear selection if dependent parent changed
+      // Clear child selection when parent dependent filter changes
       _currentId = null;
       _currentTitle = null;
       _selectedItem = null;
@@ -312,45 +369,65 @@ class _PaginatedServerDropdownState<T> extends State<PaginatedServerDropdown<T>>
   }
 
   void _openSearchModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (modalCtx) {
-        return _DropdownModalContent<T>(
-          label: widget.label,
-          selectedId: _currentId,
-          itemId: widget.itemId,
-          itemTitle: widget.itemTitle,
-          itemSubtitle: widget.itemSubtitle,
-          fetchPage: widget.fetchPage,
-          parentFilter: widget.parentFilter,
-          allowClear: widget.allowClear,
-          onSelected: (item) {
-            Navigator.pop(modalCtx);
-            if (item != null) {
-              final id = widget.itemId(item);
-              final title = widget.itemTitle(item);
-              setState(() {
-                _selectedItem = item;
-                _currentId = id;
-                _currentTitle = title;
-              });
-              widget.onChanged?.call(item, id, title);
-            } else {
-              setState(() {
-                _selectedItem = null;
-                _currentId = null;
-                _currentTitle = null;
-              });
-              widget.onChanged?.call(null, null, null);
-            }
-          },
-        );
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+
+    final modalWidget = _DropdownModalContent<T>(
+      label: widget.label,
+      selectedId: _currentId,
+      itemId: widget.itemId,
+      itemTitle: widget.itemTitle,
+      itemSubtitle: widget.itemSubtitle,
+      fetchPage: widget.fetchPage,
+      parentFilter: widget.parentFilter,
+      allowClear: widget.allowClear,
+      onSelected: (item) {
+        if (item != null) {
+          final id = widget.itemId(item);
+          final title = widget.itemTitle(item);
+          setState(() {
+            _selectedItem = item;
+            _currentId = id;
+            _currentTitle = title;
+          });
+          widget.onChanged?.call(item, id, title);
+        } else {
+          setState(() {
+            _selectedItem = null;
+            _currentId = null;
+            _currentTitle = null;
+          });
+          widget.onChanged?.call(null, null, null);
+        }
       },
     );
+
+    if (isDesktop) {
+      // Professional Dialog for Desktop / Tablet / Flutter Web
+      showDialog(
+        context: context,
+        builder: (ctx) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480, maxHeight: 540),
+              child: modalWidget,
+            ),
+          );
+        },
+      );
+    } else {
+      // Smooth ModalBottomSheet for Mobile / Android APK
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (modalCtx) {
+          return modalWidget;
+        },
+      );
+    }
   }
 
   @override
@@ -381,7 +458,7 @@ class _PaginatedServerDropdownState<T> extends State<PaginatedServerDropdown<T>>
           children: [
             InkWell(
               onTap: widget.enabled ? () => _openSearchModal(context) : null,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
               child: InputDecorator(
                 decoration: InputDecoration(
                   labelText: widget.label != null && widget.isRequired ? '${widget.label} *' : widget.label,
@@ -392,6 +469,7 @@ class _PaginatedServerDropdownState<T> extends State<PaginatedServerDropdown<T>>
                       if (widget.allowClear && hasValue && widget.enabled)
                         IconButton(
                           icon: const Icon(Icons.clear, size: 18),
+                          tooltip: 'Clear selection',
                           onPressed: () {
                             setState(() {
                               _selectedItem = null;
@@ -407,8 +485,8 @@ class _PaginatedServerDropdownState<T> extends State<PaginatedServerDropdown<T>>
                     ],
                   ),
                   errorText: fieldState.errorText,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   filled: !widget.enabled,
                   fillColor: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
                 ),
@@ -419,6 +497,7 @@ class _PaginatedServerDropdownState<T> extends State<PaginatedServerDropdown<T>>
                         ? (isDark ? Colors.white : Colors.black87)
                         : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                     fontSize: 14,
+                    fontWeight: hasValue ? FontWeight.w600 : FontWeight.normal,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -470,12 +549,13 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
   final ScrollController _scrollController = ScrollController();
 
   int _currentPage = 1;
-  static const int _pageSize = 5; // Standard Large-Data architecture: initial 5 records
+  static const int _pageSize = 5; // Standard 5 records initial & incremental page size
   bool _hasMore = false;
   bool _isLoading = false;
   bool _isLoadingMore = false;
   String? _errorMessage;
   Timer? _debounceTimer;
+  int _searchRequestId = 0; // Protects against stale race-condition responses
 
   @override
   void initState() {
@@ -493,7 +573,8 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 20) {
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 20) {
       if (_hasMore && !_isLoading && !_isLoadingMore) {
         _loadMore();
       }
@@ -501,6 +582,8 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
   }
 
   Future<void> _loadInitial() async {
+    final requestId = ++_searchRequestId;
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -516,7 +599,7 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
         parentFilter: widget.parentFilter,
       );
 
-      if (mounted) {
+      if (mounted && requestId == _searchRequestId) {
         setState(() {
           _items.addAll(res.items);
           _hasMore = res.hasMore;
@@ -524,9 +607,9 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && requestId == _searchRequestId) {
         setState(() {
-          _errorMessage = 'Failed to load options: $e';
+          _errorMessage = 'Failed to load options. Please retry.';
           _isLoading = false;
         });
       }
@@ -572,13 +655,16 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
 
   void _onSearchChanged(String val) {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
       _loadInitial();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -587,13 +673,13 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
         right: 16,
       ),
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.65,
+        height: isDesktop ? 480 : MediaQuery.of(context).size.height * 0.7,
         child: Column(
           children: [
-            // Modal header
+            // Modal header with title and close icon
             Row(
               children: [
-                const Icon(Icons.list_alt, color: Colors.indigo),
+                Icon(Icons.list_alt_rounded, color: theme.primaryColor),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -605,23 +691,27 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
                   TextButton.icon(
                     icon: const Icon(Icons.clear, size: 16, color: Colors.red),
                     label: const Text('Clear', style: TextStyle(color: Colors.red, fontSize: 13)),
-                    onPressed: () => widget.onSelected(null),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onSelected(null);
+                    },
                   ),
                 IconButton(
                   icon: const Icon(Icons.close),
+                  tooltip: 'Close',
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
             const SizedBox(height: 8),
 
-            // Search input
+            // Search input field
             TextField(
               controller: _searchController,
               autofocus: true,
               decoration: InputDecoration(
                 hintText: 'Search ${widget.label ?? 'options'}...',
-                prefixIcon: const Icon(Icons.search, size: 20),
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear, size: 18),
@@ -631,23 +721,24 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
                         },
                       )
                     : null,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                isDense: true,
               ),
               onChanged: _onSearchChanged,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
 
             // Content list
             Expanded(
               child: _isLoading
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CircularProgressIndicator(strokeWidth: 2),
-                          SizedBox(height: 12),
-                          Text('Loading options...', style: TextStyle(color: Colors.grey)),
+                          CircularProgressIndicator(strokeWidth: 2.5, color: theme.primaryColor),
+                          const SizedBox(height: 12),
+                          const Text('Loading options from server...', style: TextStyle(color: Colors.grey, fontSize: 13)),
                         ],
                       ),
                     )
@@ -656,19 +747,27 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(_errorMessage!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
-                              const SizedBox(height: 8),
+                              Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+                              const SizedBox(height: 10),
                               ElevatedButton.icon(
-                                icon: const Icon(Icons.refresh, size: 16),
+                                icon: const Icon(Icons.refresh_rounded, size: 16),
                                 label: const Text('Retry'),
+                                style: ElevatedButton.styleFrom(backgroundColor: theme.primaryColor),
                                 onPressed: _loadInitial,
                               ),
                             ],
                           ),
                         )
                       : _items.isEmpty
-                          ? const Center(
-                              child: Text('No matching items found', style: TextStyle(color: Colors.grey)),
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.search_off_rounded, size: 36, color: Colors.grey.shade400),
+                                  const SizedBox(height: 8),
+                                  const Text('No matching items found', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
                             )
                           : ListView.separated(
                               controller: _scrollController,
@@ -676,22 +775,31 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
                               separatorBuilder: (_, __) => const Divider(height: 1),
                               itemBuilder: (ctx, idx) {
                                 if (idx == _items.length) {
-                                  // Show More button / loading spinner
+                                  // Prominent Show More Button
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 8),
+                                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                                     child: Center(
                                       child: _isLoadingMore
-                                          ? const SizedBox(
-                                              width: 24,
-                                              height: 24,
-                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                          ? Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child: CircularProgressIndicator(strokeWidth: 2, color: theme.primaryColor),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                const Text('Loading more...', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                              ],
                                             )
                                           : OutlinedButton.icon(
-                                              icon: const Icon(Icons.expand_more, size: 18),
-                                              label: const Text('Show More (+5)'),
+                                              icon: const Icon(Icons.expand_more_rounded, size: 18),
+                                              label: const Text('Show More (+5 options)'),
                                               style: OutlinedButton.styleFrom(
-                                                foregroundColor: Colors.indigo,
-                                                side: const BorderSide(color: Colors.indigo),
+                                                foregroundColor: theme.primaryColor,
+                                                side: BorderSide(color: theme.primaryColor.withOpacity(0.5)),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                               ),
                                               onPressed: _loadMore,
                                             ),
@@ -706,21 +814,28 @@ class _DropdownModalContentState<T> extends State<_DropdownModalContent<T>> {
 
                                 return ListTile(
                                   dense: true,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  tileColor: isSelected ? theme.primaryColor.withOpacity(0.08) : null,
                                   title: Text(
                                     widget.itemTitle(item),
                                     style: TextStyle(
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                      color: isSelected ? Colors.indigo : null,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                      color: isSelected ? theme.primaryColor : Colors.black87,
                                     ),
                                   ),
-                                  subtitle: widget.itemSubtitle != null
+                                  subtitle: widget.itemSubtitle != null && widget.itemSubtitle!(item).isNotEmpty
                                       ? Text(
                                           widget.itemSubtitle!(item),
-                                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                          style: TextStyle(fontSize: 11, color: isSelected ? theme.primaryColor.withOpacity(0.8) : Colors.grey.shade600),
                                         )
                                       : null,
-                                  trailing: isSelected ? const Icon(Icons.check, color: Colors.indigo) : null,
-                                  onTap: () => widget.onSelected(item),
+                                  trailing: isSelected
+                                      ? Icon(Icons.check_circle_rounded, color: theme.primaryColor, size: 20)
+                                      : null,
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    widget.onSelected(item);
+                                  },
                                 );
                               },
                             ),

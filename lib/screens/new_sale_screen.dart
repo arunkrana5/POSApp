@@ -4,6 +4,7 @@ import '../models/sale.dart';
 import '../providers/auth_provider.dart';
 import '../providers/sale_provider.dart';
 import '../widgets/master_dropdown.dart';
+import '../widgets/paginated_server_dropdown.dart';
 
 class NewSaleScreen extends StatefulWidget {
   const NewSaleScreen({super.key});
@@ -17,6 +18,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final _paidController = TextEditingController(text: '150');
   String _paymentMode = 'Cash';
   int? _paymentModeId;
+  dynamic _customerId = 0;
+  String _customerName = 'Walk-in Customer';
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +38,22 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             constraints: const BoxConstraints(maxWidth: 900),
             child: Column(
           children: [
+            PaginatedServerDropdown.customers(
+              label: "ग्राहक चुनें (Customer)",
+              hint: "ग्राहक चुनें (Customer)",
+              selectedId: _customerId,
+              selectedTitle: _customerName,
+              includeWalkIn: true,
+              allowClear: true,
+              prefixIcon: const Icon(Icons.person_rounded),
+              onChanged: (cust, id, title) {
+                setState(() {
+                  _customerId = id;
+                  _customerName = title ?? 'Walk-in Customer';
+                });
+              },
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
