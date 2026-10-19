@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -8,7 +9,6 @@ import '../providers/locale_provider.dart';
 import '../providers/sync_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/notification_provider.dart';
-import '../widgets/analytics_charts_widget.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/notification_bell_icon.dart';
 
@@ -21,11 +21,17 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   double _todaySales = 0.0;
+  double _totalRevenue = 0.0;
   double _totalUdhaar = 0.0;
   int _lowStockCount = 0;
   double _todayProfit = 0.0;
+  double _cashSales = 0.0;
+  double _upiSales = 0.0;
+  double _udhaarSales = 0.0;
+  int _totalSalesCount = 0;
   List<Map<String, dynamic>> _recentTransactions = [];
-  List<Map<String, dynamic>> _salesList = [];
+  List<Map<String, dynamic>> _topSellingProducts = [];
+  List<Map<String, dynamic>> _dailyTrend = [];
   bool _isLoadingMetrics = false;
 
   @override
@@ -69,25 +75,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final baseUrl = ApiConfig.baseUrl.isNotEmpty ? ApiConfig.baseUrl : 'https://villageshop-api.onrender.com/api';
 
-      // Try fast server-side SQL aggregate metrics endpoint
+      // Fast server-side SQL aggregate metrics endpoint
       bool aggregateFetched = false;
       try {
-        final resMetrics = await http.get(Uri.parse('$baseUrl/reports/dashboard-metrics$qStr'), headers: headers).timeout(const Duration(seconds: 5));
+        final resMetrics = await http.get(Uri.parse('$baseUrl/reports/dashboard-metrics$qStr'), headers: headers).timeout(const Duration(seconds: 8));
         if (resMetrics.statusCode == 200) {
           final mData = jsonDecode(resMetrics.body);
           if (mData is Map<String, dynamic>) {
-            final tRevenue = (mData['todayRevenue'] as num?)?.toDouble() ?? (mData['totalRevenue'] as num?)?.toDouble() ?? 0.0;
+            final tRevenue = (mData['todayRevenue'] as num?)?.toDouble() ?? 0.0;
+            final totRev = (mData['totalRevenue'] as num?)?.toDouble() ?? 0.0;
             final tUdhaar = (mData['totalUdhaar'] as num?)?.toDouble() ?? 0.0;
             final lStock = (mData['lowStockCount'] as num?)?.toInt() ?? 0;
+            final cash = (mData['cashSales'] as num?)?.toDouble() ?? 0.0;
+            final upi = (mData['upiSales'] as num?)?.toDouble() ?? 0.0;
+            final udhaar = (mData['udhaarSales'] as num?)?.toDouble() ?? 0.0;
+            final sCount = (mData['totalSales'] as num?)?.toInt() ?? 0;
             final rSales = List<Map<String, dynamic>>.from(mData['recentSales'] ?? []);
+            final topProd = List<Map<String, dynamic>>.from(mData['topSellingProducts'] ?? []);
+            final trend = List<Map<String, dynamic>>.from(mData['dailyTrend'] ?? []);
 
             if (mounted) {
               setState(() {
                 _todaySales = tRevenue;
+                _totalRevenue = totRev;
                 _totalUdhaar = tUdhaar;
                 _lowStockCount = lStock;
-                _todayProfit = tRevenue * 0.15;
+                _cashSales = cash;
+                _upiSales = upi;
+                _udhaarSales = udhaar;
+                _totalSalesCount = sCount;
+                _todayProfit = (tRevenue > 0 ? tRevenue : totRev) * 0.15;
                 _recentTransactions = rSales;
+                _topSellingProducts = topProd;
+                _dailyTrend = trend;
               });
             }
             aggregateFetched = true;
@@ -141,11 +161,11 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) {
           setState(() {
             _todaySales = salesSum;
+            _totalRevenue = salesSum;
             _totalUdhaar = udhaarSum;
             _lowStockCount = lowStock;
             _todayProfit = salesSum * 0.15;
             _recentTransactions = salesList.take(6).toList();
-            _salesList = salesList;
           });
         }
       }
@@ -232,47 +252,25 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Interactive Real-time Analytics & Charts (Top Priority Position)
-              AnalyticsChartsWidget(
-                salesList: _salesList,
-                isHindi: isHindi,
-              ),
-              const SizedBox(height: 24),
+                  // 1. Executive Top Greeting Banner
+                  _buildGreetingBanner(context, isHindi, themeProvider),
+                  const SizedBox(height: 16),
 
-              // Metric Summary Cards (4 Grids)
-              Text(
-                isHindi ? 'आज का व्यापार सारांश' : 'Today\'s Business Summary',
-                style: TextStyle(
-                  fontFamily: themeProvider.fontFamily,
-                  fontSize: 18 * themeProvider.fontSizeScale,
-                  fontWeight: FontWeight.bold,
-                  color: themeProvider.textColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildStatsGrid(context, isHindi, themeProvider),
-              const SizedBox(height: 24),
+                  // 2. Metric Summary Cards (4 Grids)
+                  _buildStatsGrid(context, isHindi, themeProvider),
+                  const SizedBox(height: 16),
 
-              // Quick Actions Row
-              Text(
-                isHindi ? 'त्वरित कार्य' : 'Quick Actions',
-                style: TextStyle(
-                  fontFamily: themeProvider.fontFamily,
-                  fontSize: 18 * themeProvider.fontSizeScale,
-                  fontWeight: FontWeight.bold,
-                  color: themeProvider.textColor,
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildQuickActionsGrid(context, isHindi, themeProvider),
-              const SizedBox(height: 24),
+                  // 3. Payment Collection Split (Cash vs UPI vs Udhaar Bar)
+                  _buildPaymentSplitBar(context, isHindi, themeProvider),
+                  const SizedBox(height: 16),
 
-              // Recent Transactions Section Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+                  // 4. Analytics Row: 7-Day Sales Trend & Top Selling Products
+                  _buildAnalyticsSection(context, isHindi, themeProvider),
+                  const SizedBox(height: 20),
+
+                  // 5. Quick Actions Row
                   Text(
-                    isHindi ? 'हाल के लेन-देन' : 'Recent Transactions',
+                    isHindi ? 'त्वरित कार्य' : 'Quick Actions',
                     style: TextStyle(
                       fontFamily: themeProvider.fontFamily,
                       fontSize: 17 * themeProvider.fontSizeScale,
@@ -280,32 +278,56 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: themeProvider.textColor,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/reports');
-                    },
-                    child: Text(
-                      isHindi ? 'सभी देखें →' : 'View All →',
-                      style: TextStyle(
-                        fontFamily: themeProvider.fontFamily,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13 * themeProvider.fontSizeScale,
-                        color: themeProvider.buttonBgColor,
+                  const SizedBox(height: 10),
+                  _buildQuickActionsGrid(context, isHindi, themeProvider),
+                  const SizedBox(height: 24),
+
+                  // 6. Recent Transactions Section Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.history_rounded, size: 20, color: themeProvider.primaryColor),
+                          const SizedBox(width: 8),
+                          Text(
+                            isHindi ? 'हाल के लेन-देन' : 'Recent Transactions',
+                            style: TextStyle(
+                              fontFamily: themeProvider.fontFamily,
+                              fontSize: 17 * themeProvider.fontSizeScale,
+                              fontWeight: FontWeight.bold,
+                              color: themeProvider.textColor,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                        label: Text(
+                          isHindi ? 'सभी देखें' : 'View Audit Ledger',
+                          style: TextStyle(
+                            fontFamily: themeProvider.fontFamily,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13 * themeProvider.fontSizeScale,
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pushNamed(context, '/reports');
+                        },
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
+
+                  // 7. Recent Transactions List Feed
+                  _buildRecentTransactionsList(context, isHindi, themeProvider),
+                  const SizedBox(height: 32),
                 ],
               ),
-              const SizedBox(height: 8),
-
-              // Recent Transactions List Feed
-              _buildRecentTransactionsList(context, isHindi, themeProvider),
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: themeProvider.buttonBgColor,
         elevation: 4,
@@ -326,22 +348,119 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Modern Greeting & Store Status Banner
+  Widget _buildGreetingBanner(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
+    final now = DateTime.now();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final dateStr = '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} ${now.year}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: themeProvider.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.storefront_rounded, color: themeProvider.primaryColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isHindi ? 'पीओएस डैशबोर्ड एवं काउंटर' : 'POS Executive Dashboard',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$_totalSalesCount ${isHindi ? "कुल बिल" : "Bills"} • $dateStr',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFA7F3D0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isHindi ? 'लाइव सिंक' : 'Live Sync',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF047857),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4 Executive KPI Cards
   Widget _buildStatsGrid(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= 700;
+        final displaySales = _todaySales > 0 ? _todaySales : _totalRevenue;
+        final salesSub = _todaySales > 0
+            ? 'Total: ₹ ${_totalRevenue.toStringAsFixed(0)}'
+            : (isHindi ? 'कुल कारोबार' : 'Gross Turnover');
+
         return GridView.count(
           crossAxisCount: isDesktop ? 4 : 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: isDesktop ? 2.1 : 1.8,
+          childAspectRatio: isDesktop ? 2.1 : 1.75,
           children: [
             _buildStatCard(
               context,
-              isHindi ? 'आज की बिक्री' : 'Today\'s Sales',
-              '₹ ${_todaySales.toStringAsFixed(2)}',
+              isHindi ? 'आज की बिक्री' : 'Sales Revenue',
+              '₹ ${displaySales.toStringAsFixed(2)}',
+              salesSub,
               Icons.payments_rounded,
               themeProvider.amountColor,
               themeProvider.amountColor.withOpacity(0.1),
@@ -351,6 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               isHindi ? 'कुल उधार' : 'Total Udhaar',
               '₹ ${_totalUdhaar.toStringAsFixed(2)}',
+              _totalUdhaar > 0 ? (isHindi ? 'वसूली योग्य' : 'Outstanding Due') : (isHindi ? 'शून्य बकाया' : 'All Cleared'),
               Icons.account_balance_wallet_rounded,
               Colors.red.shade700,
               Colors.red.shade50,
@@ -360,6 +480,7 @@ class _HomeScreenState extends State<HomeScreen> {
               context,
               isHindi ? 'कम स्टॉक' : 'Low Stock',
               '$_lowStockCount ${isHindi ? "सामान" : "Items"}',
+              _lowStockCount > 0 ? (isHindi ? 'रीऑर्डर जरूरी' : 'Needs Reorder') : (isHindi ? 'स्टॉक सुरक्षित' : 'Healthy Stock'),
               Icons.warning_amber_rounded,
               themeProvider.secondaryColor,
               themeProvider.secondaryColor.withOpacity(0.1),
@@ -367,11 +488,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             _buildStatCard(
               context,
-              isHindi ? 'लाभ (अनुमानित)' : 'Profit (Est.)',
+              isHindi ? 'अनुमानित लाभ' : 'Estimated Profit',
               '₹ ${_todayProfit.toStringAsFixed(2)}',
+              isHindi ? '~15% ग्रॉस मार्जिन' : '~15% Gross Margin',
               Icons.trending_up_rounded,
-              themeProvider.buttonBgColor,
-              themeProvider.buttonBgColor.withOpacity(0.1),
+              const Color(0xFF059669),
+              const Color(0xFF059669).withOpacity(0.1),
               themeProvider,
             ),
           ],
@@ -380,18 +502,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color, Color bgColor, TenantThemeProvider themeProvider) {
+  Widget _buildStatCard(
+    BuildContext context,
+    String title,
+    String value,
+    String subtitle,
+    IconData icon,
+    Color color,
+    Color bgColor,
+    TenantThemeProvider themeProvider,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: themeProvider.cardBgColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withOpacity(0.2), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: color.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -409,41 +540,474 @@ class _HomeScreenState extends State<HomeScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontFamily: themeProvider.fontFamily,
-                    fontSize: 12.5 * themeProvider.fontSizeScale,
+                    fontSize: 12 * themeProvider.fontSizeScale,
                     fontWeight: FontWeight.w600,
                     color: themeProvider.textColor.withOpacity(0.7),
                   ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 18, color: color),
+                child: Icon(icon, size: 16, color: color),
               ),
             ],
           ),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Text(
-              value,
-              style: TextStyle(
-                fontFamily: themeProvider.fontFamily,
-                fontSize: 20 * themeProvider.fontSizeScale,
-                fontWeight: FontWeight.w800,
-                color: value.contains('₹') ? themeProvider.amountColor : themeProvider.textColor,
-                letterSpacing: -0.4,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    fontFamily: themeProvider.fontFamily,
+                    fontSize: 18 * themeProvider.fontSizeScale,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                    letterSpacing: -0.3,
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  // Modern Payment Collection Split Bar
+  Widget _buildPaymentSplitBar(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
+    final double totalSplit = _cashSales + _upiSales + _udhaarSales;
+    final double effectiveTotal = totalSplit > 0 ? totalSplit : (_totalRevenue > 0 ? _totalRevenue : 1.0);
+
+    final cashRatio = (_cashSales / effectiveTotal).clamp(0.0, 1.0);
+    final upiRatio = (_upiSales / effectiveTotal).clamp(0.0, 1.0);
+    final udhaarRatio = (_udhaarSales / effectiveTotal).clamp(0.0, 1.0);
+
+    final cashPct = (cashRatio * 100).toStringAsFixed(0);
+    final upiPct = (upiRatio * 100).toStringAsFixed(0);
+    final udhaarPct = (udhaarRatio * 100).toStringAsFixed(0);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.pie_chart_rounded, size: 18, color: themeProvider.primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    isHindi ? 'भुगतान एवं नकदी विभाजन' : 'Payment Collection Split',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ],
+              ),
+              Text(
+                'Total: ₹ ${effectiveTotal.toStringAsFixed(0)}',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Multi-color segmented progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              height: 10,
+              child: Row(
+                children: [
+                  if (cashRatio > 0)
+                    Expanded(
+                      flex: (cashRatio * 100).toInt(),
+                      child: Container(color: const Color(0xFF10B981)), // Green
+                    ),
+                  if (upiRatio > 0)
+                    Expanded(
+                      flex: (upiRatio * 100).toInt(),
+                      child: Container(color: const Color(0xFF3B82F6)), // Blue
+                    ),
+                  if (udhaarRatio > 0)
+                    Expanded(
+                      flex: (udhaarRatio * 100).toInt(),
+                      child: Container(color: const Color(0xFFEF4444)), // Red
+                    ),
+                  if (totalSplit <= 0)
+                    Expanded(
+                      flex: 100,
+                      child: Container(color: Colors.grey.shade200),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Legend chips with exact amounts
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildSplitLegendItem(
+                label: isHindi ? 'नकद (Cash)' : 'Cash',
+                amount: '₹ ${_cashSales.toStringAsFixed(0)}',
+                percent: '$cashPct%',
+                color: const Color(0xFF10B981),
+              ),
+              _buildSplitLegendItem(
+                label: isHindi ? 'यूपीआई (UPI)' : 'UPI',
+                amount: '₹ ${_upiSales.toStringAsFixed(0)}',
+                percent: '$upiPct%',
+                color: const Color(0xFF3B82F6),
+              ),
+              _buildSplitLegendItem(
+                label: isHindi ? 'उधार (Due)' : 'Udhaar',
+                amount: '₹ ${_udhaarSales.toStringAsFixed(0)}',
+                percent: '$udhaarPct%',
+                color: const Color(0xFFEF4444),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSplitLegendItem({
+    required String label,
+    required String amount,
+    required String percent,
+    required Color color,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 6),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w600)),
+            Text('$amount ($percent)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Modern Analytics Row: 7-Day Trend + Instant Top Selling Products
+  Widget _buildAnalyticsSection(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 768;
+
+        if (isDesktop) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 5,
+                child: _build7DayTrendCard(isHindi, themeProvider),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                flex: 5,
+                child: _buildTopSellingCard(isHindi, themeProvider),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            _build7DayTrendCard(isHindi, themeProvider),
+            const SizedBox(height: 14),
+            _buildTopSellingCard(isHindi, themeProvider),
+          ],
+        );
+      },
+    );
+  }
+
+  // 7-Day Sales Trend Bar Chart (Clean Native Widget)
+  Widget _build7DayTrendCard(bool isHindi, TenantThemeProvider themeProvider) {
+    final double maxDaily = _dailyTrend.isNotEmpty
+        ? _dailyTrend.map<double>((d) => ((d['total'] as num?)?.toDouble() ?? 0.0)).reduce(max)
+        : 1.0;
+    final effectiveMax = maxDaily > 0 ? maxDaily : 1.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.bar_chart_rounded, size: 18, color: themeProvider.primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    isHindi ? '7-दिवसीय बिक्री ट्रेंड' : '7-Day Sales Trend',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                child: Text(
+                  isHindi ? 'दैनिक वॉल्यूम' : 'Daily Vol',
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade700, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          if (_dailyTrend.isEmpty)
+            SizedBox(
+              height: 120,
+              child: Center(
+                child: Text(
+                  isHindi ? 'ट्रेंड डेटा लोड हो रहा है...' : 'Trend data updating...',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 130,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: _dailyTrend.map((d) {
+                  final day = d['day']?.toString() ?? '';
+                  final total = ((d['total'] as num?)?.toDouble() ?? 0.0);
+                  final ratio = (total / effectiveMax).clamp(0.08, 1.0);
+                  final kStr = total >= 1000 ? '${(total / 1000).toStringAsFixed(1)}k' : total.toStringAsFixed(0);
+
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            total > 0 ? '₹$kStr' : '',
+                            style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            height: 90 * ratio,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  themeProvider.primaryColor,
+                                  themeProvider.primaryColor.withOpacity(0.6),
+                                ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            day,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Top Selling Products with INSTANT Progress Bar (Zero Delay from SQL Server)
+  Widget _buildTopSellingCard(bool isHindi, TenantThemeProvider themeProvider) {
+    final double maxRevenue = _topSellingProducts.isNotEmpty
+        ? (_topSellingProducts.map<double>((p) => ((p['revenue'] as num?)?.toDouble() ?? 0.0)).reduce(max))
+        : 1.0;
+    final effectiveMax = maxRevenue > 0 ? maxRevenue : 1.0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.local_fire_department_rounded, size: 18, color: Colors.orange.shade700),
+                  const SizedBox(width: 8),
+                  Text(
+                    isHindi ? 'टॉप बिकने वाले सामान' : 'Top Selling Items',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
+                child: Text(
+                  isHindi ? 'फास्ट सेलर' : 'Fast Movers',
+                  style: TextStyle(fontSize: 10, color: Colors.orange.shade900, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (_topSellingProducts.isEmpty)
+            SizedBox(
+              height: 120,
+              child: Center(
+                child: Text(
+                  isHindi ? 'अभी कोई बिक्री रिकॉर्ड नहीं है' : 'No items sold yet',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ),
+            )
+          else
+            Column(
+              children: _topSellingProducts.take(4).toList().asMap().entries.map((entry) {
+                final index = entry.key;
+                final prod = entry.value;
+                final name = prod['name']?.toString() ?? 'Item';
+                final qty = prod['quantity'] ?? 0;
+                final revenue = ((prod['revenue'] as num?)?.toDouble() ?? 0.0);
+                final ratio = (revenue / effectiveMax).clamp(0.05, 1.0);
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: index == 0 ? Colors.amber.shade100 : Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                '#${index + 1}',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: index == 0 ? Colors.amber.shade900 : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              name,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6)),
+                            child: Text(
+                              '$qty sold',
+                              style: TextStyle(fontSize: 10, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '₹ ${revenue.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              color: themeProvider.amountColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: ratio,
+                          backgroundColor: Colors.grey.shade100,
+                          color: index == 0 ? themeProvider.primaryColor : themeProvider.secondaryColor,
+                          minHeight: 5,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // Quick Action Buttons
   Widget _buildQuickActionsGrid(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -590,6 +1154,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // Recent Transactions Feed
   Widget _buildRecentTransactionsList(BuildContext context, bool isHindi, TenantThemeProvider themeProvider) {
     if (_isLoadingMetrics) {
       return const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()));
@@ -618,8 +1183,8 @@ class _HomeScreenState extends State<HomeScreen> {
       separatorBuilder: (ctx, i) => const SizedBox(height: 8),
       itemBuilder: (ctx, index) {
         final tx = _recentTransactions[index];
-        final inv = tx['id']?.toString() ?? 'INV';
-        final cust = tx['customerName']?.toString() ?? 'Walk-in Customer';
+        final inv = tx['invoiceNumber']?.toString() ?? tx['id']?.toString() ?? 'INV';
+        final cust = tx['customerName']?.toString() ?? tx['status']?.toString() ?? 'Walk-in Customer';
         final amt = (tx['totalAmount'] as num?)?.toDouble() ?? 0.0;
         final mode = tx['paymentMode']?.toString() ?? 'Cash';
         final time = tx['createdAt']?.toString() ?? '';
@@ -647,7 +1212,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(
                 fontFamily: themeProvider.fontFamily,
                 fontWeight: FontWeight.bold,
-                fontSize: 15 * themeProvider.fontSizeScale,
+                fontSize: 14 * themeProvider.fontSizeScale,
                 color: themeProvider.textColor,
               ),
             ),
@@ -655,7 +1220,7 @@ class _HomeScreenState extends State<HomeScreen> {
               '$inv • $time',
               style: TextStyle(
                 fontFamily: themeProvider.fontFamily,
-                fontSize: 12 * themeProvider.fontSizeScale,
+                fontSize: 11 * themeProvider.fontSizeScale,
                 color: themeProvider.textColor.withOpacity(0.6),
               ),
             ),
@@ -667,7 +1232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   '₹ ${amt.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontFamily: themeProvider.fontFamily,
-                    fontSize: 15 * themeProvider.fontSizeScale,
+                    fontSize: 14 * themeProvider.fontSizeScale,
                     fontWeight: FontWeight.bold,
                     color: isUdhaar ? Colors.red.shade700 : themeProvider.amountColor,
                   ),
