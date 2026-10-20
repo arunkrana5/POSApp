@@ -86,23 +86,22 @@ void main() {
       expect(matchesProduct(availableProducts[0], 'PRD-01'), isTrue);
     });
 
-    test('Discount percentage calculation accurately reflects MRP vs Selling Price', () {
-      final product1 = {'price': 80.0, 'mrp': 100.0}; // 20% discount
-      final product2 = {'price': 100.0, 'mrp': 100.0}; // No discount
-      final product3 = {'price': 45.0, 'mrp': 50.0}; // 10% discount
+    test('Exact amount sales policy ensures 0% offer discount and exact amount calculation', () {
+      final product1 = {'price': 80.50, 'mrp': 100.0};
+      final product2 = {'price': 100.0, 'mrp': 100.0};
 
-      int calculateDiscount(Map<String, dynamic> p) {
-        final double price = (p['price'] as num).toDouble();
-        final double mrp = (p['mrp'] as num).toDouble();
-        if (mrp > price && mrp > 0) {
-          return (((mrp - price) / mrp) * 100).round();
-        }
-        return 0;
-      }
+      // Policy: 0% offer discount, exact amount sold
+      double getSellingPrice(Map<String, dynamic> p) => (p['price'] as num).toDouble();
+      bool showDiscountBadge() => false; // Offers disabled (0% discount)
 
-      expect(calculateDiscount(product1), 20);
-      expect(calculateDiscount(product2), 0);
-      expect(calculateDiscount(product3), 10);
+      expect(showDiscountBadge(), isFalse);
+      expect(getSellingPrice(product1), 80.50);
+      expect(getSellingPrice(product2), 100.0);
+
+      // Exact formatting preserves decimals
+      String formatExact(double val) => val.toStringAsFixed(val.truncateToDouble() == val ? 0 : 2);
+      expect(formatExact(80.50), '80.50');
+      expect(formatExact(100.0), '100');
     });
 
     test('Cart quantity transforms between Add button and Stepper', () {

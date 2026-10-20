@@ -1650,13 +1650,10 @@ class _PosScreenState extends State<PosScreen> {
                               final unit = (product['unit']?.toString() ?? 'pcs').toLowerCase();
                               final isLoose = product['isLoose'] == true || ['kg', 'g', 'gm', 'ltr', 'ml'].contains(unit);
                               final double price = (product['price'] as num?)?.toDouble() ?? 0.0;
-                              final double mrp = (product['mrp'] as num?)?.toDouble() ?? 0.0;
                               final int stock = (product['stock'] as num?)?.toInt() ?? 0;
                               final int minStock = (product['minimumStock'] as num?)?.toInt() ?? 5;
                               final String imgUrl = product['imageUrl']?.toString() ?? '';
                               final String barcode = product['barcode']?.toString() ?? '';
-                              final hasDiscount = mrp > price && mrp > 0;
-                              final int discountPercent = hasDiscount ? (((mrp - price) / mrp) * 100).round() : 0;
                               final isOutOfStock = !themeProvider.allowNegativeStock && stock <= 0;
 
                               return InkWell(
@@ -1720,27 +1717,6 @@ class _PosScreenState extends State<PosScreen> {
                                                 child: _buildProductThumbnail(imgUrl, height: 42, fit: BoxFit.contain),
                                               ),
                                             ),
-                                            // Discount Badge (Top Left)
-                                            if (hasDiscount && discountPercent > 0)
-                                              Positioned(
-                                                top: 2,
-                                                left: 3,
-                                                child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 0.5),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0xFF16A34A),
-                                                    borderRadius: BorderRadius.circular(2.5),
-                                                  ),
-                                                  child: Text(
-                                                    '$discountPercent% OFF',
-                                                    style: const TextStyle(
-                                                      fontSize: 7.5,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
                                             // Loose / Out of stock Badge (Top Right)
                                             Positioned(
                                               top: 2,
@@ -1860,17 +1836,6 @@ class _PosScreenState extends State<PosScreen> {
                                                               color: themeProvider.amountColor,
                                                             ),
                                                           ),
-                                                          if (hasDiscount) ...[
-                                                            const SizedBox(width: 2.5),
-                                                            Text(
-                                                              '${themeProvider.currencySymbol}$mrp',
-                                                              style: TextStyle(
-                                                                fontSize: 8.5,
-                                                                color: themeProvider.textColor.withOpacity(0.4),
-                                                                decoration: TextDecoration.lineThrough,
-                                                              ),
-                                                            ),
-                                                          ],
                                                           const SizedBox(width: 3.5),
                                                           Text(
                                                             isOutOfStock ? '• Out' : '• Qty:$stock',
@@ -2425,10 +2390,12 @@ class _PosScreenState extends State<PosScreen> {
     required double taxAmount,
     required double grandTotal,
   }) {
+    String formatExact(double val) => val.toStringAsFixed(val.truncateToDouble() == val ? 0 : 2);
     final discountCtrl = TextEditingController(text: '0');
-    final paidCtrl = TextEditingController(text: grandTotal.toStringAsFixed(0));
-    final cashCtrl = TextEditingController(text: (grandTotal / 2).toStringAsFixed(0));
-    final upiCtrl = TextEditingController(text: (grandTotal / 2).toStringAsFixed(0));
+    final paidCtrl = TextEditingController(text: formatExact(grandTotal));
+    final half = grandTotal / 2;
+    final cashCtrl = TextEditingController(text: formatExact(half));
+    final upiCtrl = TextEditingController(text: formatExact(grandTotal - half));
     
     String selectedMode = _selectedPaymentMode;
     String? modalErrorMessage;
@@ -2621,10 +2588,11 @@ class _PosScreenState extends State<PosScreen> {
                                 final d = double.tryParse(val) ?? 0.0;
                                 final net = (grandTotal - d).clamp(0.0, double.infinity);
                                 if (selectedMode == 'Split') {
-                                  cashCtrl.text = (net / 2).toStringAsFixed(0);
-                                  upiCtrl.text = (net - (double.tryParse(cashCtrl.text) ?? 0)).toStringAsFixed(0);
+                                  final half = net / 2;
+                                  cashCtrl.text = formatExact(half);
+                                  upiCtrl.text = formatExact(net - (double.tryParse(cashCtrl.text) ?? 0));
                                 } else if (selectedMode != 'Udhaar') {
-                                  paidCtrl.text = net.toStringAsFixed(0);
+                                  paidCtrl.text = formatExact(net);
                                 }
                               });
                             },
@@ -2634,18 +2602,17 @@ class _PosScreenState extends State<PosScreen> {
                         OutlinedButton(
                           onPressed: () {
                             setModalState(() {
-                              final roundTotal = grandTotal.floorToDouble();
-                              final autoDiscount = grandTotal - roundTotal;
-                              discountCtrl.text = autoDiscount.toStringAsFixed(2);
+                              discountCtrl.text = '0';
                               if (selectedMode == 'Split') {
-                                cashCtrl.text = (roundTotal / 2).toStringAsFixed(0);
-                                upiCtrl.text = (roundTotal - (double.tryParse(cashCtrl.text) ?? 0)).toStringAsFixed(0);
+                                final half = grandTotal / 2;
+                                cashCtrl.text = formatExact(half);
+                                upiCtrl.text = formatExact(grandTotal - half);
                               } else if (selectedMode != 'Udhaar') {
-                                paidCtrl.text = roundTotal.toStringAsFixed(0);
+                                paidCtrl.text = formatExact(grandTotal);
                               }
                             });
                           },
-                          child: Text(isHindi ? 'राउंड ऑफ ₹${grandTotal.floor()}' : 'Round to ₹${grandTotal.floor()}'),
+                          child: Text(isHindi ? 'सटीक राशि (0% छूट)' : 'Exact Amount (0% Disc)'),
                         ),
                       ],
                     ),
