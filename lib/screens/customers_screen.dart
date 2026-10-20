@@ -758,14 +758,43 @@ class _CustomersScreenState extends State<CustomersScreen> {
                               spacing: 8,
                               runSpacing: 6,
                               children: [
+                                // Option 1: WhatsApp App (Free & Unlimited Auto-fill)
                                 ElevatedButton.icon(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF25D366),
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   ),
-                                  icon: const Icon(Icons.send_rounded, size: 16, color: Colors.white),
+                                  icon: const Icon(Icons.chat_rounded, size: 16, color: Colors.white),
                                   label: Text(
-                                    isHindi ? 'व्हाट्सएप स्टेटमेंट' : 'WhatsApp Statement',
+                                    isHindi ? 'व्हाट्सएप ऐप (फ़्री)' : 'WhatsApp App',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: () {
+                                    final phone = (c['whatsapp'] ?? c['phone'] ?? '').toString();
+                                    if (phone.trim().isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Customer does not have a phone/WhatsApp number')),
+                                      );
+                                      return;
+                                    }
+                                    final msg = WhatsAppHelper.formatLedgerReminderMessage(
+                                      tenantName: themeProvider.tenantName,
+                                      customerName: (c['name'] ?? '').toString(),
+                                      currentBalance: liveBalance,
+                                      transactions: allTxs,
+                                    );
+                                    WhatsAppHelper.openWhatsApp(context: context, phone: phone, message: msg);
+                                  },
+                                ),
+                                // Option 2: Server Cloud API (Green API Gateway)
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0284C7),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  ),
+                                  icon: const Icon(Icons.cloud_upload_rounded, size: 16, color: Colors.white),
+                                  label: Text(
+                                    isHindi ? 'क्लाउड API' : 'Cloud API',
                                     style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                   onPressed: () async {

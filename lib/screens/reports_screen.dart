@@ -460,92 +460,146 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Action Buttons: Print PDF & WhatsApp Share
+                  // Action 1: Print Invoice / PDF
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 11),
+                        side: BorderSide(color: themeProvider.primaryColor, width: 1.5),
+                      ),
+                      icon: isPrintingAction
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Icon(Icons.print_rounded, size: 20, color: themeProvider.primaryColor),
+                      label: Text(
+                        isPrintingAction ? (isHindi ? 'लोड हो रहा है...' : 'Opening...') : (isHindi ? 'इनवॉइस प्रिंट / PDF' : 'Print Invoice / PDF'),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
+                      ),
+                      onPressed: isPrintingAction
+                          ? null
+                          : () {
+                              setModalState(() => isPrintingAction = true);
+                              try {
+                                InvoicePrinter.showPrintPreviewModal(
+                                  context,
+                                  tenantName: themeProvider.tenantName,
+                                  appTitle: themeProvider.appTitle,
+                                  logoUrl: themeProvider.logoUrl,
+                                  supportPhone: themeProvider.supportPhone,
+                                  invoiceNo: invoiceNo,
+                                  customerName: customerName,
+                                  customerPhone: phoneCtrl.text.trim(),
+                                  paymentMode: paymentMode,
+                                  createdAt: createdAt,
+                                  subtotal: effectiveGross,
+                                  taxAmount: rawTax,
+                                  discountAmount: effectiveDiscount,
+                                  grandTotal: grandTotal,
+                                  items: itemsList.isNotEmpty
+                                      ? itemsList
+                                      : [
+                                          {
+                                            'name': 'Store Purchase',
+                                            'qty': 1,
+                                            'price': grandTotal,
+                                            'totalPrice': grandTotal,
+                                          }
+                                        ],
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Print preview error: $e'), backgroundColor: Colors.red),
+                                );
+                              } finally {
+                                if (modalCtx.mounted) {
+                                  setModalState(() => isPrintingAction = false);
+                                }
+                              }
+                            },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Action 2: WhatsApp Share Options (Both Free Direct App & Server Cloud API)
                   Row(
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            side: BorderSide(color: themeProvider.primaryColor, width: 1.5),
-                          ),
-                          icon: isPrintingAction
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : Icon(Icons.print_rounded, size: 20, color: themeProvider.primaryColor),
-                          label: Text(
-                            isPrintingAction ? (isHindi ? 'लोड हो रहा है...' : 'Opening...') : (isHindi ? 'इनवॉइस प्रिंट / PDF' : 'Print Invoice / PDF'),
-                            style: TextStyle(fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
-                          ),
-                          onPressed: isPrintingAction
-                              ? null
-                              : () {
-                                  setModalState(() => isPrintingAction = true);
-                                  try {
-                                    InvoicePrinter.showPrintPreviewModal(
-                                      context,
-                                      tenantName: themeProvider.tenantName,
-                                      appTitle: themeProvider.appTitle,
-                                      logoUrl: themeProvider.logoUrl,
-                                      supportPhone: themeProvider.supportPhone,
-                                      invoiceNo: invoiceNo,
-                                      customerName: customerName,
-                                      customerPhone: phoneCtrl.text.trim(),
-                                      paymentMode: paymentMode,
-                                      createdAt: createdAt,
-                                      subtotal: effectiveGross,
-                                      taxAmount: rawTax,
-                                      discountAmount: effectiveDiscount,
-                                      grandTotal: grandTotal,
-                                      items: itemsList.isNotEmpty
-                                          ? itemsList
-                                          : [
-                                              {
-                                                'name': 'Store Purchase',
-                                                'qty': 1,
-                                                'price': grandTotal,
-                                                'totalPrice': grandTotal,
-                                              }
-                                            ],
-                                    );
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Print preview error: $e'), backgroundColor: Colors.red),
-                                    );
-                                  } finally {
-                                    if (modalCtx.mounted) {
-                                      setModalState(() => isPrintingAction = false);
-                                    }
-                                  }
-                                },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
+                      // Option 1: WhatsApp App (Free & Unlimited Auto-fill)
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF25D366),
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
+                          ),
+                          icon: const Icon(Icons.chat_rounded, size: 17),
+                          label: Text(
+                            isHindi ? 'व्हाट्सएप ऐप (फ़्री)' : 'WhatsApp App',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          onPressed: () {
+                            final cleanPhone = phoneCtrl.text.trim();
+                            if (cleanPhone.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please enter customer mobile number')),
+                              );
+                              return;
+                            }
+                            final messageText = WhatsAppHelper.formatInvoiceMessage(
+                              tenantName: themeProvider.tenantName,
+                              invoiceNo: invoiceNo,
+                              customerName: customerName,
+                              paymentMode: paymentMode,
+                              createdAt: createdAt,
+                              subtotal: effectiveGross,
+                              discountAmount: effectiveDiscount,
+                              taxAmount: rawTax,
+                              grandTotal: grandTotal,
+                              items: itemsList.isNotEmpty
+                                  ? itemsList
+                                  : [
+                                      {
+                                        'name': 'Store Purchase',
+                                        'qty': 1,
+                                        'price': grandTotal,
+                                        'totalPrice': grandTotal,
+                                      }
+                                    ],
+                            );
+                            WhatsAppHelper.openWhatsApp(
+                              context: context,
+                              phone: cleanPhone,
+                              message: messageText,
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Option 2: Server Cloud API (Green API Direct)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0284C7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
                           ),
                           icon: isSendingWhatsApp
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.send_rounded, size: 20),
+                              ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.cloud_upload_rounded, size: 17),
                           label: Text(
-                            isSendingWhatsApp ? (isHindi ? 'भेज रहा है...' : 'Sending...') : 'WhatsApp Share',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                            isSendingWhatsApp
+                                ? (isHindi ? 'भेज रहा है...' : 'Sending...')
+                                : (isHindi ? 'क्लाउड API' : 'Cloud API'),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                           ),
                           onPressed: isSendingWhatsApp
                               ? null
                               : () async {
-                                  final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+                                  final cleanPhone = phoneCtrl.text.trim();
                                   if (cleanPhone.isEmpty) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(content: Text('Please enter a valid customer mobile number to share WhatsApp invoice')),

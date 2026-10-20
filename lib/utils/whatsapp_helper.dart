@@ -8,15 +8,37 @@ import 'whatsapp_helper_stub.dart'
     if (dart.library.js_interop) 'whatsapp_helper_web.dart';
 
 class WhatsAppHelper {
-  /// Opens WhatsApp URL in browser or native WhatsApp application
-  static void openWhatsApp({required String phone, required String message}) {
+  /// Opens WhatsApp URL in browser or native WhatsApp application with pre-filled message (100% Free / Unlimited)
+  static bool openWhatsApp({
+    BuildContext? context,
+    required String phone,
+    required String message,
+  }) {
     final norm = WhatsAppPhoneNormalizer.normalize(phone);
     final targetPhone = norm.isValid ? norm.normalizedPhone : phone.replaceAll(RegExp(r'\D'), '');
-    if (targetPhone.isEmpty) return;
+    if (targetPhone.isEmpty) {
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid mobile number')),
+        );
+      }
+      return false;
+    }
 
     final encoded = Uri.encodeComponent(message);
     final waUrl = 'https://api.whatsapp.com/send?phone=$targetPhone&text=$encoded';
     openWhatsAppUrlPlatform(waUrl);
+
+    if (context != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('📱 Opening WhatsApp for +$targetPhone...'),
+          backgroundColor: const Color(0xFF25D366),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+    return true;
   }
 
   /// Dispatches WhatsApp message via Backend Cloud Gateway (Green API)

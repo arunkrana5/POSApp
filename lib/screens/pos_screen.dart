@@ -1086,67 +1086,123 @@ class _PosScreenState extends State<PosScreen> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Row 1: Print Action
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: isPrintingAction
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.print_rounded, size: 18),
+                    label: Text(
+                      isPrintingAction ? (isHindi ? 'लोड हो रहा है...' : 'Opening...') : (isHindi ? 'प्रिंट रसीद (Print Bill)' : 'Print Receipt'),
+                    ),
+                    onPressed: isPrintingAction
+                        ? null
+                        : () {
+                            setModalState(() => isPrintingAction = true);
+                            try {
+                              InvoicePrinter.showPrintPreviewModal(
+                                context,
+                                tenantName: themeProvider.tenantName,
+                                appTitle: themeProvider.appTitle,
+                                logoUrl: themeProvider.logoUrl,
+                                supportPhone: themeProvider.supportPhone,
+                                invoiceNo: invoiceNo,
+                                customerName: customerName,
+                                customerPhone: phoneCtrl.text.trim(),
+                                paymentMode: paymentMode,
+                                createdAt: DateTime.now().toString().split('.')[0],
+                                subtotal: subtotal > 0 ? subtotal : (grandTotal + calcDisc),
+                                taxAmount: taxAmount,
+                                discountAmount: calcDisc,
+                                grandTotal: grandTotal,
+                                items: items,
+                              );
+                            } finally {
+                              if (modalCtx.mounted) {
+                                setModalState(() => isPrintingAction = false);
+                              }
+                            }
+                          },
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Row 2: WhatsApp Share Options (Both Free Direct App & Server Cloud API)
                 Row(
                   children: [
+                    // Option 1: WhatsApp App (Free & Unlimited Auto-fill)
                     Expanded(
-                      child: OutlinedButton.icon(
-                        icon: isPrintingAction
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Icon(Icons.print_rounded, size: 18),
-                        label: Text(
-                          isPrintingAction ? (isHindi ? 'लोड हो रहा है...' : 'Opening...') : (isHindi ? 'प्रिंट रसीद' : 'Print Receipt'),
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
                         ),
-                        onPressed: isPrintingAction
-                            ? null
-                            : () {
-                                setModalState(() => isPrintingAction = true);
-                                try {
-                                  InvoicePrinter.showPrintPreviewModal(
-                                    context,
-                                    tenantName: themeProvider.tenantName,
-                                    appTitle: themeProvider.appTitle,
-                                    logoUrl: themeProvider.logoUrl,
-                                    supportPhone: themeProvider.supportPhone,
-                                    invoiceNo: invoiceNo,
-                                    customerName: customerName,
-                                    customerPhone: phoneCtrl.text.trim(),
-                                    paymentMode: paymentMode,
-                                    createdAt: DateTime.now().toString().split('.')[0],
-                                    subtotal: subtotal > 0 ? subtotal : (grandTotal + calcDisc),
-                                    taxAmount: taxAmount,
-                                    discountAmount: calcDisc,
-                                    grandTotal: grandTotal,
-                                    items: items,
-                                  );
-                                } finally {
-                                  if (modalCtx.mounted) {
-                                    setModalState(() => isPrintingAction = false);
-                                  }
-                                }
-                              },
+                        icon: const Icon(Icons.chat_rounded, size: 17),
+                        label: Text(
+                          isHindi ? 'व्हाट्सएप ऐप (फ़्री)' : 'WhatsApp App',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                        onPressed: () {
+                          final cleanPhone = phoneCtrl.text.trim();
+                          if (cleanPhone.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter customer mobile number')),
+                            );
+                            return;
+                          }
+                          final calcDisc = discountAmount > 0.001 ? discountAmount : ((subtotal + taxAmount) - grandTotal);
+                          final messageText = WhatsAppHelper.formatInvoiceMessage(
+                            tenantName: themeProvider.tenantName,
+                            invoiceNo: invoiceNo,
+                            customerName: customerName,
+                            paymentMode: paymentMode,
+                            createdAt: DateTime.now().toString().split('.')[0],
+                            subtotal: subtotal > 0 ? subtotal : grandTotal,
+                            discountAmount: calcDisc > 0.001 ? calcDisc : 0.0,
+                            taxAmount: taxAmount,
+                            grandTotal: grandTotal,
+                            items: items,
+                          );
+                          WhatsAppHelper.openWhatsApp(
+                            context: context,
+                            phone: cleanPhone,
+                            message: messageText,
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
+
+                    // Option 2: Server Cloud API (Green API Direct)
                     Expanded(
                       child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0284C7),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                        ),
                         icon: isSendingWhatsApp
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.send_rounded, size: 18),
-                        label: Text(isSendingWhatsApp ? 'Sending...' : 'WhatsApp'),
+                            ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.cloud_upload_rounded, size: 17),
+                        label: Text(
+                          isSendingWhatsApp
+                              ? (isHindi ? 'भेज रहा है...' : 'Sending...')
+                              : (isHindi ? 'क्लाउड API' : 'Cloud API'),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
                         onPressed: isSendingWhatsApp
                             ? null
                             : () async {
                                 final cleanPhone = phoneCtrl.text.trim();
                                 if (cleanPhone.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please enter a valid customer mobile number to send WhatsApp invoice')),
+                                    const SnackBar(content: Text('Please enter a valid customer mobile number')),
                                   );
                                   return;
                                 }
-                                setModalState(() {
-                                  isSendingWhatsApp = true;
-                                });
+                                setModalState(() => isSendingWhatsApp = true);
 
                                 final calcDisc = discountAmount > 0.001 ? discountAmount : ((subtotal + taxAmount) - grandTotal);
                                 final messageText = WhatsAppHelper.formatInvoiceMessage(
@@ -1168,12 +1224,9 @@ class _PosScreenState extends State<PosScreen> {
                                     phone: cleanPhone,
                                     message: messageText,
                                   );
-
                                 } finally {
                                   if (modalCtx.mounted) {
-                                    setModalState(() {
-                                      isSendingWhatsApp = false;
-                                    });
+                                    setModalState(() => isSendingWhatsApp = false);
                                   }
                                 }
                               },
@@ -1182,16 +1235,22 @@ class _PosScreenState extends State<PosScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
+
+                // Row 3: New Bill Action
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: themeProvider.buttonBgColor, foregroundColor: themeProvider.buttonTextColor),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: themeProvider.buttonBgColor,
+                      foregroundColor: themeProvider.buttonTextColor,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                     onPressed: () {
                       Navigator.pop(ctx);
                     },
                     child: Text(
                       isHindi ? '+ नया बिल बनाएँ' : '+ New Bill',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   ),
                 ),
