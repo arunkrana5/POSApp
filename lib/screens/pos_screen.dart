@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
 import '../providers/locale_provider.dart';
 import '../utils/invoice_printer.dart';
@@ -1139,7 +1137,7 @@ class _PosScreenState extends State<PosScreen> {
                         onPressed: isSendingWhatsApp
                             ? null
                             : () async {
-                                final cleanPhone = phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+                                final cleanPhone = phoneCtrl.text.trim();
                                 if (cleanPhone.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('Please enter a valid customer mobile number to send WhatsApp invoice')),
@@ -1165,37 +1163,12 @@ class _PosScreenState extends State<PosScreen> {
                                 );
 
                                 try {
-                                  final prefs = await SharedPreferences.getInstance();
-                                  final tId = prefs.getInt('tenant_id') ?? 1;
-                                  final token = prefs.getString('auth_token') ?? '';
+                                  await WhatsAppHelper.sendCloudWhatsApp(
+                                    context: context,
+                                    phone: cleanPhone,
+                                    message: messageText,
+                                  );
 
-                                  final headers = <String, String>{'Content-Type': 'application/json'};
-                                  if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
-
-                                  final response = await http.post(
-                                    Uri.parse('${ApiConfig.baseUrl}/sales/send-whatsapp'),
-                                    headers: headers,
-                                    body: jsonEncode({
-                                      'tenantId': tId,
-                                      'phone': cleanPhone,
-                                      'message': messageText,
-                                    }),
-                                  ).timeout(const Duration(seconds: 12));
-
-                                  if (response.statusCode == 200) {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('✅ Cloud Server WhatsApp message sent directly to +91 $cleanPhone!'),
-                                          backgroundColor: const Color(0xFF25D366),
-                                        ),
-                                      );
-                                    }
-                                  } else {
-                                    WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
-                                  }
-                                } catch (_) {
-                                  WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
                                 } finally {
                                   if (modalCtx.mounted) {
                                     setModalState(() {

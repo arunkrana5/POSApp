@@ -768,15 +768,21 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                     isHindi ? 'व्हाट्सएप स्टेटमेंट' : 'WhatsApp Statement',
                                     style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
-                                  onPressed: () {
+                                  onPressed: () async {
+                                    final phone = (c['whatsapp'] ?? c['phone'] ?? '').toString();
+                                    if (phone.trim().isEmpty) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Customer does not have a phone/WhatsApp number')),
+                                      );
+                                      return;
+                                    }
                                     final msg = WhatsAppHelper.formatLedgerReminderMessage(
                                       tenantName: themeProvider.tenantName,
                                       customerName: (c['name'] ?? '').toString(),
                                       currentBalance: liveBalance,
                                       transactions: allTxs,
                                     );
-                                    final phone = (c['whatsapp'] ?? c['phone'] ?? '').toString();
-                                    WhatsAppHelper.openWhatsApp(phone: phone, message: msg);
+                                    await WhatsAppHelper.sendCloudWhatsApp(context: context, phone: phone, message: msg);
                                   },
                                 ),
                                 ElevatedButton.icon(

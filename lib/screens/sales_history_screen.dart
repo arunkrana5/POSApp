@@ -583,37 +583,11 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                               );
 
                               try {
-                                final prefs = await SharedPreferences.getInstance();
-                                final tId = prefs.getInt('tenant_id') ?? 1;
-                                final token = prefs.getString('auth_token') ?? '';
-
-                                final headers = <String, String>{'Content-Type': 'application/json'};
-                                if (token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
-
-                                final response = await http.post(
-                                  Uri.parse('${ApiConfig.baseUrl}/sales/send-whatsapp'),
-                                  headers: headers,
-                                  body: jsonEncode({
-                                    'tenantId': tId,
-                                    'phone': cleanPhone,
-                                    'message': messageText,
-                                  }),
-                                ).timeout(const Duration(seconds: 12));
-
-                                if (response.statusCode == 200) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('✅ Cloud Server WhatsApp message sent directly to +91 $cleanPhone!'),
-                                        backgroundColor: const Color(0xFF25D366),
-                                      ),
-                                    );
-                                  }
-                                } else {
-                                  WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
-                                }
-                              } catch (_) {
-                                WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
+                                await WhatsAppHelper.sendCloudWhatsApp(
+                                  context: context,
+                                  phone: cleanPhone,
+                                  message: messageText,
+                                );
                               } finally {
                                 if (modalCtx.mounted) {
                                   setModalState(() => isSendingWhatsApp = false);

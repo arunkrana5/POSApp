@@ -1,18 +1,111 @@
-import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
+import 'whatsapp_phone_normalizer.dart';
 import 'whatsapp_helper_stub.dart'
     if (dart.library.js_interop) 'whatsapp_helper_web.dart';
 
 class WhatsAppHelper {
-  /// Opens WhatsApp URL in browser or WhatsApp app
+  /// Opens WhatsApp URL in browser or native WhatsApp application
   static void openWhatsApp({required String phone, required String message}) {
-    final cleanPhone = phone.replaceAll(RegExp(r'\D'), '');
-    if (cleanPhone.isEmpty) return;
-    final targetPhone = cleanPhone.startsWith('91') ? cleanPhone : '91$cleanPhone';
+    final norm = WhatsAppPhoneNormalizer.normalize(phone);
+    final targetPhone = norm.isValid ? norm.normalizedPhone : phone.replaceAll(RegExp(r'\D'), '');
+    if (targetPhone.isEmpty) return;
+
     final encoded = Uri.encodeComponent(message);
     final waUrl = 'https://api.whatsapp.com/send?phone=$targetPhone&text=$encoded';
+    openWhatsAppUrlPlatform(waUrl);
+  }
 
-    if (kIsWeb) {
-      openWhatsAppUrlWeb(waUrl);
+  /// Dispatches WhatsApp message via Backend Cloud Gateway (Green API)
+  /// with automated validation, error reporting, and fallback to native WhatsApp.
+  static Future<bool> sendCloudWhatsApp({
+    required BuildContext context,
+    required String phone,
+    required String message,
+    int? tenantId,
+  }) async {
+    final norm = WhatsAppPhoneNormalizer.normalize(phone);
+    if (!norm.isValid) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(norm.errorMessage),
+            backgroundColor: Colors.orange.shade800,
+          ),
+        );
+      }
+      return false;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final effectiveTenantId = tenantId ?? prefs.getInt('tenant_id') ?? 1;
+      final token = prefs.getString('auth_token') ?? '';
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+        'X-Tenant-Id': effectiveTenantId.toString(),
+      };
+
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/sales/send-whatsapp'),
+        headers: headers,
+        body: jsonEncode({
+          'tenantId': effectiveTenantId,
+          'phone': norm.normalizedPhone,
+          'message': message,
+        }),
+      ).timeout(const Duration(seconds: 12));
+
+      Map<String, dynamic>? resData;
+      try {
+        resData = jsonDecode(response.body) as Map<String, dynamic>?;
+      } catch (_) {}
+
+      final bool isSuccess = response.statusCode == 200 && (resData?['status'] == true);
+
+      if (isSuccess) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ WhatsApp message sent directly to +${norm.normalizedPhone}!'),
+              backgroundColor: const Color(0xFF25D366),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return true;
+      } else {
+        final errorMsg = resData?['message']?.toString() ??
+            'WhatsApp Gateway returned status ${response.statusCode}';
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⚠️ $errorMsg. Opening WhatsApp app...'),
+              backgroundColor: Colors.orange.shade800,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        openWhatsApp(phone: norm.normalizedPhone, message: message);
+        return false;
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('⚠️ Cloud Gateway unreachable. Opening WhatsApp app...'),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      openWhatsApp(phone: norm.normalizedPhone, message: message);
+      return false;
     }
   }
 

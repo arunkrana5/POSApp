@@ -11,7 +11,6 @@ import '../providers/theme_provider.dart';
 import '../utils/invoice_printer.dart';
 import '../utils/whatsapp_helper.dart';
 import '../widgets/app_drawer.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -579,37 +578,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   );
 
                                   try {
-                                    final prefs = await SharedPreferences.getInstance();
-                                    final tId = prefs.getInt('tenant_id') ?? 1;
-                                    final token = prefs.getString('auth_token') ?? '';
-
-                                    final response = await http.post(
-                                      Uri.parse('${ApiConfig.baseUrl}/sales/send-whatsapp'),
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
-                                      },
-                                      body: jsonEncode({
-                                        'tenantId': tId,
-                                        'phone': cleanPhone,
-                                        'message': messageText,
-                                      }),
-                                    ).timeout(const Duration(seconds: 8));
-
-                                    if (response.statusCode == 200) {
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('WhatsApp invoice sent successfully to +91 $cleanPhone!'),
-                                            backgroundColor: const Color(0xFF25D366),
-                                          ),
-                                        );
-                                      }
-                                    } else {
-                                      WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
-                                    }
-                                  } catch (_) {
-                                    WhatsAppHelper.openWhatsApp(phone: cleanPhone, message: messageText);
+                                    await WhatsAppHelper.sendCloudWhatsApp(
+                                      context: context,
+                                      phone: cleanPhone,
+                                      message: messageText,
+                                    );
                                   } finally {
                                     if (modalCtx.mounted) {
                                       setModalState(() => isSendingWhatsApp = false);
