@@ -1634,12 +1634,12 @@ class _PosScreenState extends State<PosScreen> {
                           }
 
                           return GridView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: crossAxisCount,
-                              mainAxisExtent: 260,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
+                              mainAxisExtent: 176,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
                             ),
                             itemCount: filteredProducts.length,
                             itemBuilder: (ctx, index) {
@@ -1662,7 +1662,7 @@ class _PosScreenState extends State<PosScreen> {
                               final isLowStock = !isOutOfStock && stock > 0 && stock <= minStock;
 
                               return InkWell(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                                 onTap: () {
                                   if (isLoose) {
                                     _showLooseItemQuantityDialog(product, themeProvider, isInCart ? cartIndex : null);
@@ -1686,83 +1686,83 @@ class _PosScreenState extends State<PosScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: themeProvider.cardBgColor,
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                       color: isInCart
                                           ? themeProvider.buttonBgColor
-                                          : (isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade200),
-                                      width: isInCart ? 1.8 : 1.0,
+                                          : (isDark ? Colors.white.withOpacity(0.08) : Colors.grey.shade300),
+                                      width: isInCart ? 1.6 : 1.0,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
                                         color: isInCart
                                             ? themeProvider.buttonBgColor.withOpacity(0.08)
                                             : Colors.black.withOpacity(isDark ? 0.2 : 0.03),
-                                        blurRadius: 5,
-                                        offset: const Offset(0, 2),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1),
                                       ),
                                     ],
                                   ),
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Top Image Box with BoxFit.contain and subtle background
+                                      // Top Image Box (Compact: 68px, no wasted space)
                                       Container(
-                                        height: 110,
+                                        height: 68,
                                         width: double.infinity,
                                         decoration: BoxDecoration(
                                           color: isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
-                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
                                         ),
                                         child: Stack(
                                           children: [
                                             Center(
                                               child: Padding(
-                                                padding: const EdgeInsets.all(8.0),
-                                                child: _buildProductThumbnail(imgUrl, height: 94, fit: BoxFit.contain),
+                                                padding: const EdgeInsets.all(4.0),
+                                                child: _buildProductThumbnail(imgUrl, height: 60, fit: BoxFit.contain),
                                               ),
                                             ),
                                             // Discount Badge (Top Left)
                                             if (hasDiscount && discountPercent > 0)
                                               Positioned(
-                                                top: 6,
-                                                left: 6,
+                                                top: 4,
+                                                left: 4,
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                                                   decoration: BoxDecoration(
                                                     color: const Color(0xFF16A34A),
-                                                    borderRadius: BorderRadius.circular(4),
+                                                    borderRadius: BorderRadius.circular(3),
                                                   ),
                                                   child: Text(
                                                     '$discountPercent% OFF',
                                                     style: const TextStyle(
-                                                      fontSize: 9,
+                                                      fontSize: 8.5,
                                                       fontWeight: FontWeight.bold,
                                                       color: Colors.white,
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            // Loose / Low stock Badge (Top Right)
+                                            // Loose / Out of stock Badge (Top Right)
                                             Positioned(
-                                              top: 6,
-                                              right: 6,
+                                              top: 4,
+                                              right: 4,
                                               child: isLoose
                                                   ? Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                                                       decoration: BoxDecoration(
                                                         color: Colors.orange.shade700,
-                                                        borderRadius: BorderRadius.circular(4),
+                                                        borderRadius: BorderRadius.circular(3),
                                                       ),
                                                       child: const Row(
                                                         mainAxisSize: MainAxisSize.min,
                                                         children: [
-                                                          Icon(Icons.scale_rounded, size: 9, color: Colors.white),
+                                                          Icon(Icons.scale_rounded, size: 8, color: Colors.white),
                                                           SizedBox(width: 2),
                                                           Text(
                                                             'Loose',
                                                             style: TextStyle(
-                                                              fontSize: 8.5,
+                                                              fontSize: 8,
                                                               fontWeight: FontWeight.bold,
                                                               color: Colors.white,
                                                             ),
@@ -1772,51 +1772,35 @@ class _PosScreenState extends State<PosScreen> {
                                                     )
                                                   : (isOutOfStock
                                                       ? Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
                                                           decoration: BoxDecoration(
                                                             color: Colors.red.shade700,
-                                                            borderRadius: BorderRadius.circular(4),
+                                                            borderRadius: BorderRadius.circular(3),
                                                           ),
                                                           child: const Text(
-                                                            'Out of stock',
+                                                            'Out',
                                                             style: TextStyle(
-                                                              fontSize: 8.5,
+                                                              fontSize: 8,
                                                               fontWeight: FontWeight.bold,
                                                               color: Colors.white,
                                                             ),
                                                           ),
                                                         )
-                                                      : (isLowStock
-                                                          ? Container(
-                                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                                              decoration: BoxDecoration(
-                                                                color: Colors.amber.shade800,
-                                                                borderRadius: BorderRadius.circular(4),
-                                                              ),
-                                                              child: Text(
-                                                                'Only $stock left',
-                                                                style: const TextStyle(
-                                                                  fontSize: 8.5,
-                                                                  fontWeight: FontWeight.bold,
-                                                                  color: Colors.white,
-                                                                ),
-                                                              ),
-                                                            )
-                                                          : const SizedBox.shrink())),
+                                                      : const SizedBox.shrink()),
                                             ),
                                           ],
                                         ),
                                       ),
 
-                                      // Bottom Details Box
+                                      // Bottom Details Box (Compact, high-density POS layout)
                                       Expanded(
                                         child: Padding(
-                                          padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                                          padding: const EdgeInsets.fromLTRB(7, 4, 7, 6),
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              // Title, Brand & Barcode
+                                              // Title, Brand & Unit
                                               Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
@@ -1826,9 +1810,9 @@ class _PosScreenState extends State<PosScreen> {
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
                                                       style: TextStyle(
-                                                        fontSize: 9,
+                                                        fontSize: 8.5,
                                                         fontWeight: FontWeight.w600,
-                                                        letterSpacing: 0.5,
+                                                        letterSpacing: 0.4,
                                                         color: themeProvider.textColor.withOpacity(0.5),
                                                       ),
                                                     ),
@@ -1839,174 +1823,209 @@ class _PosScreenState extends State<PosScreen> {
                                                     style: TextStyle(
                                                       fontFamily: themeProvider.fontFamily,
                                                       fontWeight: FontWeight.bold,
-                                                      fontSize: 12 * themeProvider.fontSizeScale,
+                                                      fontSize: 11.5 * themeProvider.fontSizeScale,
                                                       height: 1.15,
                                                       color: themeProvider.textColor,
                                                     ),
                                                   ),
-                                                  const SizedBox(height: 1),
-                                                  Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                    children: [
-                                                      Text(
-                                                        isLoose ? 'Per $unit' : '${product['unit'] ?? 'pcs'}',
-                                                        style: TextStyle(
-                                                          fontSize: 10,
-                                                          color: themeProvider.textColor.withOpacity(0.5),
-                                                          fontWeight: FontWeight.w500,
-                                                        ),
-                                                      ),
-                                                      if (barcode.isNotEmpty)
-                                                        Text(
-                                                          '║▌$barcode',
-                                                          style: const TextStyle(
-                                                            fontSize: 8.5,
-                                                            fontFamily: 'monospace',
-                                                            color: Colors.purple,
-                                                            fontWeight: FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-
-                                              // Price & MRP
-                                              Row(
-                                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                                textBaseline: TextBaseline.alphabetic,
-                                                children: [
-                                                  Text(
-                                                    '${themeProvider.currencySymbol}$price',
-                                                    style: TextStyle(
-                                                      fontFamily: themeProvider.fontFamily,
-                                                      fontSize: 14 * themeProvider.fontSizeScale,
-                                                      fontWeight: FontWeight.w800,
-                                                      color: themeProvider.amountColor,
-                                                    ),
-                                                  ),
-                                                  if (hasDiscount) ...[
-                                                    const SizedBox(width: 4),
+                                                  if (barcode.isNotEmpty)
                                                     Text(
-                                                      '${themeProvider.currencySymbol}$mrp',
-                                                      style: TextStyle(
-                                                        fontSize: 10.5,
-                                                        color: themeProvider.textColor.withOpacity(0.4),
-                                                        decoration: TextDecoration.lineThrough,
-                                                        decorationColor: themeProvider.textColor.withOpacity(0.4),
+                                                      '║▌$barcode',
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 8,
+                                                        fontFamily: 'monospace',
+                                                        color: Colors.purple,
+                                                        fontWeight: FontWeight.bold,
                                                       ),
                                                     ),
-                                                  ],
                                                 ],
                                               ),
 
-                                              // Add / Stepper Button
-                                              if (!isInCart)
-                                                SizedBox(
-                                                  width: double.infinity,
-                                                  height: 30,
-                                                  child: ElevatedButton.icon(
-                                                    onPressed: isOutOfStock
-                                                        ? null
-                                                        : () {
-                                                            if (isLoose) {
-                                                              _showLooseItemQuantityDialog(product, themeProvider);
-                                                            } else {
-                                                              _addToCart(product, themeProvider);
-                                                            }
-                                                          },
-                                                    icon: Icon(
-                                                      isLoose ? Icons.scale_rounded : Icons.add_rounded,
-                                                      size: 14,
-                                                      color: isOutOfStock
-                                                          ? Colors.grey
-                                                          : themeProvider.buttonTextColor,
-                                                    ),
-                                                    label: Text(
-                                                      isOutOfStock
-                                                          ? 'OUT OF STOCK'
-                                                          : (isLoose ? 'ADD QTY' : 'ADD'),
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        fontWeight: FontWeight.bold,
-                                                        letterSpacing: 0.3,
-                                                        color: isOutOfStock
-                                                            ? Colors.grey
-                                                            : themeProvider.buttonTextColor,
-                                                      ),
-                                                    ),
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: isOutOfStock
-                                                          ? Colors.grey.shade200
-                                                          : themeProvider.buttonBgColor,
-                                                      elevation: 0,
-                                                      padding: EdgeInsets.zero,
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius: BorderRadius.circular(6),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                )
-                                              else
-                                                Container(
-                                                  height: 30,
-                                                  decoration: BoxDecoration(
-                                                    color: themeProvider.buttonBgColor,
-                                                    borderRadius: BorderRadius.circular(6),
-                                                  ),
-                                                  child: isLoose
-                                                      ? InkWell(
-                                                          onTap: () => _showLooseItemQuantityDialog(product, themeProvider, cartIndex),
-                                                          child: Row(
-                                                            mainAxisAlignment: MainAxisAlignment.center,
-                                                            children: [
-                                                              Icon(Icons.scale_rounded, size: 12, color: themeProvider.buttonTextColor),
-                                                              const SizedBox(width: 3),
-                                                              Text(
-                                                                '${qtyInCart.toStringAsFixed(qtyInCart.truncateToDouble() == qtyInCart ? 0 : 3)} $unit',
-                                                                style: TextStyle(
-                                                                  fontSize: 11,
-                                                                  fontWeight: FontWeight.bold,
-                                                                  color: themeProvider.buttonTextColor,
+                                              // Bottom Row: [Price + Stock Qty] on Left, [Compact Add Button/Stepper] on Right
+                                              Row(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  // Price, MRP & Available Stock
+                                                  Expanded(
+                                                    child: Column(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Row(
+                                                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                                                          textBaseline: TextBaseline.alphabetic,
+                                                          children: [
+                                                            Flexible(
+                                                              child: FittedBox(
+                                                                fit: BoxFit.scaleDown,
+                                                                alignment: Alignment.centerLeft,
+                                                                child: Text(
+                                                                  '${themeProvider.currencySymbol}$price',
+                                                                  style: TextStyle(
+                                                                    fontFamily: themeProvider.fontFamily,
+                                                                    fontSize: 13.5 * themeProvider.fontSizeScale,
+                                                                    fontWeight: FontWeight.w800,
+                                                                    color: themeProvider.amountColor,
+                                                                  ),
                                                                 ),
                                                               ),
+                                                            ),
+                                                            if (hasDiscount) ...[
                                                               const SizedBox(width: 3),
-                                                              Icon(Icons.edit, size: 11, color: themeProvider.buttonTextColor.withOpacity(0.8)),
+                                                              Text(
+                                                                '${themeProvider.currencySymbol}$mrp',
+                                                                style: TextStyle(
+                                                                  fontSize: 9.5,
+                                                                  color: themeProvider.textColor.withOpacity(0.4),
+                                                                  decoration: TextDecoration.lineThrough,
+                                                                ),
+                                                              ),
                                                             ],
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 1),
+                                                        Text(
+                                                          isOutOfStock
+                                                              ? 'Out of stock'
+                                                              : 'Stock: $stock $unit',
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: TextStyle(
+                                                            fontSize: 9,
+                                                            fontWeight: (stock <= minStock || isOutOfStock)
+                                                                ? FontWeight.bold
+                                                                : FontWeight.w500,
+                                                            color: isOutOfStock
+                                                                ? Colors.red.shade700
+                                                                : (stock <= minStock
+                                                                    ? Colors.amber.shade900
+                                                                    : (isDark
+                                                                        ? Colors.greenAccent.shade200
+                                                                        : Colors.green.shade700)),
                                                           ),
-                                                        )
-                                                      : Row(
-                                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+
+                                                  // Compact Add Button or Inline Stepper
+                                                  if (!isInCart)
+                                                    SizedBox(
+                                                      height: 25,
+                                                      child: ElevatedButton(
+                                                        onPressed: isOutOfStock
+                                                            ? null
+                                                            : () {
+                                                                if (isLoose) {
+                                                                  _showLooseItemQuantityDialog(product, themeProvider);
+                                                                } else {
+                                                                  _addToCart(product, themeProvider);
+                                                                }
+                                                              },
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor: isOutOfStock
+                                                              ? Colors.grey.shade300
+                                                              : themeProvider.buttonBgColor,
+                                                          foregroundColor: isOutOfStock
+                                                              ? Colors.grey.shade600
+                                                              : themeProvider.buttonTextColor,
+                                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 0),
+                                                          elevation: 0,
+                                                          minimumSize: const Size(44, 25),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(5),
+                                                          ),
+                                                        ),
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
                                                           children: [
-                                                            InkWell(
-                                                              onTap: () => _updateQuantity(cartIndex, -1, themeProvider),
-                                                              child: Container(
-                                                                width: 28,
-                                                                height: 30,
-                                                                alignment: Alignment.center,
-                                                                child: Icon(Icons.remove, size: 14, color: themeProvider.buttonTextColor),
-                                                              ),
+                                                            Icon(
+                                                              isLoose ? Icons.scale_rounded : Icons.add_rounded,
+                                                              size: 13,
                                                             ),
+                                                            const SizedBox(width: 2),
                                                             Text(
-                                                              '$qtyInCart',
-                                                              style: TextStyle(
-                                                                fontSize: 12,
+                                                              isOutOfStock ? 'OUT' : 'ADD',
+                                                              style: const TextStyle(
+                                                                fontSize: 10,
                                                                 fontWeight: FontWeight.bold,
-                                                                color: themeProvider.buttonTextColor,
-                                                              ),
-                                                            ),
-                                                            InkWell(
-                                                              onTap: () => _updateQuantity(cartIndex, 1, themeProvider),
-                                                              child: Container(
-                                                                width: 28,
-                                                                height: 30,
-                                                                alignment: Alignment.center,
-                                                                child: Icon(Icons.add, size: 14, color: themeProvider.buttonTextColor),
                                                               ),
                                                             ),
                                                           ],
                                                         ),
-                                                ),
+                                                      ),
+                                                    )
+                                                  else
+                                                    Container(
+                                                      height: 25,
+                                                      decoration: BoxDecoration(
+                                                        color: themeProvider.buttonBgColor,
+                                                        borderRadius: BorderRadius.circular(5),
+                                                      ),
+                                                      child: isLoose
+                                                          ? InkWell(
+                                                              onTap: () => _showLooseItemQuantityDialog(product, themeProvider, cartIndex),
+                                                              child: Padding(
+                                                                padding: const EdgeInsets.symmetric(horizontal: 5),
+                                                                child: Row(
+                                                                  mainAxisSize: MainAxisSize.min,
+                                                                  children: [
+                                                                    Icon(Icons.scale_rounded, size: 11, color: themeProvider.buttonTextColor),
+                                                                    const SizedBox(width: 2),
+                                                                    Text(
+                                                                      '${qtyInCart.toStringAsFixed(qtyInCart.truncateToDouble() == qtyInCart ? 0 : 2)} $unit',
+                                                                      style: TextStyle(
+                                                                        fontSize: 10,
+                                                                        fontWeight: FontWeight.bold,
+                                                                        color: themeProvider.buttonTextColor,
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(width: 2),
+                                                                    Icon(Icons.edit, size: 9, color: themeProvider.buttonTextColor.withOpacity(0.8)),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            )
+                                                          : Row(
+                                                              mainAxisSize: MainAxisSize.min,
+                                                              children: [
+                                                                InkWell(
+                                                                  onTap: () => _updateQuantity(cartIndex, -1, themeProvider),
+                                                                  child: Container(
+                                                                    width: 22,
+                                                                    height: 25,
+                                                                    alignment: Alignment.center,
+                                                                    child: Icon(Icons.remove, size: 12, color: themeProvider.buttonTextColor),
+                                                                  ),
+                                                                ),
+                                                                Padding(
+                                                                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                                                                  child: Text(
+                                                                    '$qtyInCart',
+                                                                    style: TextStyle(
+                                                                      fontSize: 11,
+                                                                      fontWeight: FontWeight.bold,
+                                                                      color: themeProvider.buttonTextColor,
+                                                                    ),
+                                                                  ),
+                                                                ),
+                                                                InkWell(
+                                                                  onTap: () => _updateQuantity(cartIndex, 1, themeProvider),
+                                                                  child: Container(
+                                                                    width: 22,
+                                                                    height: 25,
+                                                                    alignment: Alignment.center,
+                                                                    child: Icon(Icons.add, size: 12, color: themeProvider.buttonTextColor),
+                                                                  ),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                    ),
+                                                ],
+                                              ),
                                             ],
                                           ),
                                         ),
