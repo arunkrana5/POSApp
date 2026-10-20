@@ -649,9 +649,17 @@ class _StockScreenState extends State<StockScreen> {
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: themeProvider.primaryColor),
                         ),
                         InkWell(
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            Navigator.pushNamed(context, '/items', arguments: {'openAddModal': true});
+                          onTap: () async {
+                            final dynamic newItem = await Navigator.pushNamed(
+                              context,
+                              '/items',
+                              arguments: {'openAddModal': true},
+                            );
+                            if (newItem != null && newItem is Map<String, dynamic>) {
+                              setModalState(() {
+                                selectedCatalogItem = newItem;
+                              });
+                            }
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1062,10 +1070,16 @@ class _StockScreenState extends State<StockScreen> {
                               ).timeout(const Duration(seconds: 12));
 
                               if (res.statusCode == 200 || res.statusCode == 201) {
+                                dynamic resData;
+                                try { resData = jsonDecode(res.body); } catch (_) {}
+                                final realId = (resData is Map && resData['id'] != null)
+                                    ? resData['id'].toString()
+                                    : DateTime.now().millisecondsSinceEpoch.toString();
+
                                 if (mounted) {
                                   setState(() {
                                     _products.insert(0, {
-                                      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                                      'id': realId,
                                       'itemId': itemIdVal.toString(),
                                       'productCode': selectedCatalogItem!['itemCode'],
                                       'name': selectedCatalogItem!['name'],
@@ -1076,11 +1090,15 @@ class _StockScreenState extends State<StockScreen> {
                                       'barcode': barcodeCtrl.text.trim(),
                                       'imageUrl': uploadedCompressedPhotoUrl ?? '',
                                     });
+                                    _totalCount++;
                                   });
                                 }
 
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 ToastHelper.showSuccess(context, isHindi ? 'स्टॉक इन सफलतापूर्वक दर्ज हो गया!' : 'Stock in entry saved successfully!');
+                                if (_scrollController.hasClients) {
+                                  _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+                                }
                                 _loadProducts(reset: true);
                               } else {
                                 final err = 'Failed to save stock: Status ${res.statusCode} ${res.body}';
