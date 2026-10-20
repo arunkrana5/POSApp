@@ -1637,7 +1637,7 @@ class _PosScreenState extends State<PosScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: crossAxisCount,
-                              mainAxisExtent: 176,
+                              mainAxisExtent: 132,
                               crossAxisSpacing: 8,
                               mainAxisSpacing: 8,
                             ),
@@ -1662,7 +1662,7 @@ class _PosScreenState extends State<PosScreen> {
                               final isLowStock = !isOutOfStock && stock > 0 && stock <= minStock;
 
                               return InkWell(
-                                borderRadius: BorderRadius.circular(10),
+                                borderRadius: BorderRadius.circular(8),
                                 onTap: () {
                                   if (isLoose) {
                                     _showLooseItemQuantityDialog(product, themeProvider, isInCart ? cartIndex : null);
@@ -1686,7 +1686,7 @@ class _PosScreenState extends State<PosScreen> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     color: themeProvider.cardBgColor,
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(8),
                                     border: Border.all(
                                       color: isInCart
                                           ? themeProvider.buttonBgColor
@@ -1698,7 +1698,7 @@ class _PosScreenState extends State<PosScreen> {
                                         color: isInCart
                                             ? themeProvider.buttonBgColor.withOpacity(0.08)
                                             : Colors.black.withOpacity(isDark ? 0.2 : 0.03),
-                                        blurRadius: 4,
+                                        blurRadius: 3,
                                         offset: const Offset(0, 1),
                                       ),
                                     ],
@@ -1706,29 +1706,29 @@ class _PosScreenState extends State<PosScreen> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      // Top Image Box (Compact: 68px, no wasted space)
+                                      // Top Image Box (Compact: 52px, zero wasted space)
                                       Container(
-                                        height: 68,
+                                        height: 52,
                                         width: double.infinity,
                                         decoration: BoxDecoration(
                                           color: isDark ? Colors.white.withOpacity(0.03) : const Color(0xFFF8FAFC),
-                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+                                          borderRadius: const BorderRadius.vertical(top: Radius.circular(7)),
                                         ),
                                         child: Stack(
                                           children: [
                                             Center(
                                               child: Padding(
-                                                padding: const EdgeInsets.all(4.0),
-                                                child: _buildProductThumbnail(imgUrl, height: 60, fit: BoxFit.contain),
+                                                padding: const EdgeInsets.all(3.0),
+                                                child: _buildProductThumbnail(imgUrl, height: 46, fit: BoxFit.contain),
                                               ),
                                             ),
                                             // Discount Badge (Top Left)
                                             if (hasDiscount && discountPercent > 0)
                                               Positioned(
-                                                top: 4,
-                                                left: 4,
+                                                top: 3,
+                                                left: 3,
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                                                  padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 1),
                                                   decoration: BoxDecoration(
                                                     color: const Color(0xFF16A34A),
                                                     borderRadius: BorderRadius.circular(3),
@@ -1736,7 +1736,7 @@ class _PosScreenState extends State<PosScreen> {
                                                   child: Text(
                                                     '$discountPercent% OFF',
                                                     style: const TextStyle(
-                                                      fontSize: 8.5,
+                                                      fontSize: 8,
                                                       fontWeight: FontWeight.bold,
                                                       color: Colors.white,
                                                     ),
@@ -1745,11 +1745,11 @@ class _PosScreenState extends State<PosScreen> {
                                               ),
                                             // Loose / Out of stock Badge (Top Right)
                                             Positioned(
-                                              top: 4,
-                                              right: 4,
+                                              top: 3,
+                                              right: 3,
                                               child: isLoose
                                                   ? Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 1),
                                                       decoration: BoxDecoration(
                                                         color: Colors.orange.shade700,
                                                         borderRadius: BorderRadius.circular(3),
@@ -1757,12 +1757,12 @@ class _PosScreenState extends State<PosScreen> {
                                                       child: const Row(
                                                         mainAxisSize: MainAxisSize.min,
                                                         children: [
-                                                          Icon(Icons.scale_rounded, size: 8, color: Colors.white),
-                                                          SizedBox(width: 2),
+                                                          Icon(Icons.scale_rounded, size: 7.5, color: Colors.white),
+                                                          SizedBox(width: 1.5),
                                                           Text(
                                                             'Loose',
                                                             style: TextStyle(
-                                                              fontSize: 8,
+                                                              fontSize: 7.5,
                                                               fontWeight: FontWeight.bold,
                                                               color: Colors.white,
                                                             ),
@@ -1772,7 +1772,7 @@ class _PosScreenState extends State<PosScreen> {
                                                     )
                                                   : (isOutOfStock
                                                       ? Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                                                          padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 1),
                                                           decoration: BoxDecoration(
                                                             color: Colors.red.shade700,
                                                             borderRadius: BorderRadius.circular(3),
@@ -1780,7 +1780,7 @@ class _PosScreenState extends State<PosScreen> {
                                                           child: const Text(
                                                             'Out',
                                                             style: TextStyle(
-                                                              fontSize: 8,
+                                                              fontSize: 7.5,
                                                               fontWeight: FontWeight.bold,
                                                               color: Colors.white,
                                                             ),
@@ -1792,30 +1792,19 @@ class _PosScreenState extends State<PosScreen> {
                                         ),
                                       ),
 
-                                      // Bottom Details Box (Compact, high-density POS layout)
+                                      // Bottom Details Box (Tight, dense, zero wasted space)
                                       Expanded(
                                         child: Padding(
-                                          padding: const EdgeInsets.fromLTRB(7, 4, 7, 6),
+                                          padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              // Title, Brand & Unit
+                                              // Product Name & Barcode
                                               Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisSize: MainAxisSize.min,
                                                 children: [
-                                                  if (brand.isNotEmpty)
-                                                    Text(
-                                                      brand.toUpperCase(),
-                                                      maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: TextStyle(
-                                                        fontSize: 8.5,
-                                                        fontWeight: FontWeight.w600,
-                                                        letterSpacing: 0.4,
-                                                        color: themeProvider.textColor.withOpacity(0.5),
-                                                      ),
-                                                    ),
                                                   Text(
                                                     product['name'] ?? '',
                                                     maxLines: 2,
@@ -1823,7 +1812,7 @@ class _PosScreenState extends State<PosScreen> {
                                                     style: TextStyle(
                                                       fontFamily: themeProvider.fontFamily,
                                                       fontWeight: FontWeight.bold,
-                                                      fontSize: 11.5 * themeProvider.fontSizeScale,
+                                                      fontSize: 11 * themeProvider.fontSizeScale,
                                                       height: 1.15,
                                                       color: themeProvider.textColor,
                                                     ),
@@ -1834,7 +1823,7 @@ class _PosScreenState extends State<PosScreen> {
                                                       maxLines: 1,
                                                       overflow: TextOverflow.ellipsis,
                                                       style: const TextStyle(
-                                                        fontSize: 8,
+                                                        fontSize: 7.5,
                                                         fontFamily: 'monospace',
                                                         color: Colors.purple,
                                                         fontWeight: FontWeight.bold,
@@ -1843,78 +1832,83 @@ class _PosScreenState extends State<PosScreen> {
                                                 ],
                                               ),
 
-                                              // Bottom Row: [Price + Stock Qty] on Left, [Compact Add Button/Stepper] on Right
+                                              // Price, MRP & Unit row
                                               Row(
-                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                                textBaseline: TextBaseline.alphabetic,
                                                 children: [
-                                                  // Price, MRP & Available Stock
-                                                  Expanded(
-                                                    child: Column(
-                                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                                      mainAxisSize: MainAxisSize.min,
-                                                      children: [
-                                                        Row(
-                                                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                                                          textBaseline: TextBaseline.alphabetic,
-                                                          children: [
-                                                            Flexible(
-                                                              child: FittedBox(
-                                                                fit: BoxFit.scaleDown,
-                                                                alignment: Alignment.centerLeft,
-                                                                child: Text(
-                                                                  '${themeProvider.currencySymbol}$price',
-                                                                  style: TextStyle(
-                                                                    fontFamily: themeProvider.fontFamily,
-                                                                    fontSize: 13.5 * themeProvider.fontSizeScale,
-                                                                    fontWeight: FontWeight.w800,
-                                                                    color: themeProvider.amountColor,
-                                                                  ),
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            if (hasDiscount) ...[
-                                                              const SizedBox(width: 3),
-                                                              Text(
-                                                                '${themeProvider.currencySymbol}$mrp',
-                                                                style: TextStyle(
-                                                                  fontSize: 9.5,
-                                                                  color: themeProvider.textColor.withOpacity(0.4),
-                                                                  decoration: TextDecoration.lineThrough,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ],
+                                                  Flexible(
+                                                    child: FittedBox(
+                                                      fit: BoxFit.scaleDown,
+                                                      alignment: Alignment.centerLeft,
+                                                      child: Text(
+                                                        '${themeProvider.currencySymbol}$price',
+                                                        style: TextStyle(
+                                                          fontFamily: themeProvider.fontFamily,
+                                                          fontSize: 13 * themeProvider.fontSizeScale,
+                                                          fontWeight: FontWeight.w800,
+                                                          color: themeProvider.amountColor,
                                                         ),
-                                                        const SizedBox(height: 1),
-                                                        Text(
-                                                          isOutOfStock
-                                                              ? 'Out of stock'
-                                                              : 'Stock: $stock $unit',
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: TextStyle(
-                                                            fontSize: 9,
-                                                            fontWeight: (stock <= minStock || isOutOfStock)
-                                                                ? FontWeight.bold
-                                                                : FontWeight.w500,
-                                                            color: isOutOfStock
-                                                                ? Colors.red.shade700
-                                                                : (stock <= minStock
-                                                                    ? Colors.amber.shade900
-                                                                    : (isDark
-                                                                        ? Colors.greenAccent.shade200
-                                                                        : Colors.green.shade700)),
-                                                          ),
-                                                        ),
-                                                      ],
+                                                      ),
                                                     ),
                                                   ),
-                                                  const SizedBox(width: 4),
+                                                  if (hasDiscount) ...[
+                                                    const SizedBox(width: 3),
+                                                    Text(
+                                                      '${themeProvider.currencySymbol}$mrp',
+                                                      style: TextStyle(
+                                                        fontSize: 9,
+                                                        color: themeProvider.textColor.withOpacity(0.4),
+                                                        decoration: TextDecoration.lineThrough,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    isLoose ? '/$unit' : '($unit)',
+                                                    style: TextStyle(
+                                                      fontSize: 8.5,
+                                                      color: themeProvider.textColor.withOpacity(0.5),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
 
-                                                  // Compact Add Button or Inline Stepper
+                                              // Bottom Row: [Stock Info] on Left, [Compact Add Button / Stepper] on Right
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  // Stock status
+                                                  Expanded(
+                                                    child: Text(
+                                                      isOutOfStock
+                                                          ? 'Out of stock'
+                                                          : 'Stock: $stock',
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 8.5,
+                                                        fontWeight: (stock <= minStock || isOutOfStock)
+                                                            ? FontWeight.bold
+                                                            : FontWeight.w500,
+                                                        color: isOutOfStock
+                                                            ? Colors.red.shade700
+                                                            : (stock <= minStock
+                                                                ? Colors.amber.shade900
+                                                                : (isDark
+                                                                    ? Colors.greenAccent.shade200
+                                                                    : Colors.green.shade700)),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 3),
+
+                                                  // Compact Add / Stepper
                                                   if (!isInCart)
                                                     SizedBox(
-                                                      height: 25,
+                                                      height: 23,
                                                       child: ElevatedButton(
                                                         onPressed: isOutOfStock
                                                             ? null
@@ -1932,11 +1926,11 @@ class _PosScreenState extends State<PosScreen> {
                                                           foregroundColor: isOutOfStock
                                                               ? Colors.grey.shade600
                                                               : themeProvider.buttonTextColor,
-                                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 0),
+                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
                                                           elevation: 0,
-                                                          minimumSize: const Size(44, 25),
+                                                          minimumSize: const Size(40, 23),
                                                           shape: RoundedRectangleBorder(
-                                                            borderRadius: BorderRadius.circular(5),
+                                                            borderRadius: BorderRadius.circular(4),
                                                           ),
                                                         ),
                                                         child: Row(
@@ -1944,13 +1938,13 @@ class _PosScreenState extends State<PosScreen> {
                                                           children: [
                                                             Icon(
                                                               isLoose ? Icons.scale_rounded : Icons.add_rounded,
-                                                              size: 13,
+                                                              size: 12,
                                                             ),
-                                                            const SizedBox(width: 2),
+                                                            const SizedBox(width: 1.5),
                                                             Text(
                                                               isOutOfStock ? 'OUT' : 'ADD',
                                                               style: const TextStyle(
-                                                                fontSize: 10,
+                                                                fontSize: 9.5,
                                                                 fontWeight: FontWeight.bold,
                                                               ),
                                                             ),
@@ -1960,31 +1954,31 @@ class _PosScreenState extends State<PosScreen> {
                                                     )
                                                   else
                                                     Container(
-                                                      height: 25,
+                                                      height: 23,
                                                       decoration: BoxDecoration(
                                                         color: themeProvider.buttonBgColor,
-                                                        borderRadius: BorderRadius.circular(5),
+                                                        borderRadius: BorderRadius.circular(4),
                                                       ),
                                                       child: isLoose
                                                           ? InkWell(
                                                               onTap: () => _showLooseItemQuantityDialog(product, themeProvider, cartIndex),
                                                               child: Padding(
-                                                                padding: const EdgeInsets.symmetric(horizontal: 5),
+                                                                padding: const EdgeInsets.symmetric(horizontal: 4),
                                                                 child: Row(
                                                                   mainAxisSize: MainAxisSize.min,
                                                                   children: [
-                                                                    Icon(Icons.scale_rounded, size: 11, color: themeProvider.buttonTextColor),
-                                                                    const SizedBox(width: 2),
+                                                                    Icon(Icons.scale_rounded, size: 10, color: themeProvider.buttonTextColor),
+                                                                    const SizedBox(width: 1.5),
                                                                     Text(
                                                                       '${qtyInCart.toStringAsFixed(qtyInCart.truncateToDouble() == qtyInCart ? 0 : 2)} $unit',
                                                                       style: TextStyle(
-                                                                        fontSize: 10,
+                                                                        fontSize: 9.5,
                                                                         fontWeight: FontWeight.bold,
                                                                         color: themeProvider.buttonTextColor,
                                                                       ),
                                                                     ),
-                                                                    const SizedBox(width: 2),
-                                                                    Icon(Icons.edit, size: 9, color: themeProvider.buttonTextColor.withOpacity(0.8)),
+                                                                    const SizedBox(width: 1.5),
+                                                                    Icon(Icons.edit, size: 8.5, color: themeProvider.buttonTextColor.withOpacity(0.8)),
                                                                   ],
                                                                 ),
                                                               ),
@@ -1995,18 +1989,18 @@ class _PosScreenState extends State<PosScreen> {
                                                                 InkWell(
                                                                   onTap: () => _updateQuantity(cartIndex, -1, themeProvider),
                                                                   child: Container(
-                                                                    width: 22,
-                                                                    height: 25,
+                                                                    width: 20,
+                                                                    height: 23,
                                                                     alignment: Alignment.center,
-                                                                    child: Icon(Icons.remove, size: 12, color: themeProvider.buttonTextColor),
+                                                                    child: Icon(Icons.remove, size: 11, color: themeProvider.buttonTextColor),
                                                                   ),
                                                                 ),
                                                                 Padding(
-                                                                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                                                                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
                                                                   child: Text(
                                                                     '$qtyInCart',
                                                                     style: TextStyle(
-                                                                      fontSize: 11,
+                                                                      fontSize: 10.5,
                                                                       fontWeight: FontWeight.bold,
                                                                       color: themeProvider.buttonTextColor,
                                                                     ),
@@ -2015,10 +2009,10 @@ class _PosScreenState extends State<PosScreen> {
                                                                 InkWell(
                                                                   onTap: () => _updateQuantity(cartIndex, 1, themeProvider),
                                                                   child: Container(
-                                                                    width: 22,
-                                                                    height: 25,
+                                                                    width: 20,
+                                                                    height: 23,
                                                                     alignment: Alignment.center,
-                                                                    child: Icon(Icons.add, size: 12, color: themeProvider.buttonTextColor),
+                                                                    child: Icon(Icons.add, size: 11, color: themeProvider.buttonTextColor),
                                                                   ),
                                                                 ),
                                                               ],
@@ -2040,14 +2034,14 @@ class _PosScreenState extends State<PosScreen> {
                       ),
               ),
 
-          // Cart Footer & Checkout Panel
+          // Cart Footer & Checkout Panel (Compact POS Footer)
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: themeProvider.cardBgColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, -4)),
+                BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, -3)),
               ],
             ),
             child: Column(
@@ -2188,18 +2182,18 @@ class _PosScreenState extends State<PosScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _selectedPaymentMode == 'Udhaar' ? Colors.red.shade700 : themeProvider.buttonBgColor,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        icon: Icon(Icons.receipt_long_rounded, color: themeProvider.buttonTextColor),
+                        icon: Icon(Icons.receipt_long_rounded, size: 19, color: themeProvider.buttonTextColor),
                         label: Text(
                           isHindi ? 'बिल सेव करें' : 'Complete Sale',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: themeProvider.buttonTextColor),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: themeProvider.buttonTextColor),
                         ),
                         onPressed: _cartItems.isEmpty
                             ? null
