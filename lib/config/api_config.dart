@@ -10,8 +10,11 @@ class ApiConfig {
     if (kIsWeb) {
       try {
         final origin = Uri.base.origin;
-        if (origin.contains('localhost') || origin.contains('185.100.212.57')) {
-          return '$origin/api';
+        if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
+          return 'http://localhost:5000/api';
+        }
+        if (origin.contains('185.100.212.57')) {
+          return 'http://185.100.212.57:5000/api';
         }
         return 'https://villageshop-api.onrender.com/api';
       } catch (_) {}
@@ -29,8 +32,10 @@ class ApiConfig {
     if (kIsWeb) {
       try {
         final origin = Uri.base.origin;
-        if (origin.contains('localhost') || origin.contains('185.100.212.57')) {
-          list.insert(0, '$origin/api');
+        if (origin.contains('localhost') || origin.contains('127.0.0.1')) {
+          list.insert(0, 'http://localhost:5000/api');
+        } else if (origin.contains('185.100.212.57')) {
+          list.insert(0, 'http://185.100.212.57:5000/api');
         }
       } catch (_) {}
     }

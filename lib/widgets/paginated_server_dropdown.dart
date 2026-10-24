@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/api_config.dart';
+import '../database/sqlite_helper.dart';
 
 /// Reusable Common Paginated Dropdown contract alias
 typedef CommonPaginatedDropdown<T> = PaginatedServerDropdown<T>;
@@ -269,52 +271,76 @@ class PaginatedServerDropdown<T> extends StatefulWidget {
       prefixIcon: prefixIcon,
       validator: validator,
       onChanged: onChanged,
-      itemId: (c) => c['id'] ?? c['ID'],
-      itemTitle: (c) => (c['name'] ?? '').toString(),
+      itemId: (c) => c['id'] ?? c['ID'] ?? c['Id'],
+      itemTitle: (c) => (c['name'] ?? c['Name'] ?? '').toString(),
       itemSubtitle: (c) {
-        final phone = c['phone'] ?? c['mobile'] ?? '';
-        final village = c['village']?.toString() ?? '';
+        final phone = (c['phone'] ?? c['mobile'] ?? c['Mobile'] ?? c['customerMobile'] ?? '').toString();
+        final village = (c['village'] ?? c['Village'] ?? '').toString();
         return phone.isNotEmpty ? '$phone ${village.isNotEmpty ? "• $village" : ""}' : village;
       },
       fetchPage: ({required int page, required int pageSize, required String search, dynamic parentFilter}) async {
-        final baseUrl = ApiConfig.baseUrl;
-        final params = <String, String>{
-          'page': page.toString(),
-          'pageSize': pageSize.toString(),
-          'paged': 'true',
-        };
-        if (search.trim().isNotEmpty) {
-          params['search'] = search.trim();
-        }
-
-        final headers = await resolveAuthHeaders(params);
-        final uri = Uri.parse('$baseUrl/customers').replace(queryParameters: params);
-        final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 8));
-
-        if (res.statusCode == 200) {
-          final data = jsonDecode(res.body);
-          List<Map<String, dynamic>> list = [];
-          bool hasMore = false;
-          int totalCount = 0;
-          if (data is Map<String, dynamic> && data.containsKey('items')) {
-            list = List<Map<String, dynamic>>.from(data['items'] ?? []);
-            hasMore = data['hasMore'] == true;
-            totalCount = (data['totalCount'] as num?)?.toInt() ?? list.length;
-          } else if (data is List) {
-            list = List<Map<String, dynamic>>.from(data);
-            hasMore = false;
-            totalCount = list.length;
+        try {
+          final baseUrl = ApiConfig.baseUrl;
+          final params = <String, String>{
+            'page': page.toString(),
+            'pageSize': pageSize.toString(),
+            'paged': 'true',
+          };
+          if (search.trim().isNotEmpty) {
+            params['search'] = search.trim();
           }
 
-          if (includeWalkIn && page == 1 && (search.isEmpty || 'walk-in customer'.contains(search.toLowerCase()))) {
-            list.insert(0, {'id': 0, 'name': 'Walk-in Customer', 'phone': ''});
-          }
+          final headers = await resolveAuthHeaders(params);
+          final uri = Uri.parse('$baseUrl/customers').replace(queryParameters: params);
+          final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 8));
 
-          return PaginatedDropdownResult<Map<String, dynamic>>(
-            items: list,
-            hasMore: hasMore,
-            totalCount: totalCount,
-          );
+          if (res.statusCode == 200) {
+            final data = jsonDecode(res.body);
+            List<Map<String, dynamic>> list = [];
+            bool hasMore = false;
+            int totalCount = 0;
+            final rawItems = data is Map ? (data['items'] ?? data['Items']) : (data is List ? data : null);
+            if (rawItems is List) {
+              list = List<Map<String, dynamic>>.from(rawItems.map((e) => Map<String, dynamic>.from(e as Map)));
+              hasMore = data is Map ? (data['hasMore'] == true || data['HasMore'] == true) : false;
+              totalCount = data is Map ? ((data['totalCount'] ?? data['TotalCount'] as num?)?.toInt() ?? list.length) : list.length;
+            }
+
+            if (includeWalkIn && page == 1 && (search.isEmpty || 'walk-in customer'.contains(search.toLowerCase()))) {
+              list.insert(0, {'id': 0, 'name': 'Walk-in Customer', 'phone': ''});
+            }
+
+            return PaginatedDropdownResult<Map<String, dynamic>>(
+              items: list,
+              hasMore: hasMore,
+              totalCount: totalCount,
+            );
+          }
+        } catch (_) {
+          if (!kIsWeb) {
+            try {
+              final local = await SQLiteHelper.instance.getCustomers();
+              var filtered = local;
+              if (search.trim().isNotEmpty) {
+                final s = search.trim().toLowerCase();
+                filtered = local.where((c) {
+                  final name = (c['name'] ?? c['Name'] ?? '').toString().toLowerCase();
+                  final phone = (c['phone'] ?? c['mobile'] ?? c['Mobile'] ?? '').toString().toLowerCase();
+                  return name.contains(s) || phone.contains(s);
+                }).toList();
+              }
+              final start = (page - 1) * pageSize;
+              final pagedList = filtered.skip(start).take(pageSize).toList();
+              if (includeWalkIn && page == 1 && (search.isEmpty || 'walk-in customer'.contains(search.toLowerCase()))) {
+                pagedList.insert(0, {'id': 0, 'name': 'Walk-in Customer', 'phone': ''});
+              }
+              return PaginatedDropdownResult<Map<String, dynamic>>(
+                items: pagedList,
+                hasMore: start + pageSize < filtered.length,
+                totalCount: filtered.length + (includeWalkIn ? 1 : 0),
+              );
+            } catch (_) {}
+          }
         }
         return PaginatedDropdownResult<Map<String, dynamic>>(items: [], hasMore: false, totalCount: 0);
       },

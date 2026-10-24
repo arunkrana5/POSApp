@@ -307,7 +307,8 @@ class TenantThemeProvider with ChangeNotifier {
                   'isEnabled': true,
                 });
               }
-              dynamicMenuItems = list;
+
+              setDynamicMenuItems(list);
             }
             notifyListeners();
             break; // Successfully loaded config
@@ -317,6 +318,21 @@ class TenantThemeProvider with ChangeNotifier {
         // Fallback to next candidate IP
       }
     }
+  }
+
+  void setDynamicMenuItems(List<Map<String, dynamic>> list) {
+    final seenRoutes = <String>{};
+    final deduplicatedList = <Map<String, dynamic>>[];
+    for (var item in list) {
+      final r = (item['Route'] ?? item['route'] ?? '').toString().toLowerCase().trim();
+      if (r.isNotEmpty && !seenRoutes.contains(r)) {
+        seenRoutes.add(r);
+        deduplicatedList.add(item);
+      } else if (r.isEmpty) {
+        deduplicatedList.add(item);
+      }
+    }
+    dynamicMenuItems = deduplicatedList;
   }
 
   void updateColors(String primaryHex, String secondaryHex) async {

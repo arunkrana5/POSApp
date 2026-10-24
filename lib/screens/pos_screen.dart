@@ -117,6 +117,7 @@ class _PosScreenState extends State<PosScreen> {
   final List<Map<String, dynamic>> _cartItems = [];
   String _selectedPaymentMode = 'Cash';
   String _selectedCustomer = 'Walk-in Customer';
+  dynamic _selectedCustomerId;
   String _selectedCategory = 'All';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -137,13 +138,22 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _loadCustomers() async {
     try {
-      final dbCustomers = await SQLiteHelper.instance.getCustomers();
-      if (dbCustomers.isNotEmpty && mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty)
+          ? auth.accessToken!
+          : (prefs.getString('auth_token') ?? '');
+      final syncProvider = Provider.of<SyncProvider>(context, listen: false);
+
+      // Fetch live customers from Customer Master via API and sync engine
+      final fetchedCustomers = await syncProvider.fetchCustomers(token);
+
+      if (mounted) {
         setState(() {
-          for (var c in dbCustomers) {
-            final n = c['name']?.toString() ?? '';
-            final p = (c['phone'] ?? c['mobile'] ?? '').toString();
-            final id = c['id'];
+          for (var c in fetchedCustomers) {
+            final n = (c['name'] ?? c['Name'] ?? '').toString().trim();
+            final p = (c['phone'] ?? c['mobile'] ?? c['Mobile'] ?? c['customerMobile'] ?? '').toString().trim();
+            final id = c['id'] ?? c['ID'] ?? c['Id'];
             if (n.isNotEmpty) {
               if (!_customerList.contains(n)) {
                 _customerList.add(n);
@@ -152,12 +162,16 @@ class _PosScreenState extends State<PosScreen> {
                 _customerPhoneMap[n] = p;
               }
               if (id != null) {
-                _customerIdMap[n] = id;
+                final pid = int.tryParse(id.toString()) ?? id;
+                _customerIdMap[n] = pid;
               }
             }
           }
           if (_selectedCustomer != 'Walk-in Customer' && _customerPhoneController.text.isEmpty) {
             _customerPhoneController.text = _customerPhoneMap[_selectedCustomer] ?? '';
+          }
+          if (_selectedCustomerId == null && _selectedCustomer != 'Walk-in Customer') {
+            _selectedCustomerId = _customerIdMap[_selectedCustomer];
           }
         });
       }
@@ -1419,22 +1433,29 @@ class _PosScreenState extends State<PosScreen> {
                           child: PaginatedServerDropdown.customers(
                             label: isHindi ? 'ग्राहक' : 'Customer',
                             hint: isHindi ? 'ग्राहक चुनें' : 'Select Customer',
-                            selectedId: _customerIdMap[_selectedCustomer],
+                            selectedId: _selectedCustomerId ?? _customerIdMap[_selectedCustomer],
                             selectedTitle: _selectedCustomer,
                             includeWalkIn: true,
                             allowClear: true,
                             prefixIcon: const Icon(Icons.person_rounded, size: 20),
                             onChanged: (cust, id, title) {
                               setState(() {
-                                if (title == null || title.isEmpty || id == null || id == 0 || title == 'Walk-in Customer') {
+                                final strId = id?.toString().trim();
+                                final isWalkIn = title == null || title.isEmpty || strId == null || strId == '0' || title.toLowerCase() == 'walk-in customer';
+                                if (isWalkIn) {
                                   _selectedCustomer = 'Walk-in Customer';
+                                  _selectedCustomerId = null;
                                   _customerPhoneController.text = '';
                                 } else {
                                   _selectedCustomer = title;
-                                  final phone = (cust?['phone'] ?? cust?['mobile'] ?? '').toString();
+                                  final phone = (cust?['phone'] ?? cust?['mobile'] ?? cust?['Mobile'] ?? cust?['customerMobile'] ?? '').toString();
                                   _customerPhoneController.text = phone;
-                                  _customerIdMap[title] = id;
-                                  _customerPhoneMap[title] = phone;
+                                  final parsedId = int.tryParse(strId) ?? (id is num ? id.toInt() : null);
+                                  _selectedCustomerId = parsedId ?? id;
+                                  _customerIdMap[title] = _selectedCustomerId;
+                                  if (phone.isNotEmpty) {
+                                    _customerPhoneMap[title] = phone;
+                                  }
                                 }
                               });
                             },
@@ -2828,21 +2849,23 @@ class _PosScreenState extends State<PosScreen> {
                                       });
                                     }
                                     
-                                    final rawCustId = _customerIdMap[customerSnapshot];
+                                    final rawCustId = _selectedCustomerId ?? _customerIdMap[customerSnapshot];
                                     var parsedCustId = rawCustId is num ? rawCustId.toInt() : int.tryParse(rawCustId?.toString() ?? '');
 
                                     if (parsedCustId == null && customerSnapshot != 'Walk-in Customer') {
                                       try {
                                         final allCust = await syncProvider.fetchCustomers();
                                         final matched = allCust.firstWhere(
-                                          (c) => (c['name'] ?? '').toString().trim().toLowerCase() == customerSnapshot.trim().toLowerCase(),
+                                          (c) => (c['name'] ?? c['Name'] ?? '').toString().trim().toLowerCase() == customerSnapshot.trim().toLowerCase(),
                                           orElse: () => {},
                                         );
-                                        if (matched['id'] != null) {
-                                          final pId = int.tryParse(matched['id'].toString());
+                                        final mid = matched['id'] ?? matched['Id'] ?? matched['ID'];
+                                        if (mid != null) {
+                                          final pId = int.tryParse(mid.toString());
                                           if (pId != null && pId > 0) {
                                             parsedCustId = pId;
                                             _customerIdMap[customerSnapshot] = pId;
+                                            _selectedCustomerId = pId;
                                           }
                                         }
                                       } catch (_) {}
@@ -2900,6 +2923,7 @@ class _PosScreenState extends State<PosScreen> {
                                         }
                                         _cartItems.clear();
                                         _selectedCustomer = 'Walk-in Customer';
+                                        _selectedCustomerId = null;
                                         _customerPhoneController.clear();
                                         _selectedPaymentMode = 'Cash';
                                       });
@@ -3051,6 +3075,7 @@ class _PosScreenState extends State<PosScreen> {
                   }
                   if (newId != null) {
                     _customerIdMap[custName] = newId;
+                    _selectedCustomerId = int.tryParse(newId.toString()) ?? newId;
                   }
                   if (phone.isNotEmpty) {
                     _customerPhoneMap[custName] = phone;

@@ -97,18 +97,18 @@ class SyncEngine {
 
       if (response.statusCode == 200) {
         final dynamic raw = jsonDecode(response.body);
-        final List<dynamic> jsonList = raw is List ? raw : (raw['items'] as List? ?? []);
+        final List<dynamic> jsonList = raw is List ? raw : (raw['items'] as List? ?? raw['Items'] as List? ?? []);
         final List<Map<String, dynamic>> customers = jsonList.map((j) => Map<String, dynamic>.from(j as Map)).toList();
 
         if (customers.isNotEmpty && !kIsWeb) {
           try {
             for (var c in customers) {
               await SQLiteHelper.instance.saveCustomer({
-                'id': c['id']?.toString() ?? '0',
-                'name': c['name'] ?? '',
-                'phone': c['phone'] ?? c['mobile'] ?? '',
+                'id': (c['id'] ?? c['ID'] ?? c['Id'])?.toString() ?? '0',
+                'name': (c['name'] ?? c['Name'] ?? '').toString(),
+                'phone': (c['phone'] ?? c['mobile'] ?? c['Mobile'] ?? c['customerMobile'] ?? '').toString(),
                 'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
-                'lastTx': c['lastTx'] ?? 'Registered',
+                'lastTx': (c['lastTx'] ?? 'Registered').toString(),
               });
             }
           } catch (_) {}
@@ -225,8 +225,8 @@ class SyncEngine {
       ).timeout(const Duration(seconds: 8));
       if (res.statusCode == 200 || res.statusCode == 201) {
         final data = jsonDecode(res.body);
-        if (data is Map && data['id'] != null) {
-          newId = data['id'];
+        if (data is Map) {
+          newId = data['id'] ?? data['ID'] ?? data['Id'];
         }
       }
     } catch (_) {}

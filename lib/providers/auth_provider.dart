@@ -31,6 +31,10 @@ class AuthProvider with ChangeNotifier {
       _tenantCode = prefs.getString('tenant_code');
       _tenantId = prefs.getInt('tenant_id');
       _username = prefs.getString('username');
+      final savedBase = prefs.getString('api_base_url');
+      if (savedBase != null && savedBase.isNotEmpty) {
+        ApiConfig.baseUrl = savedBase;
+      }
     } catch (_) {
     } finally {
       _isInitialized = true;
@@ -87,6 +91,7 @@ class AuthProvider with ChangeNotifier {
               if (_tenantCode != null) await prefs.setString('tenant_code', _tenantCode!);
               if (_tenantId != null) await prefs.setInt('tenant_id', _tenantId!);
               if (_username != null) await prefs.setString('username', _username!);
+              await prefs.setString('api_base_url', base);
             } catch (_) {}
           }
 

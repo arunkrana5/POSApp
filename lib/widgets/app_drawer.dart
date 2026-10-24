@@ -151,7 +151,7 @@ class _AppDrawerState extends State<AppDrawer> {
                 if (themeProvider.dynamicMenuItems.where((m) {
                   final isEnabled = m['IsEnabled'] ?? m['isEnabled'] ?? m['is_enabled'];
                   final route = (m['Route'] ?? m['route'] ?? '').toString().toLowerCase();
-                  if (route == '/settings') return false;
+                  if (route == '/settings' || route == '/masters') return false;
                   if (isEnabled == null) return true;
                   if (isEnabled is bool) return isEnabled;
                   if (isEnabled is String) return isEnabled.toLowerCase() == 'true';
@@ -161,7 +161,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   ...themeProvider.dynamicMenuItems.where((m) {
                     final isEnabled = m['IsEnabled'] ?? m['isEnabled'] ?? m['is_enabled'];
                     final route = (m['Route'] ?? m['route'] ?? '').toString().toLowerCase();
-                    if (route == '/settings') return false;
+                    if (route == '/settings' || route == '/masters') return false;
                     if (isEnabled == null) return true;
                     if (isEnabled is bool) return isEnabled;
                     if (isEnabled is String) return isEnabled.toLowerCase() == 'true';
@@ -235,56 +235,77 @@ class _AppDrawerState extends State<AppDrawer> {
                       route: '/reports',
                     ),
                 ],
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: ModalRoute.of(context)?.settings.name == '/masters'
-                        ? themeProvider.primaryColor.withOpacity(0.08)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      leading: Icon(
-                        Icons.category_rounded,
-                        size: 22,
-                        color: ModalRoute.of(context)?.settings.name == '/masters'
-                            ? themeProvider.primaryColor
-                            : Colors.purple.shade700,
-                      ),
-                      title: Text(
-                        isHindi ? 'मास्टर्स प्रबंधन (Masters)' : 'Master Management',
-                        style: TextStyle(
-                          fontFamily: themeProvider.fontFamily,
-                          fontWeight: FontWeight.bold,
+                Builder(builder: (context) {
+                  final masterConfig = themeProvider.dynamicMenuItems.firstWhere(
+                    (m) {
+                      final r = (m['Route'] ?? m['route'] ?? '').toString().toLowerCase();
+                      final id = (m['Id'] ?? m['id'] ?? '').toString().toLowerCase();
+                      return r == '/masters' || id == 'masters';
+                    },
+                    orElse: () => <String, dynamic>{},
+                  );
+                  final isEn = masterConfig.isEmpty
+                      ? true
+                      : () {
+                          final v = masterConfig['IsEnabled'] ?? masterConfig['isEnabled'] ?? masterConfig['is_enabled'];
+                          if (v == null) return true;
+                          if (v is bool) return v;
+                          if (v is String) return v.toLowerCase() == 'true';
+                          if (v is num) return v != 0;
+                          return true;
+                        }();
+                  if (!isEn) return const SizedBox.shrink();
+
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: ModalRoute.of(context)?.settings.name == '/masters'
+                          ? themeProvider.primaryColor.withOpacity(0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        leading: Icon(
+                          Icons.category_rounded,
+                          size: 22,
                           color: ModalRoute.of(context)?.settings.name == '/masters'
                               ? themeProvider.primaryColor
-                              : themeProvider.textColor,
-                          fontSize: 14 * themeProvider.fontSizeScale,
+                              : Colors.purple.shade700,
                         ),
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.purple.shade700,
-                          borderRadius: BorderRadius.circular(4),
+                        title: Text(
+                          isHindi ? 'मास्टर्स प्रबंधन (Masters)' : 'Master Management',
+                          style: TextStyle(
+                            fontFamily: themeProvider.fontFamily,
+                            fontWeight: FontWeight.bold,
+                            color: ModalRoute.of(context)?.settings.name == '/masters'
+                                ? themeProvider.primaryColor
+                                : themeProvider.textColor,
+                            fontSize: 14 * themeProvider.fontSizeScale,
+                          ),
                         ),
-                        child: const Text('ALL', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade700,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text('ALL', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        ),
+                        children: [
+                          _buildMasterDrawerSubItem(context, title: isHindi ? 'श्रेणियां (Item Categories)' : 'Item Categories', tabIndex: 0, icon: Icons.category_outlined),
+                          _buildMasterDrawerSubItem(context, title: isHindi ? 'मापक इकाइयाँ (UOM)' : 'Units of Measurement (UOM)', tabIndex: 1, icon: Icons.square_foot_outlined),
+                          _buildMasterDrawerSubItem(context, title: isHindi ? 'सामान के प्रकार (Item Types)' : 'Item Types (Format)', tabIndex: 2, icon: Icons.merge_type_outlined),
+                          _buildMasterDrawerSubItem(context, title: isHindi ? 'ब्रांड्स (Brands)' : 'Brands', tabIndex: 3, icon: Icons.branding_watermark_outlined),
+                          _buildMasterDrawerSubItem(context, title: isHindi ? 'भुगतान के साधन (Payment Modes)' : 'Payment Modes', tabIndex: 4, icon: Icons.payments_outlined),
+                          _buildMasterDrawerSubItem(context, title: isHindi ? 'टैक्स व जीएसटी (Tax Rates)' : 'Tax & GST Rates', tabIndex: 5, icon: Icons.receipt_outlined),
+                          _buildMasterDrawerSubItem(context, title: isHindi ? 'खर्च श्रेणियां (Expense Categories)' : 'Expense Categories', tabIndex: 6, icon: Icons.money_off_outlined),
+                        ],
                       ),
-                      children: [
-                        _buildMasterDrawerSubItem(context, title: isHindi ? 'सभी मास्टर्स (Overview)' : 'All Masters Overview', tabIndex: 0, icon: Icons.dashboard_customize_outlined),
-                        _buildMasterDrawerSubItem(context, title: isHindi ? 'श्रेणियां (Item Categories)' : 'Item Categories', tabIndex: 0, icon: Icons.category_outlined),
-                        _buildMasterDrawerSubItem(context, title: isHindi ? 'मापक इकाइयाँ (UOM)' : 'Units of Measurement (UOM)', tabIndex: 1, icon: Icons.square_foot_outlined),
-                        _buildMasterDrawerSubItem(context, title: isHindi ? 'सामान के प्रकार (Item Types)' : 'Item Types (Format)', tabIndex: 2, icon: Icons.merge_type_outlined),
-                        _buildMasterDrawerSubItem(context, title: isHindi ? 'ब्रांड्स (Brands)' : 'Brands', tabIndex: 3, icon: Icons.branding_watermark_outlined),
-                        _buildMasterDrawerSubItem(context, title: isHindi ? 'भुगतान के साधन (Payment Modes)' : 'Payment Modes', tabIndex: 4, icon: Icons.payments_outlined),
-                        _buildMasterDrawerSubItem(context, title: isHindi ? 'टैक्स व जीएसटी (Tax Rates)' : 'Tax & GST Rates', tabIndex: 5, icon: Icons.receipt_outlined),
-                        _buildMasterDrawerSubItem(context, title: isHindi ? 'खर्च श्रेणियां (Expense Categories)' : 'Expense Categories', tabIndex: 6, icon: Icons.money_off_outlined),
-                      ],
                     ),
-                  ),
-                ),
+                  );
+                }),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   child: Divider(height: 1),
