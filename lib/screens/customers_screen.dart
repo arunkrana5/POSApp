@@ -118,25 +118,29 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
       if (res.statusCode == 200) {
         final dynamic raw = jsonDecode(res.body);
-        final List<dynamic> data = raw is List ? raw : (raw['items'] as List? ?? []);
-        final int total = raw is Map && raw['totalCount'] != null ? raw['totalCount'] as int : (_customers.length + data.length);
-        final bool serverHasMore = raw is Map && raw['hasMore'] != null ? raw['hasMore'] as bool : (data.length >= _pageSize);
+        final List<dynamic> data = raw is List ? raw : (raw['items'] as List? ?? raw['Items'] as List? ?? raw['data'] as List? ?? []);
+        final int total = raw is Map && (raw['totalCount'] != null || raw['TotalCount'] != null)
+            ? ((raw['totalCount'] ?? raw['TotalCount']) as num).toInt()
+            : (_customers.length + data.length);
+        final bool serverHasMore = raw is Map && (raw['hasMore'] != null || raw['HasMore'] != null)
+            ? (raw['hasMore'] ?? raw['HasMore']) as bool
+            : (data.length >= _pageSize);
 
         final List<Map<String, dynamic>> newItems = data.map((c) => {
-          'id': (c['id'] ?? c['ID'] ?? '0').toString(),
-          'name': c['name'] ?? '',
-          'phone': c['phone'] ?? '',
-          'email': c['email'] ?? '',
-          'whatsapp': c['whatsapp'] ?? '',
-          'fatherName': c['fatherName'] ?? '',
-          'address': c['address'] ?? '',
-          'village': c['village'] ?? '',
-          'po': c['po'] ?? '',
-          'ps': c['ps'] ?? '',
-          'dist': c['dist'] ?? '',
-          'pincode': c['pincode'] ?? '',
-          'udhaar': (c['udhaar'] as num?)?.toDouble() ?? 0.0,
-          'lastTx': c['lastTx'] ?? 'Registered Today',
+          'id': (c['id'] ?? c['ID'] ?? c['Id'] ?? '0').toString(),
+          'name': (c['name'] ?? c['Name'] ?? '').toString(),
+          'phone': (c['phone'] ?? c['Phone'] ?? c['mobile'] ?? c['Mobile'] ?? '').toString(),
+          'email': (c['email'] ?? c['Email'] ?? '').toString(),
+          'whatsapp': (c['whatsapp'] ?? c['WhatsApp'] ?? '').toString(),
+          'fatherName': (c['fatherName'] ?? c['FatherName'] ?? '').toString(),
+          'address': (c['address'] ?? c['Address'] ?? '').toString(),
+          'village': (c['village'] ?? c['Village'] ?? '').toString(),
+          'po': (c['po'] ?? c['PO'] ?? '').toString(),
+          'ps': (c['ps'] ?? c['PS'] ?? '').toString(),
+          'dist': (c['dist'] ?? c['Dist'] ?? '').toString(),
+          'pincode': (c['pincode'] ?? c['Pincode'] ?? '').toString(),
+          'udhaar': (c['udhaar'] ?? c['currentBalance'] ?? c['CurrentBalance'] as num?)?.toDouble() ?? 0.0,
+          'lastTx': (c['lastTx'] ?? c['LastTx'] ?? 'Registered Today').toString(),
         }).toList();
 
         if (mounted) {
@@ -517,10 +521,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
   Future<Map<String, String>> _getAuthHeaders() async {
     final headers = <String, String>{'Content-Type': 'application/json'};
     try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
       final prefs = await SharedPreferences.getInstance();
-      final tId = prefs.getInt('tenant_id');
-      final tCode = prefs.getString('tenant_code');
-      final token = prefs.getString('auth_token');
+      final tId = (auth.tenantId != null && auth.tenantId! > 0) ? auth.tenantId : prefs.getInt('tenant_id');
+      final tCode = (auth.tenantCode != null && auth.tenantCode!.isNotEmpty) ? auth.tenantCode : prefs.getString('tenant_code');
+      final token = (auth.accessToken != null && auth.accessToken!.isNotEmpty) ? auth.accessToken : prefs.getString('auth_token');
       if (token != null && token.isNotEmpty) headers['Authorization'] = 'Bearer $token';
       if (tId != null && tId > 0) headers['X-Tenant-Id'] = tId.toString();
       if (tCode != null && tCode.isNotEmpty) headers['X-Tenant-Code'] = tCode;
@@ -1356,20 +1361,49 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     } catch (_) {}
 
                     try {
+                      final auth = Provider.of<AuthProvider>(context, listen: false);
+                      final prefs = await SharedPreferences.getInstance();
+                      final currentTenantId = (auth.tenantId != null && auth.tenantId! > 0)
+                          ? auth.tenantId!
+                          : (prefs.getInt('tenant_id') ?? 0);
+                      final currentTenantCode = (auth.tenantCode != null && auth.tenantCode!.isNotEmpty)
+                          ? auth.tenantCode!
+                          : (prefs.getString('tenant_code') ?? '');
+
+                      final apiPayload = Map<String, dynamic>.from(record);
+                      if (currentTenantId > 0) {
+                        apiPayload['tenantId'] = currentTenantId;
+                      }
+                      if (currentTenantCode.isNotEmpty) {
+                        apiPayload['tenantCode'] = currentTenantCode;
+                      }
+
                       final baseUrl = ApiConfig.baseUrl;
+                      final authHeaders = await _getAuthHeaders();
                       final targetId = existing != null ? (existing['id']?.toString() ?? existing['name']) : '';
+
                       if (existing != null && targetId != null && targetId.toString().isNotEmpty) {
                         await http.put(
                           Uri.parse('$baseUrl/customers/$targetId'),
-                          headers: {'Content-Type': 'application/json'},
-                          body: jsonEncode(record),
-                        ).timeout(const Duration(seconds: 8));
+                          headers: authHeaders,
+                          body: jsonEncode(apiPayload),
+                        ).timeout(const Duration(seconds: 10));
                       } else {
-                        await http.post(
+                        final postRes = await http.post(
                           Uri.parse('$baseUrl/customers'),
-                          headers: {'Content-Type': 'application/json'},
-                          body: jsonEncode(record),
-                        ).timeout(const Duration(seconds: 8));
+                          headers: authHeaders,
+                          body: jsonEncode(apiPayload),
+                        ).timeout(const Duration(seconds: 10));
+
+                        if (postRes.statusCode == 200) {
+                          try {
+                            final resData = jsonDecode(postRes.body);
+                            final newCustId = resData['data'] ?? resData['id'] ?? resData['ID'];
+                            if (newCustId != null) {
+                              record['id'] = newCustId.toString();
+                            }
+                          } catch (_) {}
+                        }
                       }
                       _loadCustomers(reset: true);
                     } catch (_) {}
