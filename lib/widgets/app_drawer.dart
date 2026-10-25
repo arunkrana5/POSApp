@@ -316,6 +316,15 @@ class _AppDrawerState extends State<AppDrawer> {
                   title: isHindi ? 'सेटिंग्स' : 'Settings',
                   route: '/settings',
                 ),
+                if (enabledMods.isEmpty || enabledMods.contains('Uploader'))
+                  _buildDrawerItem(
+                    context,
+                    icon: Icons.upload_file_rounded,
+                    title: isHindi ? 'एक्सेल अपलोडर' : 'Excel Uploader',
+                    route: '/uploader',
+                    badgeText: 'BULK',
+                    badgeColor: Colors.teal.shade700,
+                  ),
 
                 // Language Switcher Tile
                 ListTile(

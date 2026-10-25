@@ -19,6 +19,7 @@ import 'screens/settings_screen.dart';
 import 'screens/sales_history_screen.dart';
 import 'screens/items_screen.dart';
 import 'screens/masters_screen.dart';
+import 'features/uploader/presentation/uploader_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -76,6 +77,7 @@ class VillageShopApp extends StatelessWidget {
               '/reports': (context) => const ReportsScreen(),
               '/settings': (context) => const SettingsScreen(),
               '/sales-history': (context) => const SalesHistoryScreen(),
+              '/uploader': (context) => const UploaderScreen(),
               '/masters': (context) {
                 final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
                 final tabIdx = args?['tabIndex'] is int ? (args!['tabIndex'] as int) : 0;
