@@ -22,7 +22,7 @@ class TenantThemeProvider with ChangeNotifier {
   String tenantName = "Store Client";
   String appTitle = "STORE POS";
   String logoUrl = "";
-  List<String> enabledModules = ["POS", "Products", "Customers", "Reports", "Sync", "Settings"];
+  List<String> enabledModules = ["POS", "Products", "Customers", "Reports", "Sync", "Settings", "Uploader"];
   List<Map<String, dynamic>> dynamicMenuItems = [];
 
   // 360-Degree Feature & Control Flags

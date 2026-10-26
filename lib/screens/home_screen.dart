@@ -189,6 +189,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            constraints: const BoxConstraints(),
+            icon: const Icon(Icons.upload_file_rounded, color: Colors.white, size: 20),
+            tooltip: isHindi ? 'एक्सेल अपलोडर' : 'Excel Uploader',
+            onPressed: () => Navigator.pushNamed(context, '/uploader'),
+          ),
           const NotificationBellIcon(),
           IconButton(
             padding: const EdgeInsets.symmetric(horizontal: 4),
