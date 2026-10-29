@@ -79,10 +79,34 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
   }
 
   void _onRowsScroll() {
-    if (_rowsScrollController.position.pixels >= _rowsScrollController.position.maxScrollExtent - 200) {
+    if (_rowsScrollController.hasClients &&
+        _rowsScrollController.position.pixels >= _rowsScrollController.position.maxScrollExtent - 300) {
       if (!_isLoadingRows && _hasMoreRows && _currentBatch != null) {
         _loadRows(append: true);
       }
+    }
+  }
+
+  IconData _getMasterIcon(String code) {
+    switch (code.toLowerCase()) {
+      case 'item':
+        return Icons.inventory_2_rounded;
+      case 'itemcategory':
+        return Icons.category_rounded;
+      case 'itemtype':
+        return Icons.widgets_rounded;
+      case 'brand':
+        return Icons.verified_rounded;
+      case 'unit':
+        return Icons.straighten_rounded;
+      case 'customer':
+        return Icons.people_alt_rounded;
+      case 'supplier':
+        return Icons.local_shipping_rounded;
+      case 'tax':
+        return Icons.percent_rounded;
+      default:
+        return Icons.folder_open_rounded;
     }
   }
 
@@ -356,6 +380,7 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
 
   Widget _buildUploaderTab(BuildContext context, TenantThemeProvider theme, bool isHindi) {
     return SingleChildScrollView(
+      controller: _rowsScrollController,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -518,40 +543,91 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                       ),
                     ),
                   ] else ...[
-                    Row(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: DropdownButtonFormField<UploadTypeModel>(
-                            value: _masterTypes.contains(_selectedType) ? _selectedType : (_masterTypes.isNotEmpty ? _masterTypes.first : null),
-                            decoration: InputDecoration(
-                              labelText: isHindi ? 'मास्टर प्रकार' : 'Master Type',
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            ),
-                            items: _masterTypes.map((t) {
-                              return DropdownMenuItem<UploadTypeModel>(
-                                value: t,
-                                child: Text('${t.name} (${t.code})'),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              setState(() => _selectedType = val);
-                            },
-                          ),
+                        Text(
+                          isHindi ? 'मास्टर चुनें (सभी 8 उपलब्ध):' : 'Select Master (All 8 Available):',
+                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
                         ),
-                        const SizedBox(width: 12),
-                        ElevatedButton.icon(
-                          onPressed: (_selectedType != null && !_isDownloadingTemplate) ? _downloadTemplate : null,
-                          icon: _isDownloadingTemplate
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.download_rounded, size: 18),
-                          label: Text(isHindi ? 'टेम्पलेट' : 'Template'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal.shade700,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _masterTypes.map((t) {
+                            final isSel = _selectedType?.code == t.code;
+                            final activeColor = theme.primaryColor == Colors.white ? const Color(0xFF0F172A) : theme.primaryColor;
+                            return ChoiceChip(
+                              selected: isSel,
+                              onSelected: (_) => setState(() => _selectedType = t),
+                              avatar: Icon(
+                                _getMasterIcon(t.code),
+                                size: 16,
+                                color: isSel ? Colors.white : activeColor,
+                              ),
+                              label: Text(t.name),
+                              selectedColor: activeColor,
+                              backgroundColor: Colors.grey.shade100,
+                              labelStyle: TextStyle(
+                                color: isSel ? Colors.white : Colors.black87,
+                                fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<UploadTypeModel>(
+                                value: _masterTypes.contains(_selectedType) ? _selectedType : (_masterTypes.isNotEmpty ? _masterTypes.first : null),
+                                isExpanded: true,
+                                menuMaxHeight: 450,
+                                borderRadius: BorderRadius.circular(12),
+                                decoration: InputDecoration(
+                                  labelText: isHindi ? 'या ड्रॉपडाउन से चुनें' : 'Or Select from Dropdown',
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                ),
+                                items: _masterTypes.map((t) {
+                                  return DropdownMenuItem<UploadTypeModel>(
+                                    value: t,
+                                    child: Row(
+                                      children: [
+                                        Icon(_getMasterIcon(t.code), size: 18, color: Colors.teal.shade700),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            '${t.name} (${t.code})',
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setState(() => _selectedType = val);
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton.icon(
+                              onPressed: (_selectedType != null && !_isDownloadingTemplate) ? _downloadTemplate : null,
+                              icon: _isDownloadingTemplate
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.download_rounded, size: 18),
+                              label: Text(isHindi ? 'टेम्पलेट' : 'Template'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal.shade700,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -904,6 +980,21 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                   );
                 },
               ),
+        if (_hasMoreRows)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: OutlinedButton.icon(
+                onPressed: _isLoadingRows ? null : () => _loadRows(append: true),
+                icon: _isLoadingRows
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.arrow_downward_rounded, size: 16),
+                label: Text(_isLoadingRows
+                    ? (isHindi ? 'लोड हो रहा है...' : 'Loading more rows...')
+                    : (isHindi ? 'और पंक्तियाँ लोड करें (${_batchRows.length} लोड की गईं)' : 'Load More Rows (${_batchRows.length} loaded)')),
+              ),
+            ),
+          ),
       ],
     );
   }
