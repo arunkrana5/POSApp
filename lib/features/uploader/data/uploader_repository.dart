@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import '../../../config/api_config.dart';
+import '../../../utils/excel_picker_helper.dart';
 import '../domain/uploader_models.dart';
 
 class UploaderRepository {
@@ -36,7 +36,7 @@ class UploaderRepository {
     }
   }
 
-  Future<String> uploadExcel(String typeCode, PlatformFile file) async {
+  Future<String> uploadExcel(String typeCode, PlatformExcelFile file) async {
     final uri = Uri.parse('${ApiConfig.baseUrl}/uploader/upload/$typeCode');
     final request = http.MultipartRequest('POST', uri);
 
@@ -47,7 +47,7 @@ class UploaderRepository {
       request.headers['X-Tenant-Id'] = tenantId.toString();
     }
 
-    if (file.bytes != null) {
+    if (file.bytes != null && file.bytes!.isNotEmpty) {
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',

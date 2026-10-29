@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/locale_provider.dart';
 import '../../../providers/theme_provider.dart';
+import '../../../utils/excel_picker_helper.dart';
 import '../../../utils/file_download_helper.dart';
 import '../../../widgets/app_drawer.dart';
 import '../data/uploader_repository.dart';
@@ -29,7 +29,7 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
   bool _isTransactionMode = true; // true = Common Transactions, false = Dedicated Masters
 
   // File selection
-  PlatformFile? _selectedFile;
+  PlatformExcelFile? _selectedFile;
   bool _isUploading = false;
   String _uploadProgressText = '';
   bool _isDownloadingTemplate = false;
@@ -130,13 +130,8 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
 
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['xlsx'],
-        withData: true,
-      );
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
+      final file = await ExcelPickerHelper.pickExcelFile();
+      if (file != null) {
         if (!file.name.toLowerCase().endsWith('.xlsx')) {
           _showSnackBar('Only modern .xlsx files are supported.', isError: true);
           return;
