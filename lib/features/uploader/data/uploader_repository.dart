@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import '../../../config/api_config.dart';
@@ -134,4 +135,54 @@ class UploaderRepository {
 
   String getReportUrl(String batchId) =>
       '${ApiConfig.baseUrl}/uploader/batch/$batchId/report';
+
+  Future<Uint8List> downloadTemplateBytes(String typeCode) async {
+    final uri = Uri.parse(getTemplateUrl(typeCode));
+    final headers = <String, String>{
+      'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream',
+    };
+    if (token != null && token!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    if (tenantId != null && tenantId! > 0) {
+      headers['X-Tenant-Id'] = tenantId.toString();
+    }
+
+    final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else {
+      String msg = 'Failed to download template (${response.statusCode})';
+      try {
+        final json = jsonDecode(response.body);
+        if (json['message'] != null) msg = json['message'];
+      } catch (_) {}
+      throw Exception(msg);
+    }
+  }
+
+  Future<Uint8List> downloadReportBytes(String batchId) async {
+    final uri = Uri.parse(getReportUrl(batchId));
+    final headers = <String, String>{
+      'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream',
+    };
+    if (token != null && token!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    if (tenantId != null && tenantId! > 0) {
+      headers['X-Tenant-Id'] = tenantId.toString();
+    }
+
+    final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 45));
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    } else {
+      String msg = 'Failed to download report (${response.statusCode})';
+      try {
+        final json = jsonDecode(response.body);
+        if (json['message'] != null) msg = json['message'];
+      } catch (_) {}
+      throw Exception(msg);
+    }
+  }
 }

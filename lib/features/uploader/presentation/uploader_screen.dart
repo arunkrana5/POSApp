@@ -2,10 +2,10 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/locale_provider.dart';
 import '../../../providers/theme_provider.dart';
+import '../../../utils/file_download_helper.dart';
 import '../../../widgets/app_drawer.dart';
 import '../data/uploader_repository.dart';
 import '../domain/uploader_models.dart';
@@ -21,15 +21,19 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
   late TabController _tabController;
   late UploaderRepository _repository;
 
-  // Types
-  List<UploadTypeModel> _types = [];
+  // Types & Mode
+  List<UploadTypeModel> _transactionTypes = [];
+  List<UploadTypeModel> _masterTypes = [];
   UploadTypeModel? _selectedType;
   bool _isLoadingTypes = false;
+  bool _isTransactionMode = true; // true = Common Transactions, false = Dedicated Masters
 
   // File selection
   PlatformFile? _selectedFile;
   bool _isUploading = false;
   String _uploadProgressText = '';
+  bool _isDownloadingTemplate = false;
+  bool _isDownloadingReport = false;
 
   // Active Batch & Polling
   UploadBatchStatus? _currentBatch;
@@ -86,9 +90,18 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
     setState(() => _isLoadingTypes = true);
     try {
       final types = await _repository.fetchTypes();
+      final trans = types.where((t) => t.groupType.toLowerCase() == 'transaction' || t.code.toLowerCase() == 'transaction').toList();
+      final masters = types.where((t) => t.groupType.toLowerCase() != 'transaction' && t.code.toLowerCase() != 'transaction').toList();
+
       setState(() {
-        _types = types;
-        if (types.isNotEmpty) {
+        _transactionTypes = trans;
+        _masterTypes = masters;
+
+        if (_isTransactionMode && trans.isNotEmpty) {
+          _selectedType = trans.first;
+        } else if (!_isTransactionMode && masters.isNotEmpty) {
+          _selectedType = masters.first;
+        } else if (types.isNotEmpty) {
           _selectedType = types.first;
         }
       });
@@ -97,6 +110,22 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
     } finally {
       setState(() => _isLoadingTypes = false);
     }
+  }
+
+  void _switchMode(bool isTransaction) {
+    setState(() {
+      _isTransactionMode = isTransaction;
+      _selectedFile = null;
+      if (isTransaction) {
+        if (_transactionTypes.isNotEmpty) {
+          _selectedType = _transactionTypes.first;
+        }
+      } else {
+        if (_masterTypes.isNotEmpty) {
+          _selectedType = _masterTypes.first;
+        }
+      }
+    });
   }
 
   Future<void> _pickFile() async {
@@ -126,22 +155,36 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
   }
 
   Future<void> _downloadTemplate() async {
-    if (_selectedType == null) return;
+    if (_selectedType == null) {
+      _showSnackBar('Please select an upload type first.', isError: true);
+      return;
+    }
+    setState(() => _isDownloadingTemplate = true);
     try {
-      final url = _repository.getTemplateUrl(_selectedType!.code);
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        _showSnackBar('Could not launch template URL', isError: true);
-      }
+      final fileName = '${_selectedType!.code}_Template.xlsx';
+      final bytes = await _repository.downloadTemplateBytes(_selectedType!.code);
+      await FileDownloadHelper.downloadFile(
+        bytes: bytes,
+        fileName: fileName,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      _showSnackBar('Template downloaded successfully: $fileName');
     } catch (e) {
       _showSnackBar('Error downloading template: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isDownloadingTemplate = false);
     }
   }
 
   Future<void> _uploadAndProcess() async {
-    if (_selectedType == null || _selectedFile == null) return;
+    if (_selectedType == null) {
+      _showSnackBar('Please select an upload type.', isError: true);
+      return;
+    }
+    if (_selectedFile == null) {
+      _showSnackBar('Please select an Excel (.xlsx) file to upload.', isError: true);
+      return;
+    }
 
     setState(() {
       _isUploading = true;
@@ -249,16 +292,20 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
 
   Future<void> _downloadReport() async {
     if (_currentBatch == null) return;
+    setState(() => _isDownloadingReport = true);
     try {
-      final url = _repository.getReportUrl(_currentBatch!.batchId);
-      final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        _showSnackBar('Could not launch report download', isError: true);
-      }
+      final fileName = '${_currentBatch!.typeCode}_Batch_${_currentBatch!.batchId.substring(0, 8)}_Report.xlsx';
+      final bytes = await _repository.downloadReportBytes(_currentBatch!.batchId);
+      await FileDownloadHelper.downloadFile(
+        bytes: bytes,
+        fileName: fileName,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      _showSnackBar('Report downloaded successfully: $fileName');
     } catch (e) {
       _showSnackBar('Error downloading report: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isDownloadingReport = false);
     }
   }
 
@@ -318,6 +365,91 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Mode Toggle: Common Transactions vs Dedicated Masters
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.all(4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _switchMode(true),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _isTransactionMode ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: _isTransactionMode
+                            ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.receipt_long_rounded,
+                            size: 18,
+                            color: _isTransactionMode ? (theme.primaryColor == Colors.white ? const Color(0xFF0F172A) : theme.primaryColor) : Colors.grey.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isHindi ? 'लेन-देन (स्टॉक, बिक्री, खरीद)' : 'Transactions (Stock, Sale, Purchase)',
+                            style: TextStyle(
+                              fontWeight: _isTransactionMode ? FontWeight.bold : FontWeight.w500,
+                              fontSize: 13,
+                              color: _isTransactionMode ? Colors.black87 : Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => _switchMode(false),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: !_isTransactionMode ? Colors.white : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: !_isTransactionMode
+                            ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 4, offset: const Offset(0, 2))]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.category_rounded,
+                            size: 18,
+                            color: !_isTransactionMode ? (theme.primaryColor == Colors.white ? const Color(0xFF0F172A) : theme.primaryColor) : Colors.grey.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isHindi ? 'मास्टर डेटा (उत्पाद, पार्टी)' : 'Masters (Item, Customer, etc.)',
+                            style: TextStyle(
+                              fontWeight: !_isTransactionMode ? FontWeight.bold : FontWeight.w500,
+                              fontSize: 13,
+                              color: !_isTransactionMode ? Colors.black87 : Colors.grey.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
           // Step 1: Type Selection Card
           Card(
             elevation: 2,
@@ -331,12 +463,14 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                     children: [
                       CircleAvatar(
                         radius: 14,
-                        backgroundColor: theme.primaryColor,
+                        backgroundColor: theme.primaryColor == Colors.white ? const Color(0xFF0F172A) : theme.primaryColor,
                         child: const Text('1', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        isHindi ? 'अपलोड प्रकार चुनें और टेम्पलेट डाउनलोड करें' : 'Select Upload Type & Template',
+                        _isTransactionMode
+                            ? (isHindi ? 'सामान्य लेन-देन टेम्पलेट' : 'Common Transaction Template')
+                            : (isHindi ? 'मास्टर प्रकार चुनें और टेम्पलेट डाउनलोड करें' : 'Select Master Type & Template'),
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -344,18 +478,62 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                   const SizedBox(height: 12),
                   if (_isLoadingTypes)
                     const Center(child: Padding(padding: EdgeInsets.all(8), child: CircularProgressIndicator()))
-                  else
+                  else if (_isTransactionMode) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, color: Colors.blue.shade700, size: 22),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              isHindi
+                                  ? 'एक ही टेम्पलेट में स्टॉक, बिक्री (Sale), खरीद (Purchase), और रिटर्न दर्ज करें। TransactionType कॉलम तय करता है।'
+                                  : 'Use one single template for Stock, Sales, Purchases, and Returns. Set the TransactionType column accordingly.',
+                              style: TextStyle(fontSize: 12.5, color: Colors.blue.shade900),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _isDownloadingTemplate ? null : _downloadTemplate,
+                        icon: _isDownloadingTemplate
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.download_rounded, size: 20),
+                        label: Text(
+                          _isDownloadingTemplate
+                              ? (isHindi ? 'डाउनलोड हो रहा है...' : 'Downloading Template...')
+                              : (isHindi ? 'सामान्य लेन-देन टेम्पलेट डाउनलोड करें (.xlsx)' : 'Download Common Transaction Template (.xlsx)'),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
+                  ] else ...[
                     Row(
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<UploadTypeModel>(
-                            value: _selectedType,
+                            value: _masterTypes.contains(_selectedType) ? _selectedType : (_masterTypes.isNotEmpty ? _masterTypes.first : null),
                             decoration: InputDecoration(
-                              labelText: isHindi ? 'प्रकार (Upload Type)' : 'Upload Type',
+                              labelText: isHindi ? 'मास्टर प्रकार' : 'Master Type',
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             ),
-                            items: _types.map((t) {
+                            items: _masterTypes.map((t) {
                               return DropdownMenuItem<UploadTypeModel>(
                                 value: t,
                                 child: Text('${t.name} (${t.code})'),
@@ -368,8 +546,10 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
-                          onPressed: _selectedType != null ? _downloadTemplate : null,
-                          icon: const Icon(Icons.download_rounded, size: 18),
+                          onPressed: (_selectedType != null && !_isDownloadingTemplate) ? _downloadTemplate : null,
+                          icon: _isDownloadingTemplate
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.download_rounded, size: 18),
                           label: Text(isHindi ? 'टेम्पलेट' : 'Template'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.teal.shade700,
@@ -380,12 +560,13 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                         ),
                       ],
                     ),
+                  ],
                 ],
               ),
             ),
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // Step 2: File Picker Card
           Card(
@@ -400,7 +581,7 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                     children: [
                       CircleAvatar(
                         radius: 14,
-                        backgroundColor: theme.primaryColor,
+                        backgroundColor: theme.primaryColor == Colors.white ? const Color(0xFF0F172A) : theme.primaryColor,
                         child: const Text('2', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 8),
@@ -599,13 +780,19 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             ElevatedButton.icon(
-              onPressed: _downloadReport,
-              icon: const Icon(Icons.table_view_rounded, size: 16),
-              label: Text(isHindi ? 'एक्सेल रिपोर्ट' : 'Download Report'),
+              onPressed: _isDownloadingReport ? null : _downloadReport,
+              icon: _isDownloadingReport
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.table_view_rounded, size: 16),
+              label: Text(
+                _isDownloadingReport
+                    ? (isHindi ? 'डाउनलोड हो रहा है...' : 'Downloading...')
+                    : (isHindi ? 'एक्सेल रिपोर्ट' : 'Download Report'),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.indigo.shade700,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
@@ -654,7 +841,7 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                 alignment: Alignment.center,
                 child: _isLoadingRows
                     ? const CircularProgressIndicator()
-                    : Text(isHindi ? 'कोई डेटा नहीं मिला' : 'No rows match filter criteria'),
+                    : Text(isHindi ? 'कोई पंक्ति नहीं मिली' : 'No rows match filter criteria'),
               )
             : ListView.builder(
                 shrinkWrap: true,
@@ -758,11 +945,11 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                     : (isFailed ? Colors.red.shade100 : Colors.amber.shade100),
                 child: Icon(
                   isSuccess
-                      ? Icons.check_circle_outline_rounded
-                      : (isFailed ? Icons.error_outline_rounded : Icons.hourglass_top_rounded),
+                    ? Icons.check_circle_outline_rounded
+                    : (isFailed ? Icons.error_outline_rounded : Icons.hourglass_top_rounded),
                   color: isSuccess
-                      ? Colors.green.shade700
-                      : (isFailed ? Colors.red.shade700 : Colors.amber.shade800),
+                    ? Colors.green.shade700
+                    : (isFailed ? Colors.red.shade700 : Colors.amber.shade800),
                 ),
               ),
               title: Text(

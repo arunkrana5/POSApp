@@ -2,13 +2,20 @@ class UploadTypeModel {
   final int id;
   final String code;
   final String name;
+  final String groupType;
 
-  UploadTypeModel({required this.id, required this.code, required this.name});
+  UploadTypeModel({
+    required this.id,
+    required this.code,
+    required this.name,
+    this.groupType = 'Master',
+  });
 
   factory UploadTypeModel.fromJson(Map<String, dynamic> json) => UploadTypeModel(
         id: json['id'] ?? 0,
         code: json['code'] ?? '',
         name: json['name'] ?? '',
+        groupType: json['groupType'] ?? 'Master',
       );
 }
 
