@@ -72,3 +72,29 @@ class BatchRowResult {
         message: json['message'],
       );
 }
+
+class BatchRowsPageResult {
+  final int total;
+  final int page;
+  final int pageSize;
+  final List<BatchRowResult> rows;
+
+  BatchRowsPageResult({
+    required this.total,
+    required this.page,
+    required this.pageSize,
+    required this.rows,
+  });
+
+  factory BatchRowsPageResult.fromJson(Map<String, dynamic> json) {
+    final rawList = json['rows'] as List? ?? [];
+    return BatchRowsPageResult(
+      total: (json['total'] is num)
+          ? (json['total'] as num).toInt()
+          : (json['totalCount'] is num ? (json['totalCount'] as num).toInt() : rawList.length),
+      page: (json['page'] is num) ? (json['page'] as num).toInt() : 1,
+      pageSize: (json['pageSize'] is num) ? (json['pageSize'] as num).toInt() : 50,
+      rows: rawList.map((x) => BatchRowResult.fromJson(x as Map<String, dynamic>)).toList(),
+    );
+  }
+}

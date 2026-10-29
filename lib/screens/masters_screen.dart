@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
@@ -21,6 +22,7 @@ class MastersScreen extends StatefulWidget {
 
 class _MastersScreenState extends State<MastersScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ScrollController _tabsScrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _activeOnly = false;
@@ -204,8 +206,104 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
   @override
   void dispose() {
     _tabController.dispose();
+    _tabsScrollController.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _scrollToTab(int index) {
+    if (_tabsScrollController.hasClients) {
+      final maxScroll = _tabsScrollController.position.maxScrollExtent;
+      final target = (index * 135.0 - 40.0).clamp(0.0, maxScroll);
+      _tabsScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _scrollTabsBy(double delta) {
+    if (_tabsScrollController.hasClients) {
+      final current = _tabsScrollController.offset;
+      final maxScroll = _tabsScrollController.position.maxScrollExtent;
+      final target = (current + delta).clamp(0.0, maxScroll);
+      _tabsScrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _showAllCategoriesSheet(BuildContext context, bool isHindi, bool isDark, Color primaryColor) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.grid_view_rounded, color: primaryColor, size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    isHindi ? 'सभी मास्टर वर्गीकरण' : 'All Master Categories',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: List.generate(_tabConfigs.length, (idx) {
+                      final config = _tabConfigs[idx];
+                      final count = _getListForTab(idx).length;
+                      final isSelected = _tabController.index == idx;
+                      final label = isHindi ? config['labelHi'] : config['labelEn'];
+                      final icon = config['icon'] as IconData;
+                      final color = config['color'] as Color;
+
+                      return ChoiceChip(
+                        avatar: Icon(icon, size: 18, color: isSelected ? Colors.white : color),
+                        label: Text('$label ($count)'),
+                        selected: isSelected,
+                        selectedColor: color,
+                        labelStyle: TextStyle(
+                          color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                        onSelected: (_) {
+                          Navigator.pop(ctx);
+                          _tabController.animateTo(idx);
+                          _scrollToTab(idx);
+                          setState(() {});
+                        },
+                      );
+                    }),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Map<String, String> _getHeaders() {
@@ -640,6 +738,7 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
     return InkWell(
       onTap: () {
         _tabController.animateTo(index);
+        _scrollToTab(index);
         setState(() {});
       },
       borderRadius: BorderRadius.circular(24),
@@ -792,26 +891,98 @@ class _MastersScreenState extends State<MastersScreen> with SingleTickerProvider
                 ),
               ],
             ),
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              child: Row(
-                children: List.generate(_tabConfigs.length, (idx) {
-                  final config = _tabConfigs[idx];
-                  final count = _getListForTab(idx).length;
-                  final isSelected = currentTabIndex == idx;
-                  return _buildTabPill(
-                    index: idx,
-                    tabConfig: config,
-                    count: count,
-                    isSelected: isSelected,
-                    isDark: isDark,
-                    primaryColor: primaryColor,
-                    isHindi: isHindi,
-                  );
-                }),
-              ),
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+            child: Row(
+              children: [
+                // Scroll Left Button (<)
+                Tooltip(
+                  message: isHindi ? 'बाएं स्क्रॉल करें' : 'Scroll Left',
+                  child: InkWell(
+                    onTap: () => _scrollTabsBy(-200),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300, width: 0.8),
+                      ),
+                      child: Icon(Icons.chevron_left_rounded, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Horizontal Scrollable Pills with Full Device Pointer Support
+                Expanded(
+                  child: ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      dragDevices: {
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.mouse,
+                        PointerDeviceKind.trackpad,
+                        PointerDeviceKind.stylus,
+                      },
+                    ),
+                    child: SingleChildScrollView(
+                      controller: _tabsScrollController,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: List.generate(_tabConfigs.length, (idx) {
+                          final config = _tabConfigs[idx];
+                          final count = _getListForTab(idx).length;
+                          final isSelected = currentTabIndex == idx;
+                          return _buildTabPill(
+                            index: idx,
+                            tabConfig: config,
+                            count: count,
+                            isSelected: isSelected,
+                            isDark: isDark,
+                            primaryColor: primaryColor,
+                            isHindi: isHindi,
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Scroll Right Button (>)
+                Tooltip(
+                  message: isHindi ? 'दाएं स्क्रॉल करें' : 'Scroll Right',
+                  child: InkWell(
+                    onTap: () => _scrollTabsBy(200),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300, width: 0.8),
+                      ),
+                      child: Icon(Icons.chevron_right_rounded, size: 20, color: isDark ? Colors.white70 : Colors.black87),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // View All Categories Grid / ChoiceChips Button
+                Tooltip(
+                  message: isHindi ? 'सभी वर्गीकरण सूची' : 'View All Categories List',
+                  child: InkWell(
+                    onTap: () => _showAllCategoriesSheet(context, isHindi, isDark, primaryColor),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: primaryColor.withOpacity(0.12),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: primaryColor.withOpacity(0.3), width: 0.8),
+                      ),
+                      child: Icon(Icons.grid_view_rounded, size: 19, color: primaryColor),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -1506,12 +1677,58 @@ class _MasterTabListViewState extends State<MasterTabListView> {
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        itemCount: _items.length + (_isLoadingMore ? 1 : 0),
+        itemCount: _items.length + 1,
         itemBuilder: (ctx, idx) {
           if (idx == _items.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Center(child: CircularProgressIndicator()),
+            if (_isLoadingMore) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(width: 10),
+                      Text('Loading more records...', style: TextStyle(fontSize: 12.5, color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              );
+            }
+            if (_hasMore) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 1.5,
+                    ),
+                    onPressed: _isLoadingMore ? null : () => _fetchItems(reset: false),
+                    icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+                    label: Text(
+                      widget.isHindi
+                          ? 'और रिकॉर्ड लोड करें (${_items.length} / $_totalCount)'
+                          : 'Load More Records (${_items.length} of $_totalCount loaded)',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Center(
+                child: Text(
+                  widget.isHindi
+                      ? 'सभी ${_items.length} रिकॉर्ड लोड हो चुके हैं'
+                      : 'All ${_items.length} records loaded',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+                ),
+              ),
             );
           }
           final item = _items[idx];

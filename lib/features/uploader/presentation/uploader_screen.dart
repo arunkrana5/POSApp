@@ -45,8 +45,9 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
   String _rowFilter = ''; // '', 'Valid', 'Synced', 'Error'
   int _rowsPage = 1;
   final int _rowsPageSize = 50;
+  int _totalBatchRows = 0;
   bool _isLoadingRows = false;
-  bool _hasMoreRows = true;
+  bool _hasMoreRows = false;
   final ScrollController _rowsScrollController = ScrollController();
 
   // History Tab
@@ -264,31 +265,37 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
   Future<void> _loadRows({bool reset = false, bool append = false}) async {
     if (_currentBatch == null) return;
 
-    if (reset) {
-      _rowsPage = 1;
-      _hasMoreRows = true;
-      setState(() => _batchRows = []);
-    } else if (append) {
-      _rowsPage++;
-    }
+    final targetPage = reset ? 1 : (append ? _rowsPage + 1 : _rowsPage);
 
-    setState(() => _isLoadingRows = true);
+    setState(() {
+      _isLoadingRows = true;
+      if (reset) {
+        _rowsPage = 1;
+        _batchRows = [];
+        _hasMoreRows = false;
+      }
+    });
+
     try {
-      final rows = await _repository.getBatchRows(
+      final pageResult = await _repository.getBatchRows(
         _currentBatch!.batchId,
         status: _rowFilter.isEmpty ? null : _rowFilter,
-        page: _rowsPage,
+        page: targetPage,
         pageSize: _rowsPageSize,
       );
 
       setState(() {
+        _rowsPage = targetPage;
+        _totalBatchRows = pageResult.total;
         if (reset) {
-          _batchRows = rows;
+          _batchRows = pageResult.rows;
         } else {
-          _batchRows.addAll(rows);
+          _batchRows.addAll(pageResult.rows);
         }
-        if (rows.length < _rowsPageSize) {
-          _hasMoreRows = false;
+        if (_totalBatchRows > 0) {
+          _hasMoreRows = _batchRows.length < _totalBatchRows;
+        } else {
+          _hasMoreRows = pageResult.rows.length >= _rowsPageSize;
         }
       });
     } catch (e) {
@@ -917,11 +924,8 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
             : ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: _batchRows.length + (_hasMoreRows ? 1 : 0),
+                itemCount: _batchRows.length,
                 itemBuilder: (context, index) {
-                  if (index >= _batchRows.length) {
-                    return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()));
-                  }
                   final row = _batchRows[index];
                   final isErr = row.status == 'Error';
                   return Card(
@@ -980,18 +984,76 @@ class _UploaderScreenState extends State<UploaderScreen> with SingleTickerProvid
                   );
                 },
               ),
-        if (_hasMoreRows)
+        if (_isLoadingRows)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                  const SizedBox(width: 10),
+                  Text(
+                    isHindi ? 'अतिरिक्त पंक्तियाँ लोड हो रही हैं...' : 'Loading additional rows...',
+                    style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (_hasMoreRows && !_isLoadingRows)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Center(
-              child: OutlinedButton.icon(
-                onPressed: _isLoadingRows ? null : () => _loadRows(append: true),
-                icon: _isLoadingRows
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.arrow_downward_rounded, size: 16),
-                label: Text(_isLoadingRows
-                    ? (isHindi ? 'लोड हो रहा है...' : 'Loading more rows...')
-                    : (isHindi ? 'और पंक्तियाँ लोड करें (${_batchRows.length} लोड की गईं)' : 'Load More Rows (${_batchRows.length} loaded)')),
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 1.5,
+                ),
+                onPressed: () => _loadRows(append: true),
+                icon: const Icon(Icons.arrow_downward_rounded, size: 16),
+                label: Text(
+                  _totalBatchRows > 0
+                      ? (isHindi
+                          ? 'और लोड करें (${_batchRows.length} / $_totalBatchRows पंक्ति)'
+                          : 'Load More Rows (${_batchRows.length} of $_totalBatchRows loaded)')
+                      : (isHindi ? 'और पंक्तियाँ लोड करें' : 'Load More Rows'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ),
+          ),
+        if (!_hasMoreRows && _batchRows.isNotEmpty && !_isLoadingRows)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_rounded, size: 16, color: Colors.green.shade700),
+                    const SizedBox(width: 6),
+                    Text(
+                      _totalBatchRows > 0
+                          ? (isHindi
+                              ? 'सभी $_totalBatchRows पंक्तियाँ लोड हो चुकी हैं'
+                              : 'All $_totalBatchRows rows loaded')
+                          : (isHindi
+                              ? 'सभी ${_batchRows.length} पंक्तियाँ लोड हो चुकी हैं'
+                              : 'All ${_batchRows.length} rows loaded'),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

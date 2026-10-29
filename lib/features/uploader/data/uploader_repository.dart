@@ -99,7 +99,7 @@ class UploaderRepository {
     }
   }
 
-  Future<List<BatchRowResult>> getBatchRows(
+  Future<BatchRowsPageResult> getBatchRows(
     String batchId, {
     String? status,
     int page = 1,
@@ -112,10 +112,18 @@ class UploaderRepository {
     final response = await http.get(Uri.parse(url), headers: _headers).timeout(const Duration(seconds: 15));
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
-      final List list = json['rows'] ?? [];
-      return list.map((x) => BatchRowResult.fromJson(x)).toList();
+      if (json is Map<String, dynamic>) {
+        return BatchRowsPageResult.fromJson(json);
+      }
+      final List list = json is List ? json : [];
+      return BatchRowsPageResult(
+        total: list.length,
+        page: page,
+        pageSize: pageSize,
+        rows: list.map((x) => BatchRowResult.fromJson(x as Map<String, dynamic>)).toList(),
+      );
     } else {
-      throw Exception('Failed to load batch rows');
+      throw Exception('Failed to load batch rows (${response.statusCode})');
     }
   }
 
